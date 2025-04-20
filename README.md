@@ -12,19 +12,25 @@ This application provides real-time transcription of speech with a minimalist GT
 
 This application was built primarily using iterative work on consumer-level LLMs and reasoner models, particularly OpenAI o3-mini-high and GPT 4o, as well as Claude 3.7 Thinking by Anthropic.
 
-The application is optimized for English and transcription only. This can easily be adjusted in the transcriber code. This application runs stably in Ubuntu 24.04 on PC with NVIDIA 1660 Ti, 6GB of VRAM, and a 9th generation Intel i7. Enjoy!
+The application is optimized for English transcription but can easily be adjusted in the transcriber code. This application has been tested on two hardware configurations:
 
-A green status bar was added so you know when it is detecting audio.
+- Basic configuration: Ubuntu 24.04 with an NVIDIA 1660 Ti (6GB VRAM) and 9th gen Intel i7, using the "small" Whisper model
+- Enhanced configuration: Modern system with an NVIDIA 4070 Ti, using the "medium"/"large" Whisper models for better quality transcription
 
-Given distribution issue, at present to run I recommend a fresh terminal, activating VENV in your PATH, and running gui-v0.8.py,
+The current version is configured for a 5-minute (300 second) automatic transcription window in normal mode, and long recording mode can record up to 3 minutes before processing automatically. These settings can be adjusted in the `transcriber_v12.py` file by modifying the `DEFAULT_CHUNK_DURATION` and long recording timeout values.
+
+A green status bar indicates when audio is being detected. The audio chime feedback allows you to minimize the window to the background while still being aware of transcription state changes.
+
+To run the application in typical fashion, open a terminal, activate your virtual environment, and run the GUI script:
 
 ## ✨ Features
 
-- **Real-time transcription** with OpenAI's Whisper model
-- **GPU acceleration** for improved performance
+- **Real-time transcription** with OpenAI's Whisper model (configurable from "small" to "large" size)
+- **GPU acceleration** for improved performance on NVIDIA GPUs
 - **Two recording modes**:
-  - **Normal mode**: Processes audio in 30-second chunks with 1-second overlap
+  - **Normal mode**: Processes audio in 5-minute chunks with 1-second overlap
   - **Long recording mode**: Captures extended speech (up to 3 minutes) before processing
+- **Hardware adaptability**: Works with modest GPUs (1660 Ti) or more powerful ones (4070 Ti)
 - **Optimized for technical vocabulary** with priming for programming/ML terminology
 - **Keyboard shortcuts**:
   - Spacebar to toggle recording in normal mode (when window is focused)
@@ -32,6 +38,7 @@ Given distribution issue, at present to run I recommend a fresh terminal, activa
 - **Audio feedback** with pleasant chime sound when toggling transcription
 - **Auto-clipboard copying** of transcriptions
 - **Minimal, always-on-top UI** with transparency
+- **Background operation** with multiple launch options
 
 ## 🛠️ Installation
 
@@ -68,17 +75,58 @@ Given distribution issue, at present to run I recommend a fresh terminal, activa
 
 ## 🚀 Usage
 
+### Basic Usage
+
 Run the application:
 ```bash
 python src/gui-v0.8.py
 ```
 
-Controls:
+### Running in Background
+
+To run the application without keeping the terminal open, use:
+```bash
+nohup python src/gui-v0.8.py > /dev/null 2>&1 &
+```
+
+### Creating a Simple Alias
+
+For convenience, you can add an alias to your `~/.bashrc` or `~/.zshrc` file:
+```bash
+# Add to ~/.bashrc
+alias transcribe='cd /path/to/MyTranscribe && source venv/bin/activate && python src/gui-v0.8.py'
+
+# Or for background running
+alias transcribe-bg='cd /path/to/MyTranscribe && source venv/bin/activate && nohup python src/gui-v0.8.py > /dev/null 2>&1 &'
+```
+Then apply the changes:
+```bash
+source ~/.bashrc  # or source ~/.zshrc
+```
+
+### Creating a Desktop Shortcut
+
+Create a desktop file at `~/.local/share/applications/mytranscribe.desktop`:
+```
+[Desktop Entry]
+Name=MyTranscribe
+Exec=bash -c "cd /path/to/MyTranscribe && source venv/bin/activate && python src/gui-v0.8.py"
+Type=Application
+Icon=/path/to/icon.png  # Optional
+Comment=Real-time speech transcription
+Terminal=false
+Categories=Utility;AudioVideo;
+```
+
+### Controls
+
 - **Start**: Begin transcribing in normal mode
-- **Long Record**: Begin extended recording session
+- **Long Record**: Begin extended recording session 
 - **Stop**: End recording and finalize transcription
 - **Spacebar**: Toggle recording in normal mode (when window is focused)
 - **Ctrl+Alt+Q**: Toggle recording in normal mode (works globally from any application)
+
+With the audio chime feedback, you can minimize the window and still know when transcription starts/stops.
 
 ## 🏗️ Project Structure
 
@@ -94,6 +142,41 @@ Controls:
 - **TranscriptionApp** (in gui-v0.8.py): Handles the GTK UI, button events, UI updating, and global hotkey support
 - **RealTimeTranscriber** (in transcriber_v12.py): Manages audio recording, processing, and transcription
 - **ChimePlayer** (in sound_utils.py): Provides audio feedback for user interactions
+
+### Customization
+
+#### Changing Whisper Model Size
+
+To adjust the model size for better quality or faster transcription, edit `gui-v0.8.py` and modify the model loading line:
+
+```python
+# Line 74: Change "small" to "tiny", "base", "medium", or "large"
+self.model = whisper.load_model("small", device=self.device)
+```
+
+Larger models provide better quality but require more VRAM and processing power:
+- `tiny`: Fastest, lowest quality, ~1GB VRAM
+- `base`: Good balance for weak GPUs, ~1GB VRAM
+- `small`: Better quality, ~2GB VRAM
+- `medium`: High quality, ~5GB VRAM
+- `large`: Best quality, ~10GB VRAM
+
+#### Modifying Recording Duration
+
+To adjust the length of automatic transcription chunks in normal mode, edit `transcriber_v12.py`:
+
+```python
+# Line 16: Change recording duration (in seconds)
+DEFAULT_CHUNK_DURATION = 300  # 5 minutes
+```
+
+To change the long recording mode auto-stop duration:
+
+```python
+# Line 138: Adjust the timeout duration (in seconds)
+if time.time() - self.long_start_time >= 180:  # 3 minutes
+    self.running = False
+```
 
 ## 🔮 Future Development
 
