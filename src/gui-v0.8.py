@@ -218,13 +218,12 @@ class TranscriptionApp:
             pass
     
     def toggle_transcription(self):
-        # Play audio feedback chime
-        self.chime_player.play()
-        
         if self.transcribing and self.recording_mode == "normal":
             logging.info("Stopping transcription via global hotkey")
             self.stop_transcription()
         elif not self.transcribing:
+            # Play start audio feedback chime
+            self.chime_player.play_start()
             logging.info("Starting transcription via global hotkey")
             self.start_transcription()
             # Ensure window is visible when started via global hotkey
@@ -234,17 +233,19 @@ class TranscriptionApp:
     def on_key_press(self, widget, event):
         if event.keyval == Gdk.KEY_space:
             # Only toggle via space bar if in normal mode.
-            # Play audio feedback chime
-            self.chime_player.play()
-            
             if self.transcribing and self.recording_mode == "normal":
                 self.stop_transcription()
             elif not self.transcribing:
+                # Play start audio feedback chime
+                self.chime_player.play_start()
                 self.start_transcription()
     
     def start_transcription(self, widget=None):
         if self.transcribing:
             return
+        # Play start audio chime if triggered via button click
+        if widget:
+            self.chime_player.play_start()
         self.recording_mode = "normal"
         self.transcribing = True
         self.text_buffer.set_text("")
@@ -258,6 +259,8 @@ class TranscriptionApp:
     def start_long_recording(self, widget=None):
         if self.transcribing:
             return
+        # Play start audio chime
+        self.chime_player.play_start()
         self.recording_mode = "long"
         self.transcribing = True
         self.text_buffer.set_text("")
@@ -271,6 +274,8 @@ class TranscriptionApp:
     def stop_transcription(self, widget=None):
         if not self.transcribing:
             return
+        # Play end audio chime
+        self.chime_player.play_end()
         self.transcribing = False
         self.recording_mode = None
         if self.update_timeout_id:
