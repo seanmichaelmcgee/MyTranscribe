@@ -1,6 +1,11 @@
 # GUI and Transcriber Changes
 
-## Version 0.8 (Current)
+## Version 0.9 (Current)
+- Added audio feedback chime when toggling transcription via hotkeys
+- Created ChimePlayer utility for pleasant sound effects
+- Improved resource management for audio components
+
+## Version 0.8
 - Added global hotkey support (Ctrl+Alt+Q) for toggling transcription from anywhere
 - Added proper cleanup of keyboard listener on window close
 - Implemented window raising when activated via global hotkey

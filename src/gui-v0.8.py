@@ -7,6 +7,7 @@ import numpy as np
 import logging
 from transcriber_v12 import RealTimeTranscriber
 from pynput import keyboard
+from sound_utils import ChimePlayer
 
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk, GLib
@@ -72,6 +73,9 @@ class TranscriptionApp:
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.model = whisper.load_model("small", device=self.device)
         self.transcriber = RealTimeTranscriber(self.model)
+        
+        # Initialize chime player for audio feedback
+        self.chime_player = ChimePlayer()
         
         # Setup global hotkey tracking
         self.ctrl_pressed = False
@@ -166,6 +170,11 @@ class TranscriptionApp:
     def on_destroy(self, widget):
         if self.listener.is_alive():
             self.listener.stop()
+        
+        # Clean up audio resources
+        if hasattr(self, 'chime_player'):
+            self.chime_player.cleanup()
+            
         Gtk.main_quit()
         
     def on_global_press(self, key):
@@ -209,6 +218,9 @@ class TranscriptionApp:
             pass
     
     def toggle_transcription(self):
+        # Play audio feedback chime
+        self.chime_player.play()
+        
         if self.transcribing and self.recording_mode == "normal":
             logging.info("Stopping transcription via global hotkey")
             self.stop_transcription()
@@ -222,6 +234,9 @@ class TranscriptionApp:
     def on_key_press(self, widget, event):
         if event.keyval == Gdk.KEY_space:
             # Only toggle via space bar if in normal mode.
+            # Play audio feedback chime
+            self.chime_player.play()
+            
             if self.transcribing and self.recording_mode == "normal":
                 self.stop_transcription()
             elif not self.transcribing:

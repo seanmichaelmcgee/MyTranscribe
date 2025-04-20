@@ -2,7 +2,7 @@
 
 A lightweight, GPU-accelerated real-time speech transcription application powered by OpenAI's Whisper model.
 
-![Version](https://img.shields.io/badge/version-0.8-blue)
+![Version](https://img.shields.io/badge/version-0.9-blue)
 ![Python](https://img.shields.io/badge/python-3.8+-green)
 ![License](https://img.shields.io/badge/license-MIT-orange)
 
@@ -29,6 +29,7 @@ Given distribution issue, at present to run I recommend a fresh terminal, activa
 - **Keyboard shortcuts**:
   - Spacebar to toggle recording in normal mode (when window is focused)
   - Ctrl+Alt+Q to toggle recording from anywhere (global hotkey)
+- **Audio feedback** with pleasant chime sound when toggling transcription
 - **Auto-clipboard copying** of transcriptions
 - **Minimal, always-on-top UI** with transparency
 
@@ -82,15 +83,17 @@ Controls:
 ## 🏗️ Project Structure
 
 ```
-├── src/gui-v0.8.py         # GTK user interface
-├── src/transcriber_v12.py # Whisper-based transcription engine
-└── requirements.txt      # Project dependencies
+├── src/gui-v0.8.py          # GTK user interface
+├── src/transcriber_v12.py   # Whisper-based transcription engine
+├── src/sound_utils.py       # Audio feedback utilities
+└── requirements.txt         # Project dependencies
 ```
 
 ### Core Components
 
 - **TranscriptionApp** (in gui-v0.8.py): Handles the GTK UI, button events, UI updating, and global hotkey support
 - **RealTimeTranscriber** (in transcriber_v12.py): Manages audio recording, processing, and transcription
+- **ChimePlayer** (in sound_utils.py): Provides audio feedback for user interactions
 
 ## 🔮 Future Development
 
