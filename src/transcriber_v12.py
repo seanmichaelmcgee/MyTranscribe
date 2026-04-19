@@ -219,7 +219,13 @@ class RealTimeTranscriber:
             self.transcriptions.append(f"[Transcription Error: {e}]")
         finally:
             if wav_filename and os.path.exists(wav_filename):
-                os.remove(wav_filename)
+                try:
+                    os.remove(wav_filename)
+                except OSError:
+                    # Windows holds an exclusive delete lock if ffmpeg/torchaudio
+                    # still has the file open; silently skip — the OS will remove
+                    # it when the last handle is closed.
+                    pass
         self.partial_frames = []
 
     def force_process_partial_frames(self):
