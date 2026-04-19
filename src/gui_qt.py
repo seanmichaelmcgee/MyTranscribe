@@ -1,15 +1,17 @@
 """
-gui_qt.py — PyQt6 GUI for MyTranscribe (Windows port, Phase 3).
+gui_qt.py — PyQt6 GUI for MyTranscribe (Windows port, Phase 4).
 
-Replaces src/gui-v0.8.py (GTK3/Linux). Feature-parity with the GTK original;
-global hotkey (Ctrl+Alt+Q) is Phase 4 — see stub comment below.
+Replaces src/gui-v0.8.py (GTK3/Linux). Feature-parity with the GTK original,
+including the global Ctrl+Alt+Q hotkey via pynput (Phase 4).
 
-Controls: mouse clicks and spacebar only (Phase 3).
+Controls: mouse clicks, spacebar, and global Ctrl+Alt+Q hotkey.
 Architecture:
   - Single QMainWindow (TranscriptionWindow).
   - Whisper inference runs in a plain threading.Thread (owned by RealTimeTranscriber).
   - Audio indicator and text area are polled every 30 ms by a QTimer on the GUI thread.
   - All widget access happens on the GUI thread (no QThread, no lock-free writes to Qt).
+  - HotkeyBridge owns the pynput Listener; it emits hotkey_pressed via pyqtSignal
+    using QueuedConnection so the slot always runs on the GUI thread (Risk R08, R23).
 """
 
 import sys
@@ -149,77 +151,97 @@ class AppState(Enum):
     # before stop_recording() is called.
 
 
-# ── Phase 4 stub ──────────────────────────────────────────────────────────────
-# HotkeyBridge (pynput Ctrl+Alt+Q global hotkey) is Phase 4 work.
-# When Phase 4 is ready, paste the full HotkeyBridge class here and:
-#   1. Instantiate it in TranscriptionWindow.__init__ (see stub comment there).
-#   2. Connect hotkey_pressed → self.on_hotkey with QueuedConnection.
-#   3. Call self._hotkey_bridge.start() after the connection.
-#   4. Call self._hotkey_bridge.stop() in closeEvent.
-#
-# Phase 4 HotkeyBridge skeleton (do not delete this comment):
-#
-# class HotkeyBridge(QObject):
-#     hotkey_pressed = pyqtSignal()
-#
-#     def __init__(self, parent=None):
-#         super().__init__(parent)
-#         self._ctrl_pressed = False
-#         self._alt_pressed  = False
-#         self._q_pressed    = False
-#         self._listener     = None
-#
-#     def start(self):
-#         self._listener = pynput_keyboard.Listener(
-#             on_press=self._on_press,
-#             on_release=self._on_release,
-#         )
-#         self._listener.daemon = True
-#         self._listener.start()
-#
-#     def stop(self):
-#         if self._listener is not None:
-#             self._listener.stop()
-#             self._listener.join(timeout=2.0)
-#             if self._listener.is_alive():
-#                 logger.warning("pynput listener did not stop within 2 s; continuing shutdown")
-#
-#     def _on_press(self, key):
-#         try:
-#             if key in (pynput_keyboard.Key.ctrl,
-#                        pynput_keyboard.Key.ctrl_l,
-#                        pynput_keyboard.Key.ctrl_r):
-#                 self._ctrl_pressed = True
-#             elif key in (pynput_keyboard.Key.alt,
-#                          pynput_keyboard.Key.alt_l,
-#                          pynput_keyboard.Key.alt_r):
-#                 self._alt_pressed = True
-#             elif (hasattr(key, "char") and key.char == "q") or \
-#                  key == pynput_keyboard.KeyCode.from_char("q"):
-#                 self._q_pressed = True
-#
-#             if self._ctrl_pressed and self._alt_pressed and self._q_pressed:
-#                 logger.info("Global hotkey Ctrl+Alt+Q detected")
-#                 self.hotkey_pressed.emit()   # queued → runs on GUI thread
-#                 self._q_pressed = False      # single-fire reset
-#         except (AttributeError, TypeError) as exc:
-#             logger.debug("Exception in _on_press: %s", exc)
-#
-#     def _on_release(self, key):
-#         try:
-#             if key in (pynput_keyboard.Key.ctrl,
-#                        pynput_keyboard.Key.ctrl_l,
-#                        pynput_keyboard.Key.ctrl_r):
-#                 self._ctrl_pressed = False
-#             elif key in (pynput_keyboard.Key.alt,
-#                          pynput_keyboard.Key.alt_l,
-#                          pynput_keyboard.Key.alt_r):
-#                 self._alt_pressed = False
-#             elif (hasattr(key, "char") and key.char == "q") or \
-#                  key == pynput_keyboard.KeyCode.from_char("q"):
-#                 self._q_pressed = False
-#         except (AttributeError, TypeError):
-#             pass
+# ── HotkeyBridge ─────────────────────────────────────────────────────────────
+class HotkeyBridge(QObject):
+    """
+    Threading bridge between the pynput OS keyboard thread and the Qt GUI thread.
+
+    Owns the pynput Listener. Emits hotkey_pressed onto the Qt event queue so
+    that ZERO widget calls happen on the pynput OS thread (Risk R08, R23, R25).
+
+    The signal is connected to TranscriptionWindow.on_hotkey with
+    Qt.ConnectionType.QueuedConnection — this is MANDATORY.
+
+    Lifetime: constructed in TranscriptionWindow.__init__, started via start(),
+    stopped via stop() from closeEvent. Qt parent is the TranscriptionWindow so
+    Qt-side memory is reclaimed with the window. The listener itself is stopped
+    explicitly via stop() because Qt parentage does NOT call Python stop() methods.
+    """
+
+    hotkey_pressed = pyqtSignal()
+
+    def __init__(self, parent: QObject | None = None) -> None:
+        super().__init__(parent)
+        self._ctrl_pressed: bool = False
+        self._alt_pressed:  bool = False
+        self._q_pressed:    bool = False
+        self._listener: pynput_keyboard.Listener | None = None
+
+    def start(self) -> None:
+        """Create and start the pynput keyboard listener (daemon thread)."""
+        self._listener = pynput_keyboard.Listener(
+            on_press=self._on_press,
+            on_release=self._on_release,
+        )
+        self._listener.daemon = True   # OS reclaims thread on process exit
+        self._listener.start()
+        logger.info("pynput keyboard listener started")
+
+    def stop(self) -> None:
+        """Stop the pynput listener and wait up to 2 s for it to exit."""
+        if self._listener is not None:
+            self._listener.stop()
+            self._listener.join(timeout=2.0)
+            if self._listener.is_alive():
+                logger.warning(
+                    "pynput listener did not stop within 2 s; continuing shutdown"
+                )
+
+    def _on_press(self, key) -> None:
+        """
+        pynput callback — runs on the pynput OS thread.
+        Updates modifier flags; emits hotkey_pressed when Ctrl+Alt+Q is held.
+        MUST NOT touch any Qt widget directly.
+        """
+        try:
+            if key in (pynput_keyboard.Key.ctrl,
+                       pynput_keyboard.Key.ctrl_l,
+                       pynput_keyboard.Key.ctrl_r):
+                self._ctrl_pressed = True
+            elif key in (pynput_keyboard.Key.alt,
+                         pynput_keyboard.Key.alt_l,
+                         pynput_keyboard.Key.alt_r):
+                self._alt_pressed = True
+            elif (hasattr(key, "char") and key.char == "q") or \
+                 key == pynput_keyboard.KeyCode.from_char("q"):
+                self._q_pressed = True
+
+            if self._ctrl_pressed and self._alt_pressed and self._q_pressed:
+                logger.info("Global hotkey Ctrl+Alt+Q detected")
+                self.hotkey_pressed.emit()   # QueuedConnection → runs on GUI thread
+                self._q_pressed = False      # single-fire reset: prevent key-repeat
+        except (AttributeError, TypeError) as exc:
+            logger.debug("Exception in _on_press: %s", exc)
+
+    def _on_release(self, key) -> None:
+        """
+        pynput callback — runs on the pynput OS thread.
+        Clears modifier flags. MUST NOT touch any Qt widget directly.
+        """
+        try:
+            if key in (pynput_keyboard.Key.ctrl,
+                       pynput_keyboard.Key.ctrl_l,
+                       pynput_keyboard.Key.ctrl_r):
+                self._ctrl_pressed = False
+            elif key in (pynput_keyboard.Key.alt,
+                         pynput_keyboard.Key.alt_l,
+                         pynput_keyboard.Key.alt_r):
+                self._alt_pressed = False
+            elif (hasattr(key, "char") and key.char == "q") or \
+                 key == pynput_keyboard.KeyCode.from_char("q"):
+                self._q_pressed = False
+        except (AttributeError, TypeError):
+            pass
 
 
 # ── Main window ───────────────────────────────────────────────────────────────
@@ -236,8 +258,8 @@ class TranscriptionWindow(QMainWindow):
         to transcriber.transcriptions / transcriber.audio_detected.
       - The GUI reads those attributes via a 30 ms QTimer (lock-free; one-tick
         staleness is acceptable per UX contract §6.3).
-      - Phase 4 will add HotkeyBridge; its signal uses QueuedConnection so the
-        slot always runs on the GUI thread.
+      - HotkeyBridge owns the pynput Listener (OS thread); its hotkey_pressed
+        signal uses QueuedConnection so on_hotkey always runs on the GUI thread.
     """
 
     def __init__(self) -> None:
@@ -274,15 +296,15 @@ class TranscriptionWindow(QMainWindow):
         # ── Build UI ─────────────────────────────────────────────────────────
         self._build_ui()
 
-        # ── Phase 4 hotkey bridge (stub) ─────────────────────────────────────
-        # Phase 4: instantiate HotkeyBridge here, connect signal, call start().
-        # self._hotkey_bridge = HotkeyBridge(parent=self)
-        # self._hotkey_bridge.hotkey_pressed.connect(
-        #     self.on_hotkey,
-        #     Qt.ConnectionType.QueuedConnection   # MANDATORY — Risk R08, R23
-        # )
-        # self._hotkey_bridge.start()
-        self._hotkey_bridge = None  # Phase 4 placeholder
+        # ── Global hotkey bridge (Phase 4) ───────────────────────────────────
+        # HotkeyBridge owns the pynput Listener and emits hotkey_pressed on the
+        # pynput OS thread. QueuedConnection ensures on_hotkey runs on the GUI thread.
+        self._hotkey_bridge = HotkeyBridge(parent=self)
+        self._hotkey_bridge.hotkey_pressed.connect(
+            self.on_hotkey,
+            Qt.ConnectionType.QueuedConnection   # MANDATORY — Risk R08, R23
+        )
+        self._hotkey_bridge.start()
 
         # ── Poll timer (started only when recording is active) ───────────────
         self._poll_timer = QTimer(self)
@@ -515,19 +537,16 @@ class TranscriptionWindow(QMainWindow):
         # All other keys pass through — lets Alt+F4, Win, etc. work normally (UX §4.3)
         super().keyPressEvent(event)
 
-    # ── Global hotkey slot (Phase 4) ──────────────────────────────────────────
+    # ── Global hotkey slot ────────────────────────────────────────────────────
     def on_hotkey(self) -> None:
         """
-        Phase 4 slot — connected to HotkeyBridge.hotkey_pressed (QueuedConnection).
+        Slot connected to HotkeyBridge.hotkey_pressed (QueuedConnection).
         Runs on the GUI thread. Mirrors toggle_transcription() from gui-v0.8.py.
 
         UX §4.2 semantics:
         - Idle           → start NormalRecording + bring window forward
         - NormalRecording → stop
         - LongRecording  → NO-OP (confirmed in original toggle_transcription source)
-
-        This method is fully implemented and tested in Phase 3 via button surrogate;
-        it becomes live when Phase 4 wires HotkeyBridge.hotkey_pressed to this slot.
         """
         if self._state == AppState.IDLE:
             # Bring window forward (UX §1.10)
@@ -542,9 +561,8 @@ class TranscriptionWindow(QMainWindow):
     def closeEvent(self, event) -> None:
         logger.info("closeEvent: beginning shutdown")
 
-        # 1. Stop pynput listener (Phase 4 — guarded with None check for Phase 3)
-        if self._hotkey_bridge is not None:
-            self._hotkey_bridge.stop()   # Phase 4: calls listener.stop() + join(timeout=2.0)
+        # 1. Stop pynput listener (Risk R29)
+        self._hotkey_bridge.stop()   # listener.stop() + join(timeout=2.0)
 
         # 2. Stop poll timer
         self._poll_timer.stop()
@@ -598,8 +616,7 @@ def main() -> None:
     app.setStyleSheet(APP_QSS)
 
     logger.info("Starting MyTranscribe application")
-    # Phase 4 note: "Global hotkey Ctrl+Alt+Q enabled" log line goes here once
-    # HotkeyBridge is wired.
+    logger.info("Global hotkey Ctrl+Alt+Q enabled")
 
     window = TranscriptionWindow()
     window.show()
