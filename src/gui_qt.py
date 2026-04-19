@@ -156,92 +156,55 @@ class HotkeyBridge(QObject):
     """
     Threading bridge between the pynput OS keyboard thread and the Qt GUI thread.
 
-    Owns the pynput Listener. Emits hotkey_pressed onto the Qt event queue so
-    that ZERO widget calls happen on the pynput OS thread (Risk R08, R23, R25).
+    Uses pynput.keyboard.GlobalHotKeys — the library-provided combo parser that
+    correctly handles Windows-specific quirks (virtual key codes, Ctrl+letter
+    producing control characters instead of the letter, etc.).
+
+    Manual modifier-tracking via a raw Listener does NOT work reliably on
+    Windows because when Ctrl is held, Q arrives as '\\x11' (DC1 control char)
+    rather than 'q', breaking a naïve `key.char == 'q'` check. GlobalHotKeys
+    resolves keys by virtual key code under the hood.
 
     The signal is connected to TranscriptionWindow.on_hotkey with
-    Qt.ConnectionType.QueuedConnection — this is MANDATORY.
-
-    Lifetime: constructed in TranscriptionWindow.__init__, started via start(),
-    stopped via stop() from closeEvent. Qt parent is the TranscriptionWindow so
-    Qt-side memory is reclaimed with the window. The listener itself is stopped
-    explicitly via stop() because Qt parentage does NOT call Python stop() methods.
+    Qt.ConnectionType.QueuedConnection — this is MANDATORY because the pynput
+    thread must never mutate Qt widgets (Risk R08, R23, R25).
     """
 
     hotkey_pressed = pyqtSignal()
 
+    HOTKEY = "<ctrl>+<alt>+q"
+
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
-        self._ctrl_pressed: bool = False
-        self._alt_pressed:  bool = False
-        self._q_pressed:    bool = False
-        self._listener: pynput_keyboard.Listener | None = None
+        self._listener: pynput_keyboard.GlobalHotKeys | None = None
 
     def start(self) -> None:
-        """Create and start the pynput keyboard listener (daemon thread)."""
-        self._listener = pynput_keyboard.Listener(
-            on_press=self._on_press,
-            on_release=self._on_release,
-        )
+        """Create and start the GlobalHotKeys listener (daemon thread)."""
+        self._listener = pynput_keyboard.GlobalHotKeys({
+            self.HOTKEY: self._on_activate,
+        })
         self._listener.daemon = True   # OS reclaims thread on process exit
         self._listener.start()
-        logger.info("pynput keyboard listener started")
+        logger.info("GlobalHotKeys listener started for %s", self.HOTKEY)
 
     def stop(self) -> None:
-        """Stop the pynput listener and wait up to 2 s for it to exit."""
+        """Stop the listener and wait up to 2 s for it to exit."""
         if self._listener is not None:
             self._listener.stop()
             self._listener.join(timeout=2.0)
             if self._listener.is_alive():
                 logger.warning(
-                    "pynput listener did not stop within 2 s; continuing shutdown"
+                    "GlobalHotKeys listener did not stop within 2 s; continuing shutdown"
                 )
 
-    def _on_press(self, key) -> None:
+    def _on_activate(self) -> None:
         """
-        pynput callback — runs on the pynput OS thread.
-        Updates modifier flags; emits hotkey_pressed when Ctrl+Alt+Q is held.
-        MUST NOT touch any Qt widget directly.
+        GlobalHotKeys callback — runs on the pynput OS thread when the full
+        Ctrl+Alt+Q combination is pressed. MUST NOT touch any Qt widget directly.
+        Emitting the signal with a QueuedConnection hops to the GUI thread.
         """
-        try:
-            if key in (pynput_keyboard.Key.ctrl,
-                       pynput_keyboard.Key.ctrl_l,
-                       pynput_keyboard.Key.ctrl_r):
-                self._ctrl_pressed = True
-            elif key in (pynput_keyboard.Key.alt,
-                         pynput_keyboard.Key.alt_l,
-                         pynput_keyboard.Key.alt_r):
-                self._alt_pressed = True
-            elif (hasattr(key, "char") and key.char == "q") or \
-                 key == pynput_keyboard.KeyCode.from_char("q"):
-                self._q_pressed = True
-
-            if self._ctrl_pressed and self._alt_pressed and self._q_pressed:
-                logger.info("Global hotkey Ctrl+Alt+Q detected")
-                self.hotkey_pressed.emit()   # QueuedConnection → runs on GUI thread
-                self._q_pressed = False      # single-fire reset: prevent key-repeat
-        except (AttributeError, TypeError) as exc:
-            logger.debug("Exception in _on_press: %s", exc)
-
-    def _on_release(self, key) -> None:
-        """
-        pynput callback — runs on the pynput OS thread.
-        Clears modifier flags. MUST NOT touch any Qt widget directly.
-        """
-        try:
-            if key in (pynput_keyboard.Key.ctrl,
-                       pynput_keyboard.Key.ctrl_l,
-                       pynput_keyboard.Key.ctrl_r):
-                self._ctrl_pressed = False
-            elif key in (pynput_keyboard.Key.alt,
-                         pynput_keyboard.Key.alt_l,
-                         pynput_keyboard.Key.alt_r):
-                self._alt_pressed = False
-            elif (hasattr(key, "char") and key.char == "q") or \
-                 key == pynput_keyboard.KeyCode.from_char("q"):
-                self._q_pressed = False
-        except (AttributeError, TypeError):
-            pass
+        logger.info("Global hotkey Ctrl+Alt+Q detected")
+        self.hotkey_pressed.emit()
 
 
 # ── Main window ───────────────────────────────────────────────────────────────
