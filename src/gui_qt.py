@@ -341,6 +341,19 @@ class TranscriptionWindow(QMainWindow):
         self._transcriber = RealTimeTranscriber(self._model)
         logger.info("Whisper model loaded on %s", self._device)
 
+        # CUDA warmup — run one dummy inference on silence so kernel compilation
+        # and cuDNN autotuning happen NOW (during the "Loading model..." phase)
+        # instead of on the user's first real Stop, which otherwise freezes the
+        # GUI for 1-2 s. No-op on CPU.
+        if self._device == "cuda":
+            try:
+                import numpy as _np
+                _silent = _np.zeros(16000, dtype=_np.float32)  # 1 s of silence
+                self._model.transcribe(_silent, fp16=True, language="en", task="transcribe")
+                logger.info("CUDA warmup complete")
+            except Exception as exc:
+                logger.warning("CUDA warmup skipped: %s", exc)
+
     # ── UI construction ────────────────────────────────────────────────────────
     def _build_ui(self) -> None:
         """Constructs all widgets, sets objectNames, wires click signals, assembles layouts."""
