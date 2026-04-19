@@ -1,3 +1,4 @@
+import os
 import sys
 import time
 import gi
@@ -71,7 +72,10 @@ class TranscriptionApp:
         self.update_timeout_id = None
         
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.model = whisper.load_model("small", device=self.device)
+        # Default "small" matches the original Linux hardware config; override
+        # via env var to use a larger model on beefier GPUs (mirrors gui_qt.py).
+        model_name = os.environ.get("MYTRANSCRIBE_MODEL", "small")
+        self.model = whisper.load_model(model_name, device=self.device)
         self.transcriber = RealTimeTranscriber(self.model)
         
         # Initialize chime player for audio feedback

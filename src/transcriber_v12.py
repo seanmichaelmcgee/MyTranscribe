@@ -74,6 +74,19 @@ class RealTimeTranscriber:
         if self.long_mode:
             self.long_frames = []
             self.long_start_time = time.time()
+        # Log which input device PyAudio will use (helps diagnose wrong-device capture)
+        try:
+            default_info = self.audio_interface.get_default_input_device_info()
+            logging.info(
+                "Opening input stream on device [%s] index=%s rate=%s channels=%s",
+                default_info.get("name"),
+                default_info.get("index"),
+                default_info.get("defaultSampleRate"),
+                default_info.get("maxInputChannels"),
+            )
+        except Exception as exc:
+            logging.warning("Could not query default input device: %s", exc)
+
         # Open audio stream
         self.stream = self.audio_interface.open(
             format=FORMAT,
@@ -107,8 +120,8 @@ class RealTimeTranscriber:
         # Calculate RMS (Root Mean Square)
         rms = np.sqrt(np.mean(np.square(audio_array.astype(np.float32))))
         
-        # Threshold for detecting active speech (may need adjustment)
-        threshold = 300
+        # Threshold for detecting active speech (lowered from 300 to catch whispers)
+        threshold = 80
         
         # Set the detection flag if audio is above threshold
         if rms > threshold:
@@ -219,7 +232,13 @@ class RealTimeTranscriber:
             self.transcriptions.append(f"[Transcription Error: {e}]")
         finally:
             if wav_filename and os.path.exists(wav_filename):
-                os.remove(wav_filename)
+                try:
+                    os.remove(wav_filename)
+                except OSError:
+                    # Windows holds an exclusive delete lock if ffmpeg/torchaudio
+                    # still has the file open; silently skip — the OS will remove
+                    # it when the last handle is closed.
+                    pass
         self.partial_frames = []
 
     def force_process_partial_frames(self):
@@ -253,13 +272,18 @@ class RealTimeTranscriber:
             
         # Calculate RMS energy
         rms = np.sqrt(np.mean(np.square(audio_array.astype(np.float32))))
-        
-        # Define a threshold for silence (adjust based on your microphone and environment)
-        # The threshold of 500 is a reasonable starting point but may need adjustment
-        silence_threshold = 300
-        
-        # If the RMS is below the threshold, consider it silence
-        return rms < silence_threshold
+
+        # Silence threshold — lowered from 300 to 80 so whispers and quiet speech
+        # (RMS ~200-280 on a G533 headset) are still transcribed.
+        silence_threshold = 80
+
+        duration_s = len(audio_array) / 16000.0
+        silent = rms < silence_threshold
+        logging.info(
+            "Chunk audio RMS=%.1f (threshold=%d) duration=%.2fs silent=%s",
+            rms, silence_threshold, duration_s, silent,
+        )
+        return silent
         
     def filter_hallucinated_phrases(self, text):
         """Remove common hallucinated phrases from the transcription."""

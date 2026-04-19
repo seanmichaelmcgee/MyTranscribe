@@ -1,0 +1,49 @@
+# requirements-windows.txt — MyTranscribe, branch claude/windows-port-pyqt6
+#
+# WHY TORCH IS NOT LISTED HERE:
+#   torch (and its bundled CUDA libraries) must be installed from the pytorch.org
+#   wheel index, not from PyPI. pip does not honour --index-url directives inside
+#   requirements files reliably, so torch is always installed as a separate step:
+#
+#     ./venv/Scripts/python.exe -m pip install torch==2.6.0 \
+#         --index-url https://download.pytorch.org/whl/cu124
+#
+# PACKAGES DELIBERATELY OMITTED vs requirements.txt (Linux):
+#   - torch                  (pytorch.org index, see above)
+#   - nvidia-*-cu12          (CUDA libs are bundled inside the torch wheel on Windows)
+#   - triton                 (Linux-only; no Windows wheel exists)
+#   - pycairo, PyGObject     (GTK3 stack, replaced by PyQt6 on Windows)
+
+# ── Core app dependencies ────────────────────────────────────────────────────
+openai-whisper==20240930
+PyAudio==0.2.14
+pynput==1.8.1
+numpy==2.1.3
+PyQt6==6.11.0
+PyQt6-Qt6==6.11.0
+PyQt6_sip==13.11.1
+
+# ── Transitive dependencies (pinned from actual venv state 2026-04-18) ───────
+certifi==2026.2.25
+charset-normalizer==3.4.7
+colorama==0.4.6
+filelock==3.25.2
+fsspec==2026.2.0
+idna==3.11
+Jinja2==3.1.6
+llvmlite==0.47.0
+MarkupSafe==3.0.3
+more-itertools==11.0.2
+mpmath==1.3.0
+networkx==3.6.1
+numba==0.65.0
+packaging==26.1
+regex==2026.4.4
+requests==2.33.1
+setuptools==80.10.2
+six==1.17.0
+sympy==1.13.1
+tiktoken==0.12.0
+tqdm==4.67.3
+typing_extensions==4.15.0
+urllib3==2.6.3
