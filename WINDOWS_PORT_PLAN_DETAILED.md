@@ -1,5 +1,27 @@
 # Detailed Windows Port Plan — PyQt6
 
+## Status — All 6 phases complete (pending human verification pass)
+
+| Phase | Description | Status | Date |
+|---|---|---|---|
+| 0 | Environment snapshot & pin | COMPLETE | 2026-04-17 |
+| 1 | Transcriber hardening (`os.remove` guard) | COMPLETE | 2026-04-17 |
+| 2 | PyQt6 install + scaffold window | COMPLETE | 2026-04-17 |
+| 3 | Feature-parity rewrite → `src/gui_qt.py` | COMPLETE | 2026-04-18 |
+| 4 | `pynput` global hotkey via `pyqtSignal` bridge | COMPLETE | 2026-04-18 |
+| 5 | E2E verification + human hand-off | COMPLETE | 2026-04-18 |
+
+**Programmatic verification (Phase 5):** 8/8 PASS — audit.py (T00), import smoke (T03),
+CUDA + model inference (T02), cold-launch subprocess (T01 variant), mic enumeration (T04),
+stereo-channel check (T19), clipboard thread-safety review (T21), Phase 4 state-machine
+smoke test (10/10 synthetic checks).
+
+**Remaining:** Human test pass — see
+[docs/port-plan/07-human-verification.md](docs/port-plan/07-human-verification.md)
+(10 tests, ~10-15 min, requires microphone + live desktop session).
+
+---
+
 This is the synthesized, implementation-ready plan for porting MyTranscribe (GTK3/Linux → PyQt6/Windows). It supersedes the meta-plan in [WINDOWS_PORT_PLAN.md](WINDOWS_PORT_PLAN.md) by resolving its open questions and producing concrete artifacts.
 
 ## Decision summary
@@ -87,4 +109,7 @@ See [06-verification-executable.md §C](docs/port-plan/06-verification-executabl
 
 ## Next action
 
-Green-light Phase 3 (feature-parity rewrite → `src/gui_qt.py`). Estimated 2.5 hours. Cut point after Phase 3 provides a fully usable app minus global hotkey.
+Run the human verification pass in
+[docs/port-plan/07-human-verification.md](docs/port-plan/07-human-verification.md).
+Estimated 10-15 minutes with microphone connected. All 10 human tests must pass
+before the branch is considered production-ready for daily use.
