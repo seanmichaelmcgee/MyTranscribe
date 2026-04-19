@@ -67,7 +67,7 @@ WINDOW_OPACITY           = 0.9
 POLL_INTERVAL_MS         = 30       # §6.2 — do not change to "save CPU"
 HOTKEY_CLIPBOARD_DELAY_MS = 150     # Risk R09 / R-arch-B: delay clipboard write
                                     # when triggered by hotkey (modifiers still held)
-WHISPER_MODEL            = "small"
+WHISPER_MODEL            = "large-v3"   # override with $MYTRANSCRIBE_MODEL
 LONG_MODE_PLACEHOLDER    = "Recording in long mode..."
 
 # ── QSS Stylesheet ───────────────────────────────────────────────────────────
@@ -326,12 +326,18 @@ class TranscriptionWindow(QMainWindow):
         Load the Whisper model and create the transcriber on first call.
         Subsequent calls are no-ops. Called from _start_normal() / _start_long()
         so the window appears instantly and the model loads only when needed.
+
+        Model name resolution:
+          1. $MYTRANSCRIBE_MODEL env var (if set)
+          2. WHISPER_MODEL constant at top of file
+        Available models from the installed openai-whisper are logged at startup.
         """
         if self._transcriber is not None:
             return
-        logger.info("Loading Whisper model '%s' ...", WHISPER_MODEL)
+        model_name = os.environ.get("MYTRANSCRIBE_MODEL", WHISPER_MODEL)
+        logger.info("Loading Whisper model '%s' ...", model_name)
         self._device = "cuda" if torch.cuda.is_available() else "cpu"
-        self._model = whisper.load_model(WHISPER_MODEL, device=self._device)
+        self._model = whisper.load_model(model_name, device=self._device)
         self._transcriber = RealTimeTranscriber(self._model)
         logger.info("Whisper model loaded on %s", self._device)
 
@@ -625,6 +631,19 @@ def main() -> None:
 
     logger.info("Starting MyTranscribe application")
     logger.info("Global hotkey Ctrl+Alt+Q enabled")
+    # Log available Whisper models so user can see what they can switch to
+    # via $MYTRANSCRIBE_MODEL. Current release (20240930) includes `turbo` —
+    # a distilled large-v3 that's ~8x faster with minor accuracy cost.
+    try:
+        active_model = os.environ.get("MYTRANSCRIBE_MODEL", WHISPER_MODEL)
+        logger.info(
+            "Whisper %s — available models: %s | active: %s",
+            whisper.__version__ if hasattr(whisper, "__version__") else "?",
+            ", ".join(whisper.available_models()),
+            active_model,
+        )
+    except Exception as exc:
+        logger.warning("Could not list whisper models: %s", exc)
 
     window = TranscriptionWindow()
     window.show()
