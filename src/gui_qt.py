@@ -30,7 +30,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import (
     Qt, QObject, QTimer, pyqtSignal,
 )
-from PyQt6.QtGui import QKeyEvent
+from PyQt6.QtGui import QKeyEvent, QShortcut, QKeySequence
 
 import torch
 import whisper
@@ -312,6 +312,14 @@ class TranscriptionWindow(QMainWindow):
         self._poll_timer.timeout.connect(self._poll_tick)
         # Do NOT call start() here; started in _start_normal() / _start_long()
 
+        # ── Spacebar shortcut (window-scoped, focus-independent) ─────────────
+        # keyPressEvent alone doesn't fire reliably because QTextEdit (read-only)
+        # still grabs keyboard focus and consumes Space. A window-scoped QShortcut
+        # fires regardless of which child widget has focus.
+        self._space_shortcut = QShortcut(QKeySequence(Qt.Key.Key_Space), self)
+        self._space_shortcut.setContext(Qt.ShortcutContext.WindowShortcut)
+        self._space_shortcut.activated.connect(self._on_space_pressed)
+
     # ── Lazy model loader ──────────────────────────────────────────────────────
     def _ensure_model_loaded(self) -> None:
         """
@@ -480,7 +488,15 @@ class TranscriptionWindow(QMainWindow):
             self._finalize_and_copy(final_text)
 
     def _finalize_and_copy(self, text: str) -> None:
-        """Update text area with final text and write to clipboard. GUI thread only."""
+        """Update text area with final text and write to clipboard. GUI thread only.
+
+        Empty results (silence, aborted tap) are a no-op: they do not overwrite
+        the text area or clipboard, so a previous successful transcription
+        survives a subsequent short/silent tap.
+        """
+        if not text:
+            logger.info("Empty transcription — preserving previous text/clipboard")
+            return
         self._text_area.setPlainText(text)
         clip = QApplication.instance().clipboard()
         clip.setText(text)
@@ -514,28 +530,20 @@ class TranscriptionWindow(QMainWindow):
         self._reposition_indicator()
 
     # ── Keyboard handling ─────────────────────────────────────────────────────
-    def keyPressEvent(self, event: QKeyEvent) -> None:
+    def _on_space_pressed(self) -> None:
         """
-        Window-level key handler. Intercepts Space before any child widget sees it.
-        All other keys fall through to super().keyPressEvent(event).
+        Spacebar handler (wired via QShortcut, window-scoped).
 
         UX contract §4.1:
         - Space in Idle → NormalRecording
         - Space in NormalRecording → Idle
         - Space in LongRecording → ignored (no-op, no chime)
         """
-        if event.key() == Qt.Key.Key_Space and not event.isAutoRepeat():
-            if self._state == AppState.IDLE:
-                self._start_normal()
-                return   # consumed
-            elif self._state == AppState.NORMAL_RECORDING:
-                self._stop_recording(from_hotkey=False)
-                return   # consumed
-            # LongRecording: fall through silently (ignored per UX §4.1 / §3.3)
-            return
-
-        # All other keys pass through — lets Alt+F4, Win, etc. work normally (UX §4.3)
-        super().keyPressEvent(event)
+        if self._state == AppState.IDLE:
+            self._start_normal()
+        elif self._state == AppState.NORMAL_RECORDING:
+            self._stop_recording(from_hotkey=False)
+        # LongRecording: intentional no-op per UX §4.1 / §3.3
 
     # ── Global hotkey slot ────────────────────────────────────────────────────
     def on_hotkey(self) -> None:
