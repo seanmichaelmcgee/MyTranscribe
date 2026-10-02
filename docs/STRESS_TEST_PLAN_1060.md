@@ -32,7 +32,27 @@ tokens per window** (`--max-new-tokens 120`), about what 30 s of real dictation 
 
 ### Unit tests: `pytest tests` (78 tests, ~10 s)
 
-RESULTS_UNIT
+**78 passed** (run under `xvfb-run` for the Qt tests). Covers:
+
+- **GPU choice:** GTX 1060 → `large-v3-turbo` + `int8_float32`, detected either by
+  compute capability or by card name on older drivers; RTX cards → `int8_float16`;
+  < 3.5 GB VRAM → `small.en`; CPU fallback; environment overrides; `nvidia-smi`
+  parsing, including old drivers and the Windows `NVSMI` folder.
+- **Chunking:** cuts land inside pauses; **no audio lost or duplicated** (sample
+  counts add up exactly); order preserved; previous text carried into the next
+  chunk's prompt.
+- **Robustness:** silent chunks are never sent to the model; engine errors are
+  reported and later chunks continue; the 1-hour cap; microphone failure; Stop
+  returns in < 0.5 s even when the model is slow; 100 sessions with no thread or
+  PortAudio leaks.
+- **PHI:** no temp files (`tempfile` is patched to raise) and transcript text never
+  appears in logs.
+- **Engine and clipboard:** faster-whisper call parameters, CUDA→CPU fallback,
+  Windows DLL-folder registration, clipboard privacy formats, paste key sequence.
+- **GUI:** buttons locked while loading, load-error message, live text, non-blocking
+  Stop, auto-paste only after a hotkey stop and only once Ctrl/Alt are released, an
+  empty result leaves the clipboard alone, auto-stop at end of capture, Long mode,
+  microphone-open failure.
 
 ### Engine benchmark: `scripts/bench_engine.py` (turbo shape, CPU int8, 3 threads)
 
@@ -54,7 +74,23 @@ Takeaways:
 
 ### Pipeline stress: `scripts/stress_pipeline.py`
 
-RESULTS_STRESS
+All checks passed in every run.
+
+| Scenario | Model | Result |
+|---|---|---|
+| **long**: 10 min dictation at **real-time pace** | turbo shape, CPU, 3 threads, 120-token cap | RTF mean **0.30** (max 0.51); queue never above **0** (keeps up live); 600.0/600.0 s reached the engine; `stop_recording()` 0.000 s; final text **12.8 s** after Stop; RSS flat at ~1.27 GB after warm-up (1130 → 1272 MB, 61 samples) |
+| **long**: 60 min **flat out** (whole hour delivered instantly, worst-case backlog) | tiny shape, CPU | 3600.0/3600.0 s transcribed in 121 chunks; backlog peaked at 117 chunks and drained cleanly; RSS +253 MB at peak (= the queued audio, as designed); 1-hour cap honoured |
+| **cycles**: 300 sessions of 0.2–3 s | tiny | 0 exceptions, 0 leaked threads, RSS 526 → 530 → 532 MB |
+| **cycles**: 60 sessions | tiny | latency p50 1.5 s, max 1.8 s; RSS flat at 338 MB |
+| **silence**: 5 min digital silence; 5 min room noise (RMS ≈ 40) | tiny | engine **never called** (0 calls), empty text |
+| **silence**: clipped, 20× over-loud speech | tiny | handled, no errors |
+| **faults**: USB mic "unplugged" after 75 s | tiny | session ends with a message; all 75 s before the failure transcribed |
+| **faults**: engine raises "CUDA out of memory" on one chunk | tiny | one error marker, the other 4 chunks fine, marker kept out of later prompts |
+| **gui**: 6 hotkey cycles, real window, live engine | turbo shape | worst UI stall **66 ms**, p99 12 ms; every cycle finished; auto-paste fired for each non-empty result |
+| **gui**: 5 hotkey cycles | tiny | worst stall 226 ms (one-off, p99 13 ms) |
+
+Possible follow-up (not needed for live use): queued chunks are held as float32, so
+a worst-case backlog uses 2× the memory of keeping them as int16 until transcription.
 
 ### Bugs the tests caught (fixed before the PR)
 
