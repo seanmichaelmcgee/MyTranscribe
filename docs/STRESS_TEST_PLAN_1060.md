@@ -36,7 +36,21 @@ RESULTS_UNIT
 
 ### Engine benchmark: `scripts/bench_engine.py` (turbo shape, CPU int8, 3 threads)
 
-RESULTS_BENCH
+64 s espeak letter split into 30 s windows, beam 5, medical prompt on.
+
+| Mode | Load | Warm-up | RTF mean | 30 s window takes | Peak RAM |
+|---|---|---|---|---|---|
+| Encoder only (`--encoder-only`) | 6.1 s | 7.7 s | 0.27 | ~8.1 s | 1.46 GB |
+| Encoder + 120-token decode (`--max-new-tokens 120`) | 2.5 s | 6.9 s | 0.39 | ~11.7 s | 1.47 GB |
+
+Takeaways:
+- **Even on CPU, turbo-sized int8 keeps up with live speech** (RTF < 1), so the
+  background design works there too. The automatic CPU fallback, if CUDA ever fails
+  on the 1060, is slow but usable.
+- **Every chunk pays for a full 30 s encoder pass, however short it is.** The
+  final 4 s chunk had RTF 2.1, so the wait after Stop is roughly one chunk's compute
+  time, whatever the letter's length. That's the number to minimise on the GPU.
+- Load and warm-up happen in the background at startup, so they never block the window.
 
 ### Pipeline stress: `scripts/stress_pipeline.py`
 
