@@ -1,0 +1,31 @@
+# requirements-1060.txt — MyTranscribe Medical / GTX 1060 edition (src/gui_med.py)
+#
+# Separate from requirements-windows.txt: this edition does NOT need PyTorch or
+# openai-whisper. Install into its own venv:
+#
+#   py -3.11 -m venv venv1060
+#   venv1060\Scripts\python.exe -m pip install -r requirements-1060.txt
+#
+# GPU notes (Windows):
+#   * NVIDIA driver must support CUDA 12 (any 2024+ Game Ready/Studio driver;
+#     R580 is the last branch that supports Pascal/GTX 10-series).
+#   * The two nvidia-* wheels below provide cuBLAS and cuDNN 9, which
+#     CTranslate2 needs. gui_med.py adds their DLL folders to the search path
+#     automatically (fw_engine.register_cuda_dll_dirs). No CUDA Toolkit install needed.
+#   * On Linux you can drop the nvidia-* lines if CUDA 12 + cuDNN 9 are installed system-wide.
+
+# ── Speech engine ────────────────────────────────────────────────────────────
+faster-whisper==1.2.1
+ctranslate2==4.8.2
+nvidia-cublas-cu12>=12.4,<13
+nvidia-cudnn-cu12>=9.1,<10
+
+# ── App ──────────────────────────────────────────────────────────────────────
+PyAudio==0.2.14
+pynput==1.8.2
+numpy>=1.26,<3
+PyQt6==6.11.0
+
+# ── Benchmark / stress scripts (optional) ────────────────────────────────────
+psutil>=5.9
+pytest>=8
