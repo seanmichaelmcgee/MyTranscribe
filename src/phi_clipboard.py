@@ -48,6 +48,14 @@ def make_mime_data(text: str, platform: str = sys.platform):
     return mime
 
 
+def foreground_window() -> Optional[int]:
+    """Handle of the window with keyboard focus (Windows), else None."""
+    if sys.platform != "win32":
+        return None
+    import ctypes
+    return ctypes.windll.user32.GetForegroundWindow() or None
+
+
 def windows_clipboard_sequence() -> Optional[Callable[[], int]]:
     """GetClipboardSequenceNumber (never blocks, needs no clipboard access), or None."""
     if sys.platform != "win32":

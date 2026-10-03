@@ -70,6 +70,15 @@ The window starts small (compact view) and stays on top of other windows:
 - **Voice commands:** say "new line", "new paragraph", or "open quote … close quote".
   They only count when you pause around them (Whisper then punctuates them), so
   "a new line of therapy" stays as text. Turn off in Options.
+- **Numbered items:** "new line, 1 period, dry eyes…" → a new line starting "1. Dry eyes…".
+- **Type as you dictate** (Options, off by default): each finished ~20 s piece is pasted
+  at your cursor while you keep talking, only into the window you started in (never into
+  MyTranscribe, held if you click elsewhere), and the full text is on the clipboard when
+  you stop.
+- **Microphone kept ready** (Options, on by default): like Dragon, the mic stays open
+  and the last half-second is kept in memory, so a word spoken as you press Start isn't
+  clipped (Bluetooth headsets otherwise drop ~0.3 s). Windows shows the mic as in use
+  while the app is open. Turn it off and the light shows amber until the mic is live.
 - **+** shows the transcript (live while you talk), **–** hides it again.
 - **⚙ Options**: change the key, the mouse button, hold-to-talk vs toggle, accuracy
   (Best = large-v3, Fast = large-v3-turbo; applies next start) and the start-up view.

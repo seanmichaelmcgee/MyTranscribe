@@ -378,6 +378,69 @@ def test_ready_mic_feeds_recordings_with_preroll(qapp, tmp_path, monkeypatch):
     assert w._ready_mic is not None and not w._ready_mic._running
 
 
+def _live_window(make_window, qapp, fg):
+    from settings import Settings
+    w = make_window(engine=FakeEngine(text_fn=lambda i, a: f"Piece {i}."),
+                    settings=Settings(start_compact=False, live_insert=True))
+    w._foreground = lambda: fg["hwnd"]
+    w._transcriber.chunk_target_s = 0.5
+    return w
+
+
+def test_live_insert_pastes_pieces_then_copies_full_text(qapp, make_window):
+    fg = {"hwnd": 4242}                                     # the EMR window has focus
+    w = _live_window(make_window, qapp, fg)
+    w.on_hotkey()
+    assert wait_for(lambda: len(w.inserted_pieces) >= 2, timeout=5, app=qapp)
+    w.on_hotkey()
+    assert finish(w, qapp)
+    assert wait_for(lambda: w.copy_ok is True, timeout=3, app=qapp)
+    wait_for(lambda: False, timeout=0.5, app=qapp)
+    joined = "".join(w.inserted_pieces)
+    full = w._text_area.toPlainText()
+    assert w.inserted_pieces[0] == "Piece 0." and w.inserted_pieces[1] == " Piece 1."
+    assert joined == full                                  # everything inserted, in order, spaced
+    assert w.clip.text() == full                           # clipboard ends with the full text
+    assert len(w.pastes) == len(w.inserted_pieces)         # no extra paste of the full text
+    assert "Inserted at cursor" in w._status_text.text()
+
+
+def test_live_insert_holds_when_focus_moves_and_never_types_into_itself(qapp, make_window):
+    fg = {"hwnd": 4242}
+    w = _live_window(make_window, qapp, fg)
+    w.on_hotkey()
+    assert wait_for(lambda: len(w.inserted_pieces) >= 1, timeout=5, app=qapp)
+    fg["hwnd"] = 9999                                      # user clicked into another app
+    n = len(w.inserted_pieces)
+    wait_for(lambda: False, timeout=1.5, app=qapp)
+    assert len(w.inserted_pieces) == n                     # nothing typed into the other app
+    w.on_hotkey()
+    assert finish(w, qapp)
+    assert wait_for(lambda: w.copy_ok is True, timeout=3, app=qapp)
+    assert w.clip.text() == w._text_area.toPlainText()     # full text still on the clipboard
+    assert "Not all inserted" in w._status_text.text()
+
+    fg["hwnd"] = int(w.winId())                            # MyTranscribe itself in front
+    w2_start = len(w.inserted_pieces)
+    w.on_hotkey()
+    wait_for(lambda: False, timeout=1.5, app=qapp)
+    w.on_hotkey()
+    assert finish(w, qapp)
+    assert len(w.inserted_pieces) == w2_start              # never types into its own window
+
+
+def test_live_insert_busy_clipboard_stops_inserting(qapp, make_window):
+    fg = {"hwnd": 4242}
+    w = _live_window(make_window, qapp, fg)
+    w.clip.reject_writes = -1
+    w.on_hotkey()
+    wait_for(lambda: False, timeout=1.5, app=qapp)
+    assert w.inserted_pieces == [] and w.pastes == []      # nothing pasted without a verified copy
+    w.on_hotkey()
+    assert finish(w, qapp)
+    assert wait_for(lambda: w.copy_ok is False, timeout=3, app=qapp)
+
+
 def test_starts_compact_and_plus_expands(qapp, make_window):
     from settings import Settings
     w = make_window(settings=Settings(start_compact=True))

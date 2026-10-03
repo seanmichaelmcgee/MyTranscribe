@@ -51,7 +51,7 @@ sys.path.insert(0, str(_SRC_DIR))
 
 from fw_engine import register_cuda_dll_dirs                 # noqa: E402
 from hw_profile import choose_config, detect_hardware        # noqa: E402
-from chunked_transcriber import ChunkedTranscriber           # noqa: E402
+from chunked_transcriber import ERROR_PREFIX, ChunkedTranscriber   # noqa: E402
 from prompt_loader import load_prompt                        # noqa: E402
 from vocab import build_text_pipeline                        # noqa: E402
 import phi_clipboard                                         # noqa: E402
@@ -71,6 +71,7 @@ AUTOPASTE_RETRY_MS = 50         # re-check modifier keys this often...
 AUTOPASTE_MAX_WAIT_MS = 3000    # ...for at most this long, then paste anyway
 COPY_ATTEMPTS = 6               # clipboard busy (EMR / Citrix)? retry...
 COPY_RETRY_MS = 100             # ...this often (~0.5 s total) before giving up
+LIVE_INSERT_GAP_MS = 300        # let the target app read the clipboard before the next piece
 LOADING_TEXT = "Loading speech model… (first run downloads ~1.6 GB)"
 TRANSCRIBING_SUFFIX = "\n\n[Finishing transcription…]"
 NORMAL_SIZE = (560, 300)
@@ -207,6 +208,17 @@ class MedTranscriptionWindow(TranscriptionWindow):
         self._compact = False
         self.paste_count = 0           # for tests / diagnostics
         self.copy_ok: Optional[bool] = None
+        # Live insert ("type at the cursor as you dictate"): see _collect_pieces / _pump_insert.
+        self._foreground = phi_clipboard.foreground_window   # tests swap in a fake
+        self._insert_queue: list = []
+        self._inserting = False
+        self._inserted_n = 0           # transcriptions already queued for insertion
+        self._inserted_any = False
+        self._insert_target: Optional[int] = None
+        self._insert_failed = False
+        self._insert_partial = False
+        self._final_text_pending: Optional[str] = None
+        self.inserted_pieces: list = []   # for tests / diagnostics (never logged)
 
         super().__init__()
         self._chime = _StartChimeGate(self._chime)
@@ -489,6 +501,7 @@ class MedTranscriptionWindow(TranscriptionWindow):
             return
         self._text_area.setPlainText("")
         self._copy_generation += 1      # cancel any pending copy retries
+        self._reset_live_insert()
         self._mic_live = self._warmup_s <= 0
         self._set_state(state)          # green + chime now, or amber until the mic is live
         self._poll_timer.start()
@@ -540,6 +553,8 @@ class MedTranscriptionWindow(TranscriptionWindow):
             text = self._display_text()
             if self._text_area.toPlainText() != text:   # avoid resetting scroll every 30 ms
                 self._text_area.setPlainText(text)
+            if self._settings.live_insert:
+                self._collect_pieces()
         else:
             self._poll_timer.stop()
             return
@@ -556,7 +571,107 @@ class MedTranscriptionWindow(TranscriptionWindow):
             self._set_status("Nothing heard", "idle")
             return
         self._text_area.setPlainText(text)
+        if self._settings.live_insert:
+            # Insert whatever is left at the cursor, then put the FULL text on the clipboard.
+            self._collect_pieces(final=True)
+            self._final_text_pending = text
+            self._pump_insert()
+            return
         self._copy(text, paste=self._autopaste and from_hotkey)
+
+    # ── Live insert: paste each finished ~20 s piece at the cursor ────────────
+    def _reset_live_insert(self) -> None:
+        self._insert_queue = []
+        self._inserting = False
+        self._inserted_n = 0
+        self._inserted_any = False
+        self._insert_failed = False
+        self._insert_partial = False
+        self._final_text_pending = None
+        fg = self._foreground()
+        self._insert_target = fg if fg and fg != int(self.winId()) else None   # None: first other window
+
+    def _collect_pieces(self, final: bool = False) -> None:
+        """Queue newly finished transcript pieces for insertion at the cursor."""
+        pieces = self._transcriber.transcriptions
+        new, self._inserted_n = pieces[self._inserted_n:], len(pieces)
+        for p in new:
+            if not p or p.startswith(ERROR_PREFIX):
+                continue
+            self._insert_queue.append(voice_commands.apply(p) if self._settings.voice_commands else p)
+        self._pump_insert()
+
+    def _insert_target_ok(self) -> bool:
+        """Only insert into the window the user was in: never MyTranscribe, never a new window."""
+        fg = self._foreground()
+        if not fg or fg == int(self.winId()):
+            return False
+        if self._insert_target is None:
+            self._insert_target = fg
+        return fg == self._insert_target
+
+    def _pump_insert(self) -> None:
+        if self._inserting:
+            return
+        if self._insert_queue:
+            if self._insert_failed or not self._insert_target_ok():
+                if self._final_text_pending is None:
+                    return                          # try again on the next poll tick
+                self._insert_queue.clear()          # stopped with focus elsewhere: don't chase it
+                self._insert_partial = True
+            else:
+                piece = self._insert_queue.pop(0)
+                if self._inserted_any and not piece.startswith("\n"):
+                    piece = " " + piece
+                self._inserting = True
+                self._insert_try(piece, 1, self._copy_generation)
+                return
+        if self._final_text_pending is not None and not self._insert_queue:
+            final, self._final_text_pending = self._final_text_pending, None
+            if self._insert_partial or self._insert_failed:
+                note = "Not all inserted (focus moved / clipboard busy) — full text copied"
+            elif self._inserted_any:
+                note = "Inserted at cursor — full text also copied"
+            else:
+                note = None
+            self._copy(final, paste=False, ok_status=note)
+
+    def _insert_try(self, piece: str, attempt: int, generation: int) -> None:
+        if generation != self._copy_generation:
+            self._inserting = False                 # a new recording started
+            return
+        if phi_clipboard.copy_text(self._clipboard(), piece, sequence=self._clipboard_seq):
+            self._paste_waited_ms = 0
+            self._insert_paste(piece, generation)
+            return
+        if attempt < COPY_ATTEMPTS:
+            QTimer.singleShot(COPY_RETRY_MS, lambda: self._insert_try(piece, attempt + 1, generation))
+            return
+        logger.warning("Live insert stopped: clipboard busy")
+        self._insert_failed = True
+        self._inserting = False
+        self._set_status("Live insert stopped (clipboard busy) — full text copied at Stop", "warn")
+        self._pump_insert()
+
+    def _insert_paste(self, piece: str, generation: int) -> None:
+        if phi_clipboard.modifiers_held() and self._paste_waited_ms < AUTOPASTE_MAX_WAIT_MS:
+            self._paste_waited_ms += AUTOPASTE_RETRY_MS
+            QTimer.singleShot(AUTOPASTE_RETRY_MS, lambda: self._insert_paste(piece, generation))
+            return
+        if not self._insert_target_ok():            # focus moved since we copied: put it back
+            self._insert_queue.insert(0, piece.lstrip(" "))
+            self._inserting = False
+            return
+        try:
+            phi_clipboard.send_paste()
+            self._inserted_any = True
+            self.inserted_pieces.append(piece)
+        except Exception as exc:
+            logger.error("Live insert paste failed: %s", exc)
+            self._insert_failed = True
+        self._inserting = False
+        # Give the target app time to read the clipboard before the next piece replaces it.
+        QTimer.singleShot(LIVE_INSERT_GAP_MS, self._pump_insert)
 
     def _display_text(self) -> str:
         """Transcript so far, with spoken formatting commands applied if enabled."""
@@ -568,12 +683,13 @@ class MedTranscriptionWindow(TranscriptionWindow):
         """The system clipboard (tests swap in a fake)."""
         return QApplication.instance().clipboard()
 
-    def _copy(self, text: str, paste: bool) -> None:
+    def _copy(self, text: str, paste: bool, ok_status: Optional[str] = None) -> None:
         self._copy_generation += 1
         self._copied_text = None
-        self._try_copy(text, paste, self._copy_generation, attempt=1)
+        self._try_copy(text, paste, self._copy_generation, 1, ok_status)
 
-    def _try_copy(self, text: str, paste: bool, generation: int, attempt: int) -> None:
+    def _try_copy(self, text: str, paste: bool, generation: int, attempt: int,
+                  ok_status: Optional[str] = None) -> None:
         if generation != self._copy_generation:
             return                      # superseded by a newer copy or recording
         if phi_clipboard.copy_text(self._clipboard(), text, sequence=self._clipboard_seq):
@@ -582,13 +698,14 @@ class MedTranscriptionWindow(TranscriptionWindow):
             self.copy_ok = True
             logger.info("Copied %d chars to clipboard", len(text))   # length only: no PHI in logs
             self._set_copy_attention(False)
-            self._set_status("Copied — paste with Ctrl+V", "ok")
+            self._set_status(ok_status or "Copied — paste with Ctrl+V", "ok")
             if paste:
                 self._paste_waited_ms = 0
                 QTimer.singleShot(AUTOPASTE_DELAY_MS, self._try_paste)
             return
         if attempt < COPY_ATTEMPTS:
-            QTimer.singleShot(COPY_RETRY_MS, lambda: self._try_copy(text, paste, generation, attempt + 1))
+            QTimer.singleShot(COPY_RETRY_MS,
+                              lambda: self._try_copy(text, paste, generation, attempt + 1, ok_status))
             return
         # The clipboard still holds the PREVIOUS contents: never paste now.
         self.copy_ok = False

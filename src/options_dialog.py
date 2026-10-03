@@ -96,6 +96,10 @@ class OptionsDialog(QDialog):
                                         "“open quote … close quote”")
         self.voice_commands.setChecked(settings.voice_commands)
         layout.addWidget(self.voice_commands)
+        self.live_insert = QCheckBox("Type at the cursor as I dictate (each ~20 s piece; the full "
+                                     "text is also copied when I stop)")
+        self.live_insert.setChecked(settings.live_insert)
+        layout.addWidget(self.live_insert)
 
         layout.addWidget(self._title("View"))
         self.start_compact = QCheckBox("Start in compact view (button only)")
@@ -144,4 +148,5 @@ class OptionsDialog(QDialog):
                        mouse=self.mouse.currentData(), mouse_mode=self.mouse_mode.currentData(),
                        start_compact=self.start_compact.isChecked(), accuracy=self.accuracy.currentData(),
                        voice_commands=self.voice_commands.isChecked(),
-                       keep_mic_ready=self.keep_mic_ready.isChecked())
+                       keep_mic_ready=self.keep_mic_ready.isChecked(),
+                       live_insert=self.live_insert.isChecked())
