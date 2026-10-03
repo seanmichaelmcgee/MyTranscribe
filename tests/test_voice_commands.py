@@ -33,6 +33,9 @@ def test_commands(raw, want):
     ("Plan. New line, two period, xerostomia.", "Plan.\n2. Xerostomia."),
     ("Plan. New line, number 3 period, follow up in 6 weeks.", "Plan.\n3. Follow up in 6 weeks."),
     ("1 period, refer to general surgery.", "1. Refer to general surgery."),
+    # Real-speech forms (user's recordings, 2026-10-03).
+    ("Dry eyes. New line, 2 periods, xerostomia, start lubricant.", "Dry eyes.\n2. Xerostomia, start lubricant."),
+    ("Dry eyes.\n2. 2 periods, xerostomia.", "Dry eyes.\n2. Xerostomia."),
 ])
 def test_numbered_items(raw, want):
     assert apply(raw) == want

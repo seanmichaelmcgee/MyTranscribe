@@ -24,10 +24,12 @@ _BREAKS = [(re.compile(r"\bnew\s+paragraph\b", re.I), "\n\n"),
 _NUMBER_WORDS = {w: str(i) for i, w in enumerate(
     "zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen "
     "sixteen seventeen eighteen nineteen twenty".split())}
-# At a line start: "2 period," / "2. Period." / "two period" / "number 2 period" / "2 full stop".
+# At a line start: "2 period," / "2. Period." / "two period" / "number 2 period" / "2 full stop",
+# and the forms Whisper wrote from real speech: "2 periods," / "2. 2 periods,".
+_NUM = r"(?:\d{1,2}|" + "|".join(_NUMBER_WORDS) + r")"
 _LIST_ITEM = re.compile(
-    r"(^|\n)[ \t]*(?:number[ \t]+)?(\d{1,2}|" + "|".join(_NUMBER_WORDS) + r")[ \t]*[.,]?[ \t]*"
-    r"(?:period|full[ \t]+stop|dot)\b[ \t]*[.,:;]*[ \t]*", re.I)
+    r"(^|\n)[ \t]*(?:number[ \t]+)?(" + _NUM + r")[ \t]*[.,]?[ \t]*(?:" + _NUM + r"[ \t]*)?"
+    r"(?:periods?|full[ \t]+stops?|dot)\b[ \t]*[.,:;]*[ \t]*", re.I)
 _OPEN = re.compile(r"\bopen\s+quotes?\b", re.I)
 _CLOSE = re.compile(r"\b(?:close\s+quotes?|end\s+quotes?|unquote)\b", re.I)
 
