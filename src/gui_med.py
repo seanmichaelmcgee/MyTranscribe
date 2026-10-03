@@ -120,11 +120,11 @@ def env_flag(name: str, env: Optional[dict] = None) -> bool:
     return env.get(name, "").strip().lower() in ("1", "true", "yes", "on")
 
 
-def build_default_engine():
+def build_default_engine(accurate: bool = True):
     """Detect hardware, pick a config, load + warm up faster-whisper."""
     from fw_engine import FasterWhisperEngine
     hw = detect_hardware()
-    cfg = choose_config(hw)
+    cfg = choose_config(hw, accurate=accurate)
     logger.info("Engine config: model=%s device=%s compute=%s threads=%d (%s)",
                 cfg.model, cfg.device, cfg.compute_type, cfg.cpu_threads, cfg.reason)
     engine = FasterWhisperEngine(cfg)
@@ -149,12 +149,13 @@ class MedTranscriptionWindow(TranscriptionWindow):
                  settings: Optional["settings_store.Settings"] = None,
                  settings_path: Optional[Path] = None,
                  install_hooks: bool = True) -> None:
-        self._engine_factory = engine_factory or build_default_engine
         self._stream_factory = stream_factory
         self._autopaste = env_flag("MYTRANSCRIBE_AUTOPASTE") if autopaste is None else autopaste
         self._base_prompt = load_prompt() if base_prompt is None else base_prompt
         self._settings_path = settings_path
         self._settings = settings if settings is not None else settings_store.load(settings_path)
+        accurate = self._settings.accuracy == "best"
+        self._engine_factory = engine_factory or (lambda: build_default_engine(accurate))
         self._install_hooks = install_hooks
         self._engine = None
         self._text_pipeline = text_pipeline    # (prompt_builder, corrector); built on load if None

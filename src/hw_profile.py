@@ -29,17 +29,22 @@ logger = logging.getLogger("hw_profile")
 # $MYTRANSCRIBE_DEVICE. MYTRANSCRIBE_MODEL may also be a path to a local
 # CTranslate2 model directory (useful for offline installs).
 GPU_DEFAULT_MODEL = "large-v3-turbo"
+GPU_ACCURATE_MODEL = "large-v3"       # "Best accuracy" option: ~6 points better term recall
+GPU_ACCURATE_MIN_VRAM_MB = 5000       # large-v3 int8_float32 peaked at ~3.9 GB whole-card on 6 GB
 GPU_SMALL_VRAM_MODEL = "small.en"
 GPU_SMALL_VRAM_THRESHOLD_MB = 3500    # below this, turbo+activations gets tight
 CPU_DEFAULT_MODEL = "small.en"
 
 # GPU names that are Pascal or older consumer cards (slow float16), used when
-# nvidia-smi cannot report compute capability (older drivers). NOT GTX 16xx:
-# those are Turing (CC 7.5) with full-rate float16, so int8_float16 suits them.
+# nvidia-smi cannot report compute capability (older drivers).
 _SLOW_FP16_NAME_RE = re.compile(
     r"GTX\s*(9\d\d|10\d\d)|GT\s*10\d\d|Quadro\s*P\d|Tesla\s*P(4|40)\b|TITAN\s*X",
     re.IGNORECASE,
 )
+# GTX 16xx: Turing with fast fp16 but no tensor cores. Measured on a GTX 1660 Ti
+# (2026-10-03, 6 alternating runs each): int8_float32 was 26-29 % faster than
+# int8_float16 for large-v3 and large-v3-turbo, with the same accuracy.
+_INT8_FP32_NAME_RE = re.compile(r"GTX\s*16\d\d", re.IGNORECASE)
 
 
 @dataclass
@@ -149,10 +154,15 @@ def has_slow_fp16(hw: HardwareInfo) -> bool:
     return False
 
 
+def prefers_int8_float32(hw: HardwareInfo) -> bool:
+    """Pascal-and-older (slow fp16) and GTX 16xx (no tensor cores): int8_float32 is fastest."""
+    return has_slow_fp16(hw) or bool(hw.gpu_name and _INT8_FP32_NAME_RE.search(hw.gpu_name))
+
+
 def pick_cuda_compute_type(hw: HardwareInfo) -> str:
     """Choose the fastest compute type that is supported and sensible for this GPU."""
     supported = hw.cuda_compute_types
-    if has_slow_fp16(hw):
+    if prefers_int8_float32(hw):
         preference = ("int8_float32", "int8", "float32")
     else:
         preference = ("int8_float16", "float16", "int8_float32", "int8", "float32")
@@ -162,9 +172,14 @@ def pick_cuda_compute_type(hw: HardwareInfo) -> str:
     return "float32"
 
 
-def choose_config(hw: HardwareInfo, env: Optional[dict] = None) -> EngineConfig:
+def choose_config(hw: HardwareInfo, env: Optional[dict] = None, accurate: bool = False) -> EngineConfig:
     """
-    Turn a HardwareInfo into an EngineConfig, honouring env overrides:
+    Turn a HardwareInfo into an EngineConfig.
+
+    accurate=True ("Best accuracy" in Options) picks large-v3 instead of
+    large-v3-turbo when the GPU has >= GPU_ACCURATE_MIN_VRAM_MB (or unknown VRAM).
+
+    Env overrides win over everything:
       MYTRANSCRIBE_DEVICE        "cpu" forces CPU even if a GPU exists
       MYTRANSCRIBE_MODEL         model name or local model directory
       MYTRANSCRIBE_COMPUTE_TYPE  any CTranslate2 compute type
@@ -179,11 +194,14 @@ def choose_config(hw: HardwareInfo, env: Optional[dict] = None) -> EngineConfig:
         compute_type = pick_cuda_compute_type(hw)
         if hw.vram_mb is not None and hw.vram_mb < GPU_SMALL_VRAM_THRESHOLD_MB:
             model = GPU_SMALL_VRAM_MODEL
+        elif accurate and (hw.vram_mb is None or hw.vram_mb >= GPU_ACCURATE_MIN_VRAM_MB):
+            model = GPU_ACCURATE_MODEL
         else:
             model = GPU_DEFAULT_MODEL
         reason = (
             f"GPU {hw.gpu_name or '?'} (CC {hw.compute_capability or '?'}, "
             f"{hw.vram_mb or '?'} MB): {'slow' if has_slow_fp16(hw) else 'fast'} fp16"
+            f"{', best-accuracy model' if model == GPU_ACCURATE_MODEL else ''}"
         )
     else:
         device = "cpu"

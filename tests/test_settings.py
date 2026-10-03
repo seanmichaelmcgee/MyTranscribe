@@ -36,7 +36,14 @@ def test_settings_file_never_holds_text(tmp_path):
     p = tmp_path / "settings.json"
     st.save(st.Settings(), p)
     assert set(json.loads(p.read_text(encoding="utf-8"))) == {"key", "key_mode", "mouse", "mouse_mode",
-                                                              "start_compact"}
+                                                              "start_compact", "accuracy"}
+
+
+def test_accuracy_default_and_validation(tmp_path):
+    assert st.Settings().accuracy == "best"
+    p = tmp_path / "settings.json"
+    p.write_text(json.dumps({"accuracy": "turbo-max"}), encoding="utf-8")
+    assert st.load(p, env={}).accuracy == "best"
 
 
 def test_options_dialog_result(qapp):
@@ -48,5 +55,7 @@ def test_options_dialog_result(qapp):
     assert not d.key_mode.isEnabled()                 # no key: its mode is irrelevant
     d.mouse_mode.setCurrentIndex(d.mouse_mode.findData("hold"))
     d.start_compact.setChecked(False)
+    assert d.accuracy.currentData() == "best"
+    d.accuracy.setCurrentIndex(d.accuracy.findData("fast"))
     r = d.result_settings()
-    assert (r.key, r.mouse, r.mouse_mode, r.start_compact) == ("none", "x2", "hold", False)
+    assert (r.key, r.mouse, r.mouse_mode, r.start_compact, r.accuracy) == ("none", "x2", "hold", False, "fast")

@@ -5,9 +5,9 @@ import subprocess
 import pytest
 
 from hw_profile import (
-    CPU_DEFAULT_MODEL, GPU_DEFAULT_MODEL, GPU_SMALL_VRAM_MODEL,
+    CPU_DEFAULT_MODEL, GPU_ACCURATE_MODEL, GPU_DEFAULT_MODEL, GPU_SMALL_VRAM_MODEL,
     HardwareInfo, _query_nvidia_smi, find_nvidia_smi, choose_config, detect_hardware,
-    has_slow_fp16, pick_cuda_compute_type,
+    has_slow_fp16, pick_cuda_compute_type, prefers_int8_float32,
 )
 
 # What CTranslate2 reports on a CC 6.1 card: it advertises float16 (CC >= 5.3)
@@ -146,9 +146,27 @@ def test_find_nvidia_smi_windows_fallback_path():
     assert find_nvidia_smi(which=lambda n: None, exists=lambda p: False) is None
 
 
+@pytest.mark.parametrize("name", ["NVIDIA GeForce GTX 1660 Ti", "NVIDIA GeForce GTX 1650 SUPER"])
 @pytest.mark.parametrize("cc", [7.5, None])
-def test_gtx1660_turing_uses_int8_float16(cc):
-    hw = gtx1060(gpu_name="NVIDIA GeForce GTX 1660 SUPER", compute_capability=cc)
-    assert not has_slow_fp16(hw)
+def test_gtx16xx_uses_int8_float32(name, cc):
+    """Measured on a 1660 Ti: int8_float32 26-29 % faster than int8_float16, same accuracy."""
+    hw = gtx1060(gpu_name=name, compute_capability=cc)
+    assert not has_slow_fp16(hw) and prefers_int8_float32(hw)
     cfg = choose_config(hw, env={})
-    assert (cfg.model, cfg.device, cfg.compute_type) == (GPU_DEFAULT_MODEL, "cuda", "int8_float16")
+    assert (cfg.model, cfg.device, cfg.compute_type) == (GPU_DEFAULT_MODEL, "cuda", "int8_float32")
+
+
+def test_rtx_turing_keeps_int8_float16():
+    hw = gtx1060(gpu_name="NVIDIA GeForce RTX 2060", compute_capability=7.5)
+    assert not prefers_int8_float32(hw) and pick_cuda_compute_type(hw) == "int8_float16"
+
+
+def test_accurate_picks_large_v3_when_vram_allows():
+    assert choose_config(gtx1060(), env={}, accurate=True).model == GPU_ACCURATE_MODEL
+    assert choose_config(gtx1060(vram_mb=None), env={}, accurate=True).model == GPU_ACCURATE_MODEL
+    assert choose_config(gtx1060(vram_mb=4096), env={}, accurate=True).model == GPU_DEFAULT_MODEL
+    assert choose_config(gtx1060(vram_mb=2048), env={}, accurate=True).model == GPU_SMALL_VRAM_MODEL
+    cpu = choose_config(HardwareInfo(cuda_device_count=0, cpu_count=8), env={}, accurate=True)
+    assert cpu.model == CPU_DEFAULT_MODEL                       # never large-v3 on CPU
+    env = {"MYTRANSCRIBE_MODEL": "large-v3-turbo"}
+    assert choose_config(gtx1060(), env=env, accurate=True).model == "large-v3-turbo"   # env wins

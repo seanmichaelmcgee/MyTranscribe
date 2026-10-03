@@ -3,7 +3,7 @@ settings.py — the few user options for gui_med.py, saved as a small JSON file.
 
 Location: %APPDATA%\\MyTranscribe\\settings.json on Windows
           (~/.config/mytranscribe/settings.json elsewhere).
-Holds only key bindings and view preferences: never transcript text.
+Holds only key bindings, view and accuracy preferences: never transcript text.
 
 Environment variables still override the file (handy for testing):
   MYTRANSCRIBE_KEY / MYTRANSCRIBE_KEY_MODE      e.g. f9 / hold|toggle, or none
@@ -37,6 +37,7 @@ class Settings:
     mouse: str = "x2"                  # a MOUSE_CHOICES name, or "none"
     mouse_mode: str = "toggle"
     start_compact: bool = True
+    accuracy: str = "best"             # "best" (large-v3 if the GPU allows) | "fast" (turbo)
 
     def triggers(self) -> TriggerConfig:
         return TriggerConfig(
@@ -56,6 +57,8 @@ class Settings:
         if self.mouse_mode not in ("hold", "toggle"):
             self.mouse_mode = d.mouse_mode
         self.start_compact = bool(self.start_compact)
+        if self.accuracy not in ("best", "fast"):
+            self.accuracy = d.accuracy
         return self
 
 

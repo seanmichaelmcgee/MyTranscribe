@@ -64,9 +64,9 @@ def check_cuda():
     from hw_profile import choose_config, detect_hardware
     hw = detect_hardware()
     cfg = choose_config(hw)
-    # Pascal (GTX 10xx, CC < 7) should get int8_float32; Turing+ (GTX 16xx, RTX) int8_float16.
-    from hw_profile import has_slow_fp16
-    expected = "int8_float32" if has_slow_fp16(hw) else "int8_float16"
+    # Pascal (GTX 10xx) and GTX 16xx should get int8_float32; RTX cards int8_float16.
+    from hw_profile import prefers_int8_float32
+    expected = "int8_float32" if prefers_int8_float32(hw) else "int8_float16"
     level = "PASS" if (cfg.device, cfg.compute_type) == ("cuda", expected) else "WARN"
     report(level, "Auto config", f"{cfg.model} {cfg.device} {cfg.compute_type} | {cfg.reason}")
     return True

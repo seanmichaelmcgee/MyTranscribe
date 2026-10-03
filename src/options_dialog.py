@@ -18,6 +18,8 @@ from settings import Settings
 from triggers import KEY_CHOICES, MOUSE_CHOICES, key_label
 
 MODES = [("hold", "Hold to talk"), ("toggle", "Toggle (press to start, press to stop)")]
+ACCURACY = [("best", "Best — large-v3 (text ~3 s after stop)"),
+            ("fast", "Fast — large-v3-turbo (text ~1.5 s after stop)")]
 
 HOW_TO = (
     "<b>How it works</b><br>"
@@ -71,6 +73,16 @@ class OptionsDialog(QDialog):
         self.mouse.currentIndexChanged.connect(self._sync_enabled)
         self._sync_enabled()
 
+        layout.addWidget(self._title("Speech model"))
+        acc_form = QFormLayout()
+        acc_form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
+        self.accuracy = self._combo(ACCURACY, settings.accuracy)
+        acc_form.addRow("Accuracy:", self.accuracy)
+        note = QLabel("Takes effect next time MyTranscribe starts.")
+        note.setObjectName("fixedBinding")
+        acc_form.addRow("", note)
+        layout.addLayout(acc_form)
+
         layout.addWidget(self._title("View"))
         self.start_compact = QCheckBox("Start in compact view (button only)")
         self.start_compact.setChecked(settings.start_compact)
@@ -116,4 +128,4 @@ class OptionsDialog(QDialog):
         """The edited settings (call after exec() returned Accepted)."""
         return replace(self._original, key=self.key.currentData(), key_mode=self.key_mode.currentData(),
                        mouse=self.mouse.currentData(), mouse_mode=self.mouse_mode.currentData(),
-                       start_compact=self.start_compact.isChecked())
+                       start_compact=self.start_compact.isChecked(), accuracy=self.accuracy.currentData())
