@@ -36,7 +36,7 @@ def test_settings_file_never_holds_text(tmp_path):
     p = tmp_path / "settings.json"
     st.save(st.Settings(), p)
     assert set(json.loads(p.read_text(encoding="utf-8"))) == {"key", "key_mode", "mouse", "mouse_mode",
-                                                              "start_compact", "accuracy"}
+                                                              "start_compact", "accuracy", "voice_commands"}
 
 
 def test_accuracy_default_and_validation(tmp_path):

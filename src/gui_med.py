@@ -58,6 +58,7 @@ import phi_clipboard                                         # noqa: E402
 from gui_qt import AppState, TranscriptionWindow             # noqa: E402
 from triggers import InputTriggers                           # noqa: E402
 import settings as settings_store                            # noqa: E402
+import voice_commands                                        # noqa: E402
 from options_dialog import OptionsDialog                     # noqa: E402
 
 logger = logging.getLogger("gui_med")
@@ -423,18 +424,18 @@ class MedTranscriptionWindow(TranscriptionWindow):
         self._finish_from_hotkey = from_hotkey
         self._set_buttons_enabled(False)
         self._set_status("Transcribing…", "busy")
-        self._text_area.setPlainText(self._transcriber.text + TRANSCRIBING_SUFFIX)
+        self._text_area.setPlainText(self._display_text() + TRANSCRIBING_SUFFIX)
         self._poll_timer.start()        # keep polling until the worker drains
 
     def _poll_tick(self) -> None:
         t = self._transcriber
         if self._finishing:
             if t.busy:
-                self._text_area.setPlainText(t.text + TRANSCRIBING_SUFFIX)
+                self._text_area.setPlainText(self._display_text() + TRANSCRIBING_SUFFIX)
                 return
             self._poll_timer.stop()
             self._finishing = False
-            self._finalize(t.text, self._finish_from_hotkey)
+            self._finalize(self._display_text(), self._finish_from_hotkey)
             self._set_buttons_enabled(True)
             return
 
@@ -448,7 +449,7 @@ class MedTranscriptionWindow(TranscriptionWindow):
         if self._state == AppState.LONG_RECORDING:
             self._text_area.setPlainText("Recording in long mode...")
         elif self._state == AppState.NORMAL_RECORDING:
-            text = t.text
+            text = self._display_text()
             if self._text_area.toPlainText() != text:   # avoid resetting scroll every 30 ms
                 self._text_area.setPlainText(text)
         else:
@@ -468,6 +469,11 @@ class MedTranscriptionWindow(TranscriptionWindow):
             return
         self._text_area.setPlainText(text)
         self._copy(text, paste=self._autopaste and from_hotkey)
+
+    def _display_text(self) -> str:
+        """Transcript so far, with spoken formatting commands applied if enabled."""
+        text = self._transcriber.text
+        return voice_commands.apply(text) if self._settings.voice_commands else text
 
     # ── Clipboard: verified copy, then (maybe) paste ──────────────────────────
     def _clipboard(self):

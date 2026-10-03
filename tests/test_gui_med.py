@@ -226,6 +226,23 @@ def test_capture_end_auto_finalizes(qapp, make_window):
     assert wait_for(lambda: w.clip.text() == "chunk0", app=qapp)
 
 
+def test_voice_commands_reach_clipboard(qapp, make_window):
+    from settings import Settings
+    said = "Book review in 2 weeks. New line, open quotes, follow up x-ray, close quotes."
+    w = make_window(engine=FakeEngine(text_fn=lambda i, a: said if i == 0 else ""),
+                    stream=ArrayStream(speech_like(1)))
+    w._on_start_clicked()
+    assert wait_for(lambda: w._state.name == "IDLE" and not w._finishing, timeout=5, app=qapp)
+    assert wait_for(lambda: w.clip.text() == 'Book review in 2 weeks.\n"Follow up x-ray".', app=qapp)
+
+    w2 = make_window(engine=FakeEngine(text_fn=lambda i, a: said if i == 0 else ""),
+                     stream=ArrayStream(speech_like(1)), settings=Settings(start_compact=False,
+                                                                           voice_commands=False))
+    w2._on_start_clicked()
+    assert wait_for(lambda: w2._state.name == "IDLE" and not w2._finishing, timeout=5, app=qapp)
+    assert wait_for(lambda: w2.clip.text() == said, app=qapp)
+
+
 def test_no_long_record_button(qapp, make_window):
     w = make_window()
     w.show()

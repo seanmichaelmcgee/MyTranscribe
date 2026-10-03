@@ -83,6 +83,12 @@ class OptionsDialog(QDialog):
         acc_form.addRow("", note)
         layout.addLayout(acc_form)
 
+        layout.addWidget(self._title("Text"))
+        self.voice_commands = QCheckBox("Voice commands: say “new line”, “new paragraph”, "
+                                        "“open quote … close quote”")
+        self.voice_commands.setChecked(settings.voice_commands)
+        layout.addWidget(self.voice_commands)
+
         layout.addWidget(self._title("View"))
         self.start_compact = QCheckBox("Start in compact view (button only)")
         self.start_compact.setChecked(settings.start_compact)
@@ -128,4 +134,5 @@ class OptionsDialog(QDialog):
         """The edited settings (call after exec() returned Accepted)."""
         return replace(self._original, key=self.key.currentData(), key_mode=self.key_mode.currentData(),
                        mouse=self.mouse.currentData(), mouse_mode=self.mouse_mode.currentData(),
-                       start_compact=self.start_compact.isChecked(), accuracy=self.accuracy.currentData())
+                       start_compact=self.start_compact.isChecked(), accuracy=self.accuracy.currentData(),
+                       voice_commands=self.voice_commands.isChecked())
