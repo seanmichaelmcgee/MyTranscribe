@@ -29,10 +29,19 @@ logger = logging.getLogger("fw_engine")
 
 SAMPLE_RATE = 16000
 
-# Decoding settings. beam_size=5 is faster-whisper's default and noticeably
-# more accurate on drug names than greedy; $MYTRANSCRIBE_BEAM_SIZE=1 trades
-# accuracy for ~2x speed if the 1060 turns out to be too slow.
-DEFAULT_BEAM_SIZE = 5
+# Decoding settings. Greedy (beam 1) is the default: on the GTX 1660 Ti tests
+# (2026-10-03) large-v3 beam 1 matched beam 5 on WER (letters 5.0 %, snippets
+# 1.9 %), was ~30 % faster, and kept spoken commands ("new line", "open quote")
+# that beam 5 sometimes dropped as disfluencies (10/10 vs 6/10).
+# $MYTRANSCRIBE_BEAM_SIZE=5 brings beam search back.
+DEFAULT_BEAM_SIZE = 1
+# Runaway guard: Whisper can loop ("thank you. thank you. ...") or, with
+# temperature fallback, decode garbage until the 448-token window is full. A
+# chunk never needs more than ~10 tokens per second of audio (fast dictation is
+# ~4-6), so cap output to that, within the window left after the prompt.
+MAX_TOKENS_PER_SECOND = 10
+MIN_NEW_TOKENS = 24
+WHISPER_MAX_LENGTH = 448          # decoder window: prompt + special tokens + output
 VAD_PARAMETERS = {
     # Dictation has short thinking pauses; keep them inside one segment.
     "min_silence_duration_ms": 700,
@@ -160,9 +169,17 @@ class FasterWhisperEngine:
             vad_filter=True,
             vad_parameters=VAD_PARAMETERS,
             without_timestamps=True,
+            max_new_tokens=self.max_new_tokens(len(audio) / SAMPLE_RATE, prompt),
         )
         # segments is a lazy generator: decoding happens while we iterate.
         return " ".join(s.text.strip() for s in segments if s.text.strip())
+
+    def max_new_tokens(self, audio_s: float, prompt: Optional[str]) -> int:
+        """Output cap for one chunk: proportional to its length, within the decoder window."""
+        prompt_tokens = self.count_tokens(prompt) + 1 if prompt else 0      # + <|startofprev|>
+        room = WHISPER_MAX_LENGTH - prompt_tokens - 4                       # sot, lang, task, notimestamps
+        want = int(audio_s * MAX_TOKENS_PER_SECOND) + MIN_NEW_TOKENS
+        return max(MIN_NEW_TOKENS, min(want, room))
 
     def count_tokens(self, text: str) -> int:
         """Exact Whisper token count (for prompt budgeting); estimate if unavailable."""

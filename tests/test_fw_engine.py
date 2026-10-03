@@ -62,9 +62,24 @@ def test_cpu_failure_is_raised():
         FasterWhisperEngine(EngineConfig("x", "cpu", "int8", 1, ""), model_factory=factory)
 
 
+def test_output_capped_by_audio_length_and_window():
+    eng = FasterWhisperEngine(CUDA_CFG, model_factory=FakeWhisperModel)
+    eng.transcribe(np.zeros(16000 * 2, dtype=np.float32), prompt="")
+    assert eng.model.calls[-1][1]["max_new_tokens"] == 2 * 10 + 24            # short chunk: small cap
+    assert eng.max_new_tokens(30.0, None) == 30 * 10 + 24
+    long_prompt = "word " * 600                                             # ~215-token prompt or more
+    cap = eng.max_new_tokens(30.0, long_prompt)
+    assert cap + eng.count_tokens(long_prompt) + 5 <= fw_engine.WHISPER_MAX_LENGTH or cap == fw_engine.MIN_NEW_TOKENS
+    assert eng.max_new_tokens(0.2, None) == fw_engine.MIN_NEW_TOKENS + 2
+
+
+def test_default_beam_is_greedy():
+    assert fw_engine.DEFAULT_BEAM_SIZE == 1
+
+
 def test_beam_size_env(monkeypatch):
-    monkeypatch.setenv("MYTRANSCRIBE_BEAM_SIZE", "1")
-    assert FasterWhisperEngine(CUDA_CFG, model_factory=FakeWhisperModel).beam_size == 1
+    monkeypatch.setenv("MYTRANSCRIBE_BEAM_SIZE", "5")
+    assert FasterWhisperEngine(CUDA_CFG, model_factory=FakeWhisperModel).beam_size == 5
     monkeypatch.setenv("MYTRANSCRIBE_BEAM_SIZE", "junk")
     assert FasterWhisperEngine(CUDA_CFG, model_factory=FakeWhisperModel).beam_size == fw_engine.DEFAULT_BEAM_SIZE
 
