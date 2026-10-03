@@ -73,13 +73,21 @@ def test_output_capped_by_audio_length_and_window():
     assert eng.max_new_tokens(0.2, None) == fw_engine.MIN_NEW_TOKENS + 2
 
 
-def test_default_beam_is_greedy():
-    assert fw_engine.DEFAULT_BEAM_SIZE == 1
+def test_default_beam_search_with_patience():
+    """Real recordings: beam 5 halves medical errors vs greedy; patience 2 keeps spoken commands."""
+    assert fw_engine.DEFAULT_BEAM_SIZE == 5
+    eng = FasterWhisperEngine(CUDA_CFG, model_factory=FakeWhisperModel)
+    eng.transcribe(np.zeros(16000, dtype=np.float32), prompt="")
+    kw = eng.model.calls[-1][1]
+    assert kw["beam_size"] == 5 and kw["patience"] == 2.0
+    greedy = FasterWhisperEngine(CUDA_CFG, model_factory=FakeWhisperModel, beam_size=1)
+    greedy.transcribe(np.zeros(16000, dtype=np.float32), prompt="")
+    assert greedy.model.calls[-1][1]["patience"] == 1.0
 
 
 def test_beam_size_env(monkeypatch):
-    monkeypatch.setenv("MYTRANSCRIBE_BEAM_SIZE", "5")
-    assert FasterWhisperEngine(CUDA_CFG, model_factory=FakeWhisperModel).beam_size == 5
+    monkeypatch.setenv("MYTRANSCRIBE_BEAM_SIZE", "1")
+    assert FasterWhisperEngine(CUDA_CFG, model_factory=FakeWhisperModel).beam_size == 1
     monkeypatch.setenv("MYTRANSCRIBE_BEAM_SIZE", "junk")
     assert FasterWhisperEngine(CUDA_CFG, model_factory=FakeWhisperModel).beam_size == fw_engine.DEFAULT_BEAM_SIZE
 

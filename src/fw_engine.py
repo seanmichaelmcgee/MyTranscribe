@@ -29,12 +29,17 @@ logger = logging.getLogger("fw_engine")
 
 SAMPLE_RATE = 16000
 
-# Decoding settings. Greedy (beam 1) is the default: on the GTX 1660 Ti tests
-# (2026-10-03) large-v3 beam 1 matched beam 5 on WER (letters 5.0 %, snippets
-# 1.9 %), was ~30 % faster, and kept spoken commands ("new line", "open quote")
-# that beam 5 sometimes dropped as disfluencies (10/10 vs 6/10).
-# $MYTRANSCRIBE_BEAM_SIZE=5 brings beam search back.
-DEFAULT_BEAM_SIZE = 1
+# Decoding settings: beam search, 5 beams, patience 2.
+# On the user's REAL recordings (2026-10-03, 30 clips, names ignored) greedy
+# decoding doubled medical-word errors (12.4 % vs 8.2 %) and tripled invented
+# words (1.5 vs 0.9 per 100) compared with beam 5. (Synthetic TTS voices had
+# suggested greedy was as good: they are too clean to show it.) Plain beam 5
+# sometimes drops spoken commands ("new line") as if they were filler; patience
+# 2 (keep searching for more finished hypotheses) restored them: messages with
+# correct formatting 20/24 -> 23/24, no accuracy cost, ~+0.1 s.
+# $MYTRANSCRIBE_BEAM_SIZE=1 trades accuracy for speed.
+DEFAULT_BEAM_SIZE = 5
+DEFAULT_PATIENCE = 2.0
 # Runaway guard: Whisper can loop ("thank you. thank you. ...") or, with
 # temperature fallback, decode garbage until the 448-token window is full. A
 # chunk never needs more than ~10 tokens per second of audio (fast dictation is
@@ -164,6 +169,7 @@ class FasterWhisperEngine:
             language="en",
             task="transcribe",
             beam_size=self.beam_size,
+            patience=DEFAULT_PATIENCE if self.beam_size > 1 else 1.0,
             initial_prompt=prompt or None,
             condition_on_previous_text=False,
             vad_filter=True,

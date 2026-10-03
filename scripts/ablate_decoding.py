@@ -49,7 +49,15 @@ from vocab import PromptBuilder, build_text_pipeline, load_lexicon, make_wordfre
 import voice_commands                                                     # noqa: E402
 
 BASE = dict(model="large-v3", compute="int8_float32", beam=5, prompt="list", vad=1, stamps=0,
-            temps="default", fix=1)
+            temps="default", fix=1, lp=1.0, patience=1.0, style="default")
+# Alternative style examples (the "style" key). "cmd" adds a staff-message example that
+# shows spoken commands written out, so beam search expects them as transcript words.
+STYLES = {
+    "cmd": ("Please call and let her know the results are normal. New line. Book a review in 2 weeks. "
+            "Dear Dr. Patel, Thank you for seeing Mrs. Jones, a 64-year-old woman with hypertension and "
+            "type 2 diabetes. Current medications: apixaban 5 mg b.i.d., metformin 1000 mg b.i.d. "
+            "Impression and plan: follow-up in 6 weeks. Kind regards,"),
+}
 PRESETS = {
     "base": {},
     "beam1": {"beam": 1},
@@ -73,7 +81,7 @@ def parse_setting(spec: str) -> dict:
     cfg = dict(BASE, **PRESETS[name])
     for kv in filter(None, extra.split(",")):
         k, v = kv.split("=")
-        cfg[k] = int(v) if v.isdigit() else v
+        cfg[k] = int(v) if v.isdigit() else (float(v) if v.replace(".", "", 1).isdigit() else v)
     return cfg
 
 
@@ -93,7 +101,8 @@ class AblationEngine:
         cap = self.fw.max_new_tokens(len(audio) / SR, prompt)
         kw = dict(language="en", task="transcribe", beam_size=c["beam"], initial_prompt=prompt or None,
                   condition_on_previous_text=False, vad_filter=bool(c["vad"]),
-                  without_timestamps=not c["stamps"], max_new_tokens=cap)
+                  without_timestamps=not c["stamps"], max_new_tokens=cap,
+                  length_penalty=float(c["lp"]), patience=float(c["patience"]))
         if c["vad"]:
             kw["vad_parameters"] = VAD_PARAMETERS
         if TEMPS[c["temps"]] is not None:
@@ -133,6 +142,7 @@ def main(argv=None):
     ap.add_argument("--settings", default="base")
     ap.add_argument("--json", type=Path)
     ap.add_argument("--show-invented", action="store_true", help="list invented / missed words (fictional data)")
+    ap.add_argument("--only", help="only entries whose category is in this comma list (e.g. message)")
     args = ap.parse_args(argv)
 
     register_cuda_dll_dirs()
@@ -141,6 +151,8 @@ def main(argv=None):
         for e in json.loads(m.read_text(encoding="utf-8")):
             e = dict(e)
             e["_path"] = m.parent / e["audio"]
+            if args.only and e.get("category") not in args.only.split(","):
+                continue
             entries.append(e)
     zipf = lambda w: zipf_frequency(w, "en")
     import vocab as vocab_mod
@@ -164,7 +176,8 @@ def main(argv=None):
             engines[key] = fw
         fw = engines[key]
         eng = AblationEngine(fw, cfg)
-        base_prompt, builder = make_prompting(cfg["prompt"], style, lex, fw.count_tokens)
+        style_text = STYLES.get(cfg["style"], style)
+        base_prompt, builder = make_prompting(cfg["prompt"], style_text, lex, fw.count_tokens)
         post = corrector if cfg["fix"] else None
         by_cat = defaultdict(Breakdown)
         terms = defaultdict(lambda: [0, 0])
@@ -199,17 +212,18 @@ def main(argv=None):
             for k in (cat, "ALL"):
                 terms[k][0] += len(found)
                 terms[k][1] += len(found) + len(miss)
-                if "\n" in ref or '"' in ref:
-                    fmt[k][1] += 1
-                    fmt[k][0] += hyp.count("\n") == ref.count("\n") and hyp.count('"') == ref.count('"')
+                # Every recording: no missing AND no spurious line breaks / quotes.
+                fmt[k][1] += 1
+                fmt[k][0] += hyp.count("\n") == ref.count("\n") and hyp.count('"') == ref.count('"')
                 if len(audio) / SR < 20:
                     waits[k].append(secs)
             per_utt.append({"audio": e["audio"], "hyp": hyp, **b.rates(), "invented": b.invented,
                             "medical_missed": b.medical_missed})
         summary = {}
         print(f"\n== {spec}: {cfg['model']} {cfg['compute']} beam {cfg['beam']} prompt={cfg['prompt']} "
-              f"vad={cfg['vad']} stamps={cfg['stamps']} temps={cfg['temps']} fix={cfg['fix']} "
-              f"| fallback chunks {eng.fallbacks}/{eng.calls}")
+              f"style={cfg['style']} lp={cfg['lp']} patience={cfg['patience']} vad={cfg['vad']} "
+              f"stamps={cfg['stamps']} temps={cfg['temps']} fix={cfg['fix']} "
+              f"| fallback chunks {eng.fallbacks}/{eng.calls}", flush=True)
         print(f"{'category':9s} {'WER':>6s} {'med':>6s} {'common':>7s} {'invented':>9s} {'terms':>6s} "
               f"{'format':>7s} {'wait':>6s}")
         for k in sorted(by_cat, key=lambda c: (c == "ALL", c)):
