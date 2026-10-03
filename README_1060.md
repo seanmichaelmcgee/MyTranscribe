@@ -21,6 +21,13 @@ unchanged and still works; this one lives alongside it.
 Needs Python 3.11 and a CUDA-12-capable NVIDIA driver (any recent Game Ready or Studio
 driver; the R580 branch is the last to support GTX 10-series cards).
 
+**Easiest:** `scripts\setup_1060.bat` creates the environment, installs everything,
+downloads the models and runs a go/no-go check (`scripts\preflight_1060.py`).
+Overnight unattended testing with a local Claude session: see
+[LOCAL_SESSION_HANDOFF.md](LOCAL_SESSION_HANDOFF.md).
+
+Manual install:
+
 ```bat
 cd C:\path\to\MyTranscribe
 py -3.11 -m venv venv1060
