@@ -15,10 +15,17 @@ Same window, buttons, chimes and Ctrl+Alt+Q hotkey; different engine:
     near-miss drug/term names (vocab.py, vocab_correct.py).
   * Transcript text is never logged; clipboard copies opt out of Windows
     clipboard history / cloud sync (phi_clipboard.py).
+  * Every copy is verified. If another program holds the clipboard, the
+    copy is retried for ~0.5 s; if it still fails, the window says "Not
+    copied" and nothing is auto-pasted (the clipboard would still hold the
+    previous text).
+  * Start/stop: big on-screen button, Space (window focused), Ctrl+Alt+Q,
+    plus F9 and the mouse "forward" button anywhere (triggers.py; toggle or
+    hold-to-talk). Hotkeys never pull the window to the front: it stays on
+    top, and keyboard focus stays in your EMR for Ctrl+V.
   * Optional auto-paste: set MYTRANSCRIBE_AUTOPASTE=1 and, after a hotkey
     stop, the text is pasted into whatever window has focus (your EMR /
-    Word). In this mode the hotkey does NOT pull the MyTranscribe window to
-    the front, so focus stays where you were typing.
+    Word).
 
 Run: python src/gui_med.py   (or run_1060.bat on Windows)
 """
@@ -32,7 +39,9 @@ from pathlib import Path
 from typing import Callable, Optional
 
 from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtWidgets import QApplication
+from PyQt6.QtWidgets import (
+    QApplication, QFrame, QHBoxLayout, QLabel, QPushButton, QTextEdit, QVBoxLayout, QWidget,
+)
 
 _SRC_DIR = Path(__file__).parent
 sys.path.insert(0, str(_SRC_DIR))
@@ -43,7 +52,8 @@ from chunked_transcriber import ChunkedTranscriber           # noqa: E402
 from prompt_loader import load_prompt                        # noqa: E402
 from vocab import build_text_pipeline                        # noqa: E402
 import phi_clipboard                                         # noqa: E402
-from gui_qt import APP_QSS, AppState, TranscriptionWindow    # noqa: E402
+from gui_qt import AppState, TranscriptionWindow             # noqa: E402
+from triggers import InputTriggers, TriggerConfig            # noqa: E402
 
 logger = logging.getLogger("gui_med")
 
@@ -52,8 +62,51 @@ LOAD_POLL_MS = 200
 AUTOPASTE_DELAY_MS = 150        # let the target window settle after the hotkey
 AUTOPASTE_RETRY_MS = 50         # re-check modifier keys this often...
 AUTOPASTE_MAX_WAIT_MS = 3000    # ...for at most this long, then paste anyway
+COPY_ATTEMPTS = 6               # clipboard busy (EMR / Citrix)? retry...
+COPY_RETRY_MS = 100             # ...this often (~0.5 s total) before giving up
 LOADING_TEXT = "Loading speech model… (first run downloads ~1.6 GB)"
 TRANSCRIBING_SUFFIX = "\n\n[Finishing transcription…]"
+NORMAL_SIZE = (560, 300)
+COMPACT_SIZE = (360, 64)
+
+# Status pill: (dot colour, text colour) per kind.
+STATUS_COLOURS = {
+    "idle": ("#8A8880", "#5E5D59"),
+    "recording": ("#C2412D", "#8F2F21"),
+    "busy": ("#C96442", "#5E5D59"),
+    "ok": ("#4A7C59", "#3B6347"),
+    "warn": ("#B54708", "#93370D"),
+}
+
+# Warm, Claude-desktop-like light theme. Replaces gui_qt.APP_QSS for this window.
+MED_QSS = """
+QMainWindow, QWidget#medRoot { background: #F5F4ED; }
+QWidget { font-family: "Segoe UI Variable Text", "Segoe UI", sans-serif; font-size: 10pt; color: #1F1E1D; }
+QTextEdit#transcriptionView {
+    background: #FFFFFF; border: 1px solid #E3E1D7; border-radius: 10px;
+    padding: 8px 10px; font-size: 11pt; selection-background-color: #F0D9CD; selection-color: #1F1E1D;
+}
+QLabel#statusText { font-weight: 600; }
+QLabel#hintText { color: #8A8880; font-size: 8.5pt; }
+QPushButton { border-radius: 8px; padding: 6px 12px; }
+QPushButton#toggleButton {
+    background: #C96442; color: #FFFFFF; border: none; font-size: 11pt; font-weight: 600; min-height: 34px;
+}
+QPushButton#toggleButton:hover { background: #B5583A; }
+QPushButton#toggleButton:pressed { background: #A14E33; }
+QPushButton#toggleButton[recording="true"] { background: #2F2E2A; }
+QPushButton#toggleButton[recording="true"]:hover { background: #1F1E1D; }
+QPushButton#toggleButton:disabled { background: #E6CDC1; color: #FFFFFF; }
+QPushButton#longButton, QPushButton#copyButton, QPushButton#compactButton {
+    background: transparent; color: #3D3C38; border: 1px solid #DAD8CD;
+}
+QPushButton#longButton:hover, QPushButton#copyButton:hover, QPushButton#compactButton:hover {
+    background: #ECEADF;
+}
+QPushButton#longButton:disabled, QPushButton#copyButton:disabled { color: #B4B2A9; border-color: #E6E4DA; }
+QPushButton#copyButton[attention="true"] { background: #FCEFE6; color: #93370D; border-color: #E9B48F; }
+QFrame#audioIndicator { background: #C96442; border-radius: 2px; border: none; }
+"""
 
 
 def env_flag(name: str, env: Optional[dict] = None) -> bool:
@@ -78,28 +131,50 @@ class MedTranscriptionWindow(TranscriptionWindow):
     """
     TranscriptionWindow with the background faster-whisper pipeline.
 
-    engine_factory / stream_factory / autopaste are injectable for tests.
+    engine_factory / stream_factory / autopaste / trigger_config are injectable
+    for tests; trigger_config=False disables the global F9 / mouse triggers.
     """
 
     def __init__(self, engine_factory: Optional[Callable] = None,
                  stream_factory: Optional[Callable] = None,
                  autopaste: Optional[bool] = None,
                  base_prompt: Optional[str] = None,
-                 text_pipeline: Optional[tuple] = None) -> None:
+                 text_pipeline: Optional[tuple] = None,
+                 trigger_config=None) -> None:
         self._engine_factory = engine_factory or build_default_engine
         self._stream_factory = stream_factory
         self._autopaste = env_flag("MYTRANSCRIBE_AUTOPASTE") if autopaste is None else autopaste
         self._base_prompt = load_prompt() if base_prompt is None else base_prompt
+        self._trigger_config = TriggerConfig.from_env() if trigger_config is None else trigger_config
         self._engine = None
         self._text_pipeline = text_pipeline    # (prompt_builder, corrector); built on load if None
         self._load_error: Optional[str] = None
         self._finishing = False
         self._finish_from_hotkey = False
         self._paste_waited_ms = 0
+        self._copy_generation = 0      # bumps on every new copy; stale retries give up
+        self._copied_text: Optional[str] = None   # what we last verified on the clipboard
+        self._compact = False
         self.paste_count = 0           # for tests / diagnostics
+        self.copy_ok: Optional[bool] = None
 
         super().__init__()
         self.setWindowTitle(WINDOW_TITLE_MED + (" [auto-paste]" if self._autopaste else ""))
+        self.setWindowOpacity(1.0)
+        self.setMinimumSize(*COMPACT_SIZE)
+        self.resize(*NORMAL_SIZE)
+
+        self._triggers = None
+        if self._trigger_config:
+            self._triggers = InputTriggers(self._trigger_config, parent=self)
+            self._triggers.pressed.connect(self._on_trigger_pressed, Qt.ConnectionType.QueuedConnection)
+            self._triggers.released.connect(self._on_trigger_released, Qt.ConnectionType.QueuedConnection)
+            try:
+                self._triggers.start()
+            except Exception as exc:          # never let an input hook stop the app
+                logger.error("Could not start F9 / mouse triggers: %s", exc)
+                self._triggers = None
+        self._hint.setText(self._hint_text())
 
         # Background model load; buttons stay disabled until it finishes.
         self._set_buttons_enabled(False)
@@ -132,6 +207,7 @@ class MedTranscriptionWindow(TranscriptionWindow):
                 f"Could not load the speech model:\n{self._load_error}\n\n"
                 "Check the console log; see README_1060.md → Troubleshooting."
             )
+            self._set_status("Model failed to load", "warn")
             return
         builder, corrector = self._text_pipeline
         self._transcriber = ChunkedTranscriber(
@@ -143,6 +219,7 @@ class MedTranscriptionWindow(TranscriptionWindow):
         self._device = getattr(getattr(self._engine, "config", None), "device", None)
         self._text_area.setPlainText("")
         self._set_buttons_enabled(True)
+        self._set_status("Ready", "idle")
         logger.info("Ready")
 
     @property
@@ -156,6 +233,146 @@ class MedTranscriptionWindow(TranscriptionWindow):
         self._start_btn.setEnabled(enabled)
         self._long_btn.setEnabled(enabled)
         self._stop_btn.setEnabled(False)
+        self._refresh_controls()
+
+    # ── UI ────────────────────────────────────────────────────────────────────
+    def _build_ui(self) -> None:
+        """
+        Status row, transcript, one big Start/Stop button, Long Record.
+
+        _start_btn / _stop_btn are kept (hidden) because the shared state
+        machine in gui_qt enables/disables them; the visible toggle button
+        mirrors their state in _refresh_controls().
+        """
+        root = QWidget()
+        root.setObjectName("medRoot")
+        self.setCentralWidget(root)
+        layout = QVBoxLayout(root)
+        layout.setContentsMargins(12, 10, 12, 10)
+        layout.setSpacing(8)
+
+        # Status row: ● Ready ............................ [Copy] [–]
+        top = QHBoxLayout()
+        top.setSpacing(6)
+        self._status_dot = QLabel("●")
+        self._status_text = QLabel("Loading…")
+        self._status_text.setObjectName("statusText")
+        top.addWidget(self._status_dot)
+        top.addWidget(self._status_text)
+        top.addStretch(1)
+        self._copy_btn = self._small_button("Copy", "copyButton", self._on_copy_clicked,
+                                            "Copy the transcript again")
+        self._compact_btn = self._small_button("–", "compactButton", self._toggle_compact,
+                                               "Compact view (button only)")
+        top.addWidget(self._copy_btn)
+        top.addWidget(self._compact_btn)
+        layout.addLayout(top)
+
+        self._text_area = QTextEdit()
+        self._text_area.setObjectName("transcriptionView")
+        self._text_area.setReadOnly(True)
+        self._text_area.setLineWrapMode(QTextEdit.LineWrapMode.WidgetWidth)
+        self._text_area.viewport().setCursor(Qt.CursorShape.ArrowCursor)
+        layout.addWidget(self._text_area, stretch=1)
+
+        self._audio_indicator = QFrame(self._text_area.viewport())
+        self._audio_indicator.setObjectName("audioIndicator")
+        self._audio_indicator.setFixedSize(40, 4)
+        self._audio_indicator.setVisible(False)
+        self._reposition_indicator()
+
+        row = QHBoxLayout()
+        row.setSpacing(8)
+        self._toggle_btn = QPushButton("Start dictation")
+        self._toggle_btn.setObjectName("toggleButton")
+        self._toggle_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)   # Space must not click it
+        self._toggle_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._toggle_btn.clicked.connect(self._on_toggle_clicked)
+        row.addWidget(self._toggle_btn, stretch=3)
+        self._long_btn = self._small_button("Long record", "longButton", self._on_long_clicked,
+                                            "Up to 1 hour; text appears when you stop")
+        row.addWidget(self._long_btn, stretch=1)
+        layout.addLayout(row)
+
+        self._hint = QLabel("")
+        self._hint.setObjectName("hintText")
+        layout.addWidget(self._hint)
+
+        # State holders for the shared gui_qt state machine (never shown).
+        self._start_btn = QPushButton(root)
+        self._stop_btn = QPushButton(root)
+        self._start_btn.hide()
+        self._stop_btn.hide()
+        self._stop_btn.setEnabled(False)
+
+    def _small_button(self, text: str, name: str, slot: Callable, tip: str) -> QPushButton:
+        b = QPushButton(text)
+        b.setObjectName(name)
+        b.setToolTip(tip)
+        b.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        b.setCursor(Qt.CursorShape.PointingHandCursor)
+        b.clicked.connect(slot)
+        return b
+
+    def _hint_text(self) -> str:
+        extra = self._trigger_config.describe() if self._triggers else ""
+        mode = " (hold to talk)" if self._triggers and self._trigger_config.hold else ""
+        keys = " · ".join(k for k in (extra + mode, "Ctrl+Alt+Q", "Space") if k)
+        return f"Start/stop: {keys}"
+
+    def _set_status(self, text: str, kind: str) -> None:
+        dot, fg = STATUS_COLOURS[kind]
+        self._status_dot.setStyleSheet(f"color: {dot}; font-size: 14pt;")
+        self._status_text.setStyleSheet(f"color: {fg};")
+        self._status_text.setText(text)
+
+    def _refresh_controls(self) -> None:
+        """Mirror the state machine onto the visible toggle / copy buttons."""
+        recording = self._state in (AppState.NORMAL_RECORDING, AppState.LONG_RECORDING)
+        btn = self._toggle_btn
+        if recording:
+            btn.setText("Stop")
+        elif self._finishing:
+            btn.setText("Finishing…")
+        elif not self.ready:
+            btn.setText("Loading model…")
+        else:
+            btn.setText("Start dictation")
+        btn.setEnabled(self._stop_btn.isEnabled() if recording else self._start_btn.isEnabled())
+        if btn.property("recording") != recording:
+            btn.setProperty("recording", recording)
+            btn.style().unpolish(btn)
+            btn.style().polish(btn)
+        self._copy_btn.setEnabled(not recording and not self._finishing
+                                  and bool(self._text_area.toPlainText().strip()) and self.ready)
+
+    def _set_copy_attention(self, on: bool) -> None:
+        if self._copy_btn.property("attention") != on:
+            self._copy_btn.setProperty("attention", on)
+            self._copy_btn.style().unpolish(self._copy_btn)
+            self._copy_btn.style().polish(self._copy_btn)
+
+    def _set_state(self, new_state: AppState) -> None:
+        super()._set_state(new_state)
+        if new_state == AppState.NORMAL_RECORDING:
+            self._set_status("Recording", "recording")
+        elif new_state == AppState.LONG_RECORDING:
+            self._set_status("Recording (long)", "recording")
+        self._set_copy_attention(False)
+        self._refresh_controls()
+
+    def _toggle_compact(self) -> None:
+        self._compact = not self._compact
+        self._text_area.setVisible(not self._compact)
+        self._hint.setVisible(not self._compact)
+        self._compact_btn.setText("+" if self._compact else "–")
+        self._compact_btn.setToolTip("Show transcript" if self._compact else "Compact view (button only)")
+        if self._compact:
+            self._normal_size = (self.width(), self.height())
+            self.resize(max(COMPACT_SIZE[0], self.width() // 2), COMPACT_SIZE[1])
+            self.adjustSize()
+        else:
+            self.resize(*getattr(self, "_normal_size", NORMAL_SIZE))
 
     # ── Start / stop ──────────────────────────────────────────────────────────
     def _can_start(self) -> bool:
@@ -171,6 +388,7 @@ class MedTranscriptionWindow(TranscriptionWindow):
             self._text_area.setPlainText(f"Could not open the microphone:\n{exc}")
             return
         self._text_area.setPlainText("")
+        self._copy_generation += 1      # cancel any pending copy retries
         self._set_state(state)          # plays start chime
         self._poll_timer.start()
 
@@ -189,6 +407,7 @@ class MedTranscriptionWindow(TranscriptionWindow):
         self._finishing = True
         self._finish_from_hotkey = from_hotkey
         self._set_buttons_enabled(False)
+        self._set_status("Transcribing…", "busy")
         self._text_area.setPlainText(self._transcriber.text + TRANSCRIBING_SUFFIX)
         self._poll_timer.start()        # keep polling until the worker drains
 
@@ -200,8 +419,8 @@ class MedTranscriptionWindow(TranscriptionWindow):
                 return
             self._poll_timer.stop()
             self._finishing = False
-            self._set_buttons_enabled(True)
             self._finalize(t.text, self._finish_from_hotkey)
+            self._set_buttons_enabled(True)
             return
 
         if self._state in (AppState.NORMAL_RECORDING, AppState.LONG_RECORDING) and not t.recording:
@@ -224,30 +443,75 @@ class MedTranscriptionWindow(TranscriptionWindow):
         self._reposition_indicator()
 
     def _finalize(self, text: str, from_hotkey: bool) -> None:
-        """Show final text, copy it (PHI-safe), optionally auto-paste."""
+        """Show final text, copy it (PHI-safe, verified), optionally auto-paste."""
         if self._transcriber.capture_error:
             text = (text + "\n\n" if text else "") + f"[{self._transcriber.capture_error}]"
         if not text:
             logger.info("Empty transcription — preserving previous clipboard")
             self._text_area.setPlainText("")
+            self._set_status("Nothing heard", "idle")
             return
         self._text_area.setPlainText(text)
-        phi_clipboard.copy_text(QApplication.instance().clipboard(), text)
-        logger.info("Copied %d chars to clipboard", len(text))   # length only: no PHI in logs
-        if self._autopaste and from_hotkey:
-            self._paste_waited_ms = 0
-            QTimer.singleShot(AUTOPASTE_DELAY_MS, self._try_paste)
+        self._copy(text, paste=self._autopaste and from_hotkey)
+
+    # ── Clipboard: verified copy, then (maybe) paste ──────────────────────────
+    def _clipboard(self):
+        """The system clipboard (tests swap in a fake)."""
+        return QApplication.instance().clipboard()
+
+    def _copy(self, text: str, paste: bool) -> None:
+        self._copy_generation += 1
+        self._copied_text = None
+        self._try_copy(text, paste, self._copy_generation, attempt=1)
+
+    def _try_copy(self, text: str, paste: bool, generation: int, attempt: int) -> None:
+        if generation != self._copy_generation:
+            return                      # superseded by a newer copy or recording
+        if phi_clipboard.copy_text(self._clipboard(), text):
+            self._copied_text = text
+            self.copy_ok = True
+            logger.info("Copied %d chars to clipboard", len(text))   # length only: no PHI in logs
+            self._set_copy_attention(False)
+            self._set_status("Copied — paste with Ctrl+V", "ok")
+            if paste:
+                self._paste_waited_ms = 0
+                QTimer.singleShot(AUTOPASTE_DELAY_MS, self._try_paste)
+            return
+        if attempt < COPY_ATTEMPTS:
+            QTimer.singleShot(COPY_RETRY_MS, lambda: self._try_copy(text, paste, generation, attempt + 1))
+            return
+        # The clipboard still holds the PREVIOUS contents: never paste now.
+        self.copy_ok = False
+        logger.warning("Clipboard busy: copy failed after %d attempts; not pasting", attempt)
+        self._set_copy_attention(True)
+        self._set_status("Not copied — clipboard busy. Click Copy", "warn")
 
     def _try_paste(self) -> None:
         if phi_clipboard.modifiers_held() and self._paste_waited_ms < AUTOPASTE_MAX_WAIT_MS:
             self._paste_waited_ms += AUTOPASTE_RETRY_MS
             QTimer.singleShot(AUTOPASTE_RETRY_MS, self._try_paste)
             return
+        # Re-check right before pasting: something else may have taken the clipboard.
+        try:
+            current = self._clipboard().text()
+        except Exception:
+            current = None
+        if self._copied_text is None or current != self._copied_text:
+            logger.warning("Clipboard changed before auto-paste; not pasting")
+            self._set_status("Not pasted — clipboard changed. Click Copy", "warn")
+            self._set_copy_attention(True)
+            return
         try:
             phi_clipboard.send_paste()
             self.paste_count += 1
+            self._set_status("Pasted", "ok")
         except Exception as exc:
             logger.error("Auto-paste failed: %s", exc)
+
+    def _on_copy_clicked(self) -> None:
+        text = self._text_area.toPlainText().strip()
+        if text and not self._finishing and self._state == AppState.IDLE:
+            self._copy(text, paste=False)
 
     # ── Input handlers ────────────────────────────────────────────────────────
     def _on_space_pressed(self) -> None:
@@ -255,16 +519,40 @@ class MedTranscriptionWindow(TranscriptionWindow):
             return
         super()._on_space_pressed()
 
+    def _on_toggle_clicked(self) -> None:
+        if self._state == AppState.IDLE:
+            self._on_start_clicked()
+        else:
+            self._on_stop_clicked()
+
     def on_hotkey(self) -> None:
+        """Ctrl+Alt+Q / F9 / mouse button (toggle mode)."""
         if self._finishing or not self.ready:
             return
-        if self._state == AppState.IDLE and self._autopaste:
-            # Keep keyboard focus in the user's target app for the later paste.
+        if self._state == AppState.IDLE:
+            # Don't raise the window (it's always on top anyway): keyboard focus
+            # stays in the EMR, ready for Ctrl+V or auto-paste.
             self._start_normal()
             return
         super().on_hotkey()
 
+    def _on_trigger_pressed(self) -> None:
+        if self._trigger_config.hold:
+            if self._state == AppState.IDLE:
+                self.on_hotkey()
+        else:
+            self.on_hotkey()
+
+    def _on_trigger_released(self) -> None:
+        if self._state == AppState.NORMAL_RECORDING:
+            self.on_hotkey()
+
     def closeEvent(self, event) -> None:
+        if self._triggers is not None:
+            try:
+                self._triggers.stop()
+            except Exception:
+                pass
         if self._transcriber is not None:
             try:
                 self._transcriber.cleanup()
@@ -284,7 +572,7 @@ def main() -> None:
     )
     app = QApplication(sys.argv)
     app.setApplicationName("MyTranscribe Medical")
-    app.setStyleSheet(APP_QSS)
+    app.setStyleSheet(MED_QSS)
     logger.info("Starting MyTranscribe Medical (faster-whisper); hotkey Ctrl+Alt+Q")
 
     window = MedTranscriptionWindow()

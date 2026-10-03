@@ -341,7 +341,8 @@ def scenario_gui(args, engine, audio, prompt, rep):
         return s, None
 
     w = gui_med.MedTranscriptionWindow(engine_factory=lambda: engine, stream_factory=factory,
-                                       autopaste=True, base_prompt=prompt, text_pipeline=PIPELINE)
+                                       autopaste=True, base_prompt=prompt, text_pipeline=PIPELINE,
+                                       trigger_config=False)
     w._chime.play_start = w._chime.play_end = lambda: None
     w.show()
 
@@ -368,22 +369,31 @@ def scenario_gui(args, engine, audio, prompt, rep):
 
     pump(until=lambda: w.ready, limit=60)
     rng = random.Random(2)
-    finished = 0
+    finished = copied = copy_failed = unsafe_pastes = 0
     for i in range(args.gui_cycles):
+        w.copy_ok = None
         w.on_hotkey()                        # start
         pump(seconds=rng.uniform(1.0, 8.0))
         w.on_hotkey()                        # stop
+        before = len(pastes)
         if pump(until=lambda: not w._finishing, limit=120):
             finished += 1
-        pump(seconds=0.3)
+        pump(until=lambda: w.copy_ok is not None, limit=3)   # copy retries take <= ~0.5 s
+        pump(seconds=0.4)                                     # let any auto-paste fire
+        copied += w.copy_ok is True
+        copy_failed += w.copy_ok is False
+        if w.copy_ok is not True and len(pastes) > before:
+            unsafe_pastes += 1               # pasted although our text never reached the clipboard
     timer.stop()
     worst = max(gaps) if gaps else 0
     p99 = float(np.percentile(gaps, 99)) if gaps else 0
-    rep.metric(name, cycles=args.gui_cycles, finished=finished, pastes=len(pastes),
-               max_ui_gap_ms=round(worst * 1000), p99_ui_gap_ms=round(p99 * 1000))
+    rep.metric(name, cycles=args.gui_cycles, finished=finished, pastes=len(pastes), copied=copied,
+               copy_failed=copy_failed, max_ui_gap_ms=round(worst * 1000), p99_ui_gap_ms=round(p99 * 1000))
     rep.check(name, "every cycle finished", finished == args.gui_cycles, f"({finished})")
-    rep.check(name, "auto-paste fired once per non-empty result",
-              len(pastes) <= finished and len(pastes) >= finished - 2, f"({len(pastes)})")
+    rep.check(name, "never pasted after a failed copy", unsafe_pastes == 0,
+              f"({unsafe_pastes} unsafe; copies ok {copied}, failed {copy_failed})")
+    rep.check(name, "auto-paste fired once per verified copy",
+              len(pastes) <= copied and len(pastes) >= copied - 2, f"({len(pastes)} of {copied})")
     rep.check(name, "UI never froze > 250 ms", worst < 0.25, f"(worst {worst * 1000:.0f} ms, p99 {p99 * 1000:.0f} ms)")
     w.close()
 
