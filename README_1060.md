@@ -8,7 +8,7 @@ unchanged and still works; this one lives alongside it.
 |---|---|---|
 | Engine | openai-whisper + PyTorch | faster-whisper (CTranslate2), **no PyTorch** |
 | Default model on a 1060 | `large-v3` (does not fit in 6 GB) | `large-v3-turbo`, int8 weights (~1.6 GB VRAM) |
-| When is audio transcribed? | All at once when you press Stop (window freezes) | In ~30 s pieces **while you talk**; Stop only waits for the last piece |
+| When is audio transcribed? | All at once when you press Stop (window freezes) | In ~20 s pieces **while you talk**; Stop only waits for the last piece |
 | Audio written to disk? | Yes, temp WAV files (may be left behind on Windows) | **Never**: kept in memory only |
 | Transcript in the console log? | First 60 characters | **Never**: length only |
 | Windows clipboard history / cloud sync | Keeps a copy | Each copy is marked "don't keep, don't sync" |
@@ -74,8 +74,10 @@ The window starts small (compact view) and stays on top of other windows:
 - **⚙ Options**: change the key, the mouse button, hold-to-talk vs toggle, accuracy
   (Best = large-v3, Fast = large-v3-turbo; applies next start) and the start-up view.
   Saved in `%APPDATA%\MyTranscribe\settings.json` (bindings and view only, never text).
-- One recording can run up to an hour. Text is transcribed in ~30 s pieces while you
-  talk; after Stop only the last piece is left (see the latency table below).
+- One recording can run up to an hour. Text is transcribed in ~20 s pieces while you
+  talk; after Stop only the last piece is left. On a GTX 1660 Ti with the default
+  large-v3: short notes ~1 s after Stop, 20-60 s dictations ~1.3-2.5 s
+  ([day findings](docs/overnight/2026-10-03-day-findings.md)).
 
 **Auto-paste mode** (`set MYTRANSCRIBE_AUTOPASTE=1` in `run_1060.bat`): click into your
 EMR/Word field, press Ctrl+Alt+Q, dictate, press Ctrl+Alt+Q again. When transcription
@@ -89,7 +91,7 @@ remote/Citrix EMRs block simulated keystrokes; if so, paste with Ctrl+V yourself
 ## Medical vocabulary
 
 Whisper can only take a short hint (~220 tokens, about 150 words) before each piece of
-audio. The app builds that hint fresh for every ~30 s chunk:
+audio. The app builds that hint fresh for every ~20 s chunk:
 
 1. **Your style**: `src/prompts/medical_prompt.txt`, a short letter opening in your voice.
 2. **Topic terms** from `src/vocab/primary_care.txt`: about 1,100 terms in 19 topics
@@ -129,7 +131,7 @@ testing):
 | `MYTRANSCRIBE_MODEL` | `large-v3` (GPU ≥ 5 GB, Options → Best), else `large-v3-turbo`; `small.en` (CPU) | Any faster-whisper name (`large-v3-turbo`, `medium.en`…) or a local model folder |
 | `MYTRANSCRIBE_COMPUTE_TYPE` | auto (`int8_float32` on GTX 10xx/16xx, `int8_float16` on RTX) | CTranslate2 compute type |
 | `MYTRANSCRIBE_DEVICE` | auto | `cpu` forces CPU |
-| `MYTRANSCRIBE_BEAM_SIZE` | `5` | `1` is ~2x faster, slightly less accurate |
+| `MYTRANSCRIBE_BEAM_SIZE` | `1` (greedy) | `5` = beam search: ~30 % slower, no accuracy gain in our tests, and it sometimes drops spoken commands |
 | `MYTRANSCRIBE_AUTOPASTE` | off | `1` = paste into the focused app after a hotkey stop |
 | `MYTRANSCRIBE_PROMPT_FILE` | bundled medical prompt | Your style example |
 | `MYTRANSCRIBE_VOCAB` | on | `off` = style example only, no topic terms |
@@ -173,7 +175,7 @@ check with whoever handles privacy compliance for your practice.
 | "Could not load the speech model" on first run | No internet for the one-time download, or `HF_HUB_OFFLINE=1` set too early |
 | "Transcription is falling behind" warnings | Set `MYTRANSCRIBE_BEAM_SIZE=1`, or `MYTRANSCRIBE_MODEL=distil-large-v3.5` / `small.en` |
 | Auto-paste does nothing in the EMR | Remote/Citrix session blocking simulated keys: use Ctrl+V |
-| Words wrong at a ~30 s boundary | Report it: cuts are made at the quietest moment, but a long run-on sentence can still be split |
+| Words wrong at a ~20 s boundary | Report it: cuts are made at the quietest moment, but a long run-on sentence can still be split |
 
 ## Running the tests (developers)
 
