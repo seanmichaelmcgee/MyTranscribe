@@ -81,10 +81,11 @@ def make_variant(name, style, engine, base_builder, base_corrector):
     raise SystemExit(f"unknown variant {name}")
 
 
-def transcribe_file(engine, audio_f32, base_prompt, builder, post):
+def transcribe_file(engine, audio_f32, base_prompt, builder, post, chunk_s=None):
     pcm = (np.clip(audio_f32, -1, 1) * 32767).astype(np.int16)
+    extra = {} if chunk_s is None else {"chunk_target_s": chunk_s}
     t = ChunkedTranscriber(engine, base_prompt, stream_factory=lambda: (FiniteStream(pcm), None),
-                           prompt_builder=builder, postprocess=post)
+                           prompt_builder=builder, postprocess=post, **extra)
     t0 = time.perf_counter()
     t.start_recording()
     t._capture_thread.join()
@@ -102,6 +103,7 @@ def main(argv=None):
     ap.add_argument("--device", choices=["cuda", "cpu"])
     ap.add_argument("--compute-type")
     ap.add_argument("--beam-size", type=int)
+    ap.add_argument("--chunk-s", type=float, help="chunk target in seconds (default: the app's)")
     ap.add_argument("--max-new-tokens", type=int, help="random-weight test models only")
     ap.add_argument("--show-missed", action="store_true", help="list missed terms (fictional data only)")
     ap.add_argument("--json", type=Path)
@@ -150,7 +152,7 @@ def main(argv=None):
             if vb is builder and builder is not None:
                 builder._rotation.clear()              # each file starts fresh, like a new letter
             audio = load_wav(base_dir / e["audio"])
-            hyp, secs = transcribe_file(engine, audio, base_prompt, vb, post)
+            hyp, secs = transcribe_file(engine, audio, base_prompt, vb, post, chunk_s=args.chunk_s)
             w, n = word_error_rate(e["reference"], hyp)
             found, miss = term_hits(e.get("terms", []), hyp)
             for key in (e.get("profile", "all"), "ALL"):
