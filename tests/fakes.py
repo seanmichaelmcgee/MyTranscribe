@@ -91,6 +91,32 @@ def factory_for(stream, owner=None):
     return lambda: (stream, owner)
 
 
+class FakeClipboard:
+    """
+    QClipboard stand-in. reject_writes = how many upcoming writes fail (like
+    another program holding the Windows clipboard); -1 = every write fails.
+    """
+
+    def __init__(self, text="", reject_writes=0):
+        self._text = text
+        self.reject_writes = reject_writes
+        self.writes = 0
+
+    def setMimeData(self, mime):
+        self.writes += 1
+        if self.reject_writes:
+            if self.reject_writes > 0:
+                self.reject_writes -= 1
+            return                       # silently fails, like OleSetClipboard
+        self._text = mime.text()
+
+    def setText(self, text):
+        self._text = text
+
+    def text(self):
+        return self._text
+
+
 class FakeEngine:
     """Records every call; returns a configurable text per chunk."""
 

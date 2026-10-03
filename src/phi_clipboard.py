@@ -48,9 +48,22 @@ def make_mime_data(text: str, platform: str = sys.platform):
     return mime
 
 
-def copy_text(clipboard, text: str, platform: str = sys.platform) -> None:
-    """Put `text` on a QClipboard with history/cloud-sync opt-out on Windows."""
+def copy_text(clipboard, text: str, platform: str = sys.platform) -> bool:
+    """
+    Put `text` on a QClipboard with history/cloud-sync opt-out on Windows.
+
+    Returns True only if the clipboard now really holds `text`. On Windows the
+    write fails (Qt just prints "OleSetClipboard: Failed") whenever another
+    program has the clipboard open, e.g. an EMR, Citrix or a remote-desktop
+    client. Callers must not paste after a False: the clipboard still holds
+    the PREVIOUS contents, which could be another patient's text.
+    """
     clipboard.setMimeData(make_mime_data(text, platform))
+    try:
+        return clipboard.text() == text
+    except Exception as exc:              # reading back can fail the same way
+        logger.warning("Clipboard read-back failed: %s", exc)
+        return False
 
 
 _VK_SHIFT, _VK_CONTROL, _VK_MENU = 0x10, 0x11, 0x12

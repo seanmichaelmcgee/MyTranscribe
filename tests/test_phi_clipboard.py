@@ -26,6 +26,14 @@ def test_copy_text_roundtrip(qapp):
     assert cb.text() == "Plan: Holter monitor."
 
 
+def test_copy_text_reports_failure(qapp):
+    from fakes import FakeClipboard
+    ok = FakeClipboard("old")
+    assert pc.copy_text(ok, "new text") is True and ok.text() == "new text"
+    busy = FakeClipboard("old", reject_writes=-1)
+    assert pc.copy_text(busy, "new text") is False and busy.text() == "old"
+
+
 def test_modifiers_held():
     assert pc.modifiers_held("linux") is False
     down = {0x11}
