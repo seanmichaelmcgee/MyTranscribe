@@ -150,10 +150,21 @@ Worth adding next (cheap, deterministic, no new dependencies):
 1. **Your own vocabulary file** from your real letters: colleague names, clinics, drugs
    you use, phrases you repeat. Highest expected gain for letters. (`MYTRANSCRIBE_VOCAB_FILES`
    already supports it.)
-2. **Per-workflow style examples**: the prompt's style example is letter-like. A terse
-   example ("Abdomen SNT. CVA tenderness. Renal normal, Hb similar.") for short
-   dictations should nudge Whisper toward your shorthand. Pick by length so far, or by the
-   first words. Needs an A/B on the snippet set.
+2. **Per-workflow style examples**: tested today (large-v3 greedy, 20 s chunks). The
+   candidate examples used held-out shorthand (NAD, PERRLA, EOMI, RRR, Cr...) that
+   appears in none of the test snippets, so they can't "leak" answers:
+
+   | style example | snippets WER / terms | exam WER | letters WER / terms |
+   |---|---|---|---|
+   | current (one letter sentence) | 1.9 / 96.1 | 4.3 | **4.5 / 85.8** |
+   | terse shorthand only | **1.4 / 97.7** | **2.7** | 4.9 / 83.8 |
+   | letter sentence + shorthand | **1.4 / 97.7** | 3.7 | 5.0 / 83.5 |
+
+   Shorthand helps snippets a little and costs letters a little. Both differences are
+   about 4 words in 800, i.e. within the noise of synthetic voices, so no code change.
+   Next step: your *own* short-note example, judged on your real recordings. It is
+   already a one-line setting (`MYTRANSCRIBE_PROMPT_FILE`). If it helps, the app can
+   pick the short-note style automatically for dictations that fit in one chunk.
 3. **Sanity flags (highlight, never change)**: drug + dose with an implausible unit
    ("metformin 1000 g"), a dose with no unit, left/right both in one sentence,
    numbers that look mis-heard ("5.4" vs "five for"). Shown as a yellow underline in the
