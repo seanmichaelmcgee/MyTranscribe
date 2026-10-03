@@ -158,6 +158,20 @@ pessimistic floor and use them to *compare* settings. For real numbers, read the
 scripts in `results_1060\testdict\read_aloud\` into your own mic and score them with
 `scripts\eval_dictation.py` (see its `--help`).
 
+**Short notes with your own voice (~10 min):** 27 fictional snippets in three styles
+(messages with "new line"/quotes, results comments, exam findings):
+
+```bat
+venv1060\Scripts\python.exe scripts\make_snippets.py
+venv1060\Scripts\python.exe scripts\record_snippets.py --out results_1060\real_headset
+venv1060\Scripts\python.exe scripts\eval_snippets.py --manifest results_1060\real_headset\manifest.json --settings large-v3:b1,large-v3-turbo:b1 --show-text
+```
+
+The first command makes the synthetic versions for comparison. The second shows each
+snippet; Enter starts/stops recording. The third reports word error rate, key terms,
+whether line breaks/quotes came out right, and the wait after Stop, per model.
+`scripts\latency_bench.py` measures Stop-to-text time by dictation length.
+
 ## Privacy checklist (your side)
 
 The app keeps audio in memory and never logs transcript text, but the machine still
