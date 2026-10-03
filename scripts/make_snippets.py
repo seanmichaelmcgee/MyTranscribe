@@ -4,6 +4,7 @@ make_snippets.py — short fictional clinical snippets in three workflow styles,
   message  short instructions to staff, with voice commands ("new line", quotes)
   result   very short lab/imaging comments ("renal normal, hemoglobin similar")
   exam     physical-exam fragments with spoken shorthand ("abdomen S N T", "C V A")
+  letter   referral letters with numbered items ("new line, 1 period, ...")
 
 Each snippet has the spoken text (what the TTS voice says), the expected written
 text (after voice commands), and key terms to check. Rendered with Windows SAPI
@@ -101,6 +102,51 @@ SNIPPETS = [
      "Cranial nerves 2 to 12 intact, power 5 out of 5 throughout.", ["cranial nerves"]),
     ("exam", "Mild pedal edema bilaterally, pitting to the ankle.",
      "Mild pedal edema bilaterally, pitting to the ankle.", ["pedal edema", "pitting"]),
+    # Letters to colleagues, with numbered items said the user's way: "new line, 1 period, ...".
+    ("letter",
+     "Dear Dr. Okafor, Thank you for seeing Ms. Lena Brooks, a 46-year-old woman with recurrent right upper "
+     "quadrant pain after fatty meals over the past four months. Ultrasound shows multiple gallstones with a "
+     "normal common bile duct and no gallbladder wall thickening. Liver enzymes and lipase are normal. "
+     "New line. 1 period. Symptomatic cholelithiasis. I would appreciate your assessment for laparoscopic "
+     "cholecystectomy. New line. 2 period. Type 2 diabetes, well controlled on metformin one thousand milligrams "
+     "twice daily, A1c six point eight. New line. 3 period. Hypertension on amlodipine five milligrams daily. "
+     "New paragraph. Thank you for your help with her care. Kind regards.",
+     "Dear Dr. Okafor, Thank you for seeing Ms. Lena Brooks, a 46-year-old woman with recurrent right upper "
+     "quadrant pain after fatty meals over the past 4 months. Ultrasound shows multiple gallstones with a "
+     "normal common bile duct and no gallbladder wall thickening. Liver enzymes and lipase are normal.\n"
+     "1. Symptomatic cholelithiasis. I would appreciate your assessment for laparoscopic cholecystectomy.\n"
+     "2. Type 2 diabetes, well controlled on metformin 1000 mg twice daily, A1c 6.8.\n"
+     "3. Hypertension on amlodipine 5 mg daily.\n\nThank you for your help with her care. Kind regards.",
+     ["right upper quadrant", "gallstones", "common bile duct", "lipase", "cholelithiasis",
+      "laparoscopic cholecystectomy", "metformin", "A1c", "amlodipine"]),
+    ("letter",
+     "Dear Dr. Haddad, I would be grateful if you could see Mr. Victor Nguyen, a 61-year-old man with exertional "
+     "chest pressure for six weeks, relieved by rest within five minutes. He has no rest pain or syncope. "
+     "E C G shows sinus rhythm with no acute changes, and troponin was negative. New line. 1 period. Suspected "
+     "stable angina. I have started aspirin eighty one milligrams daily, bisoprolol two point five milligrams "
+     "daily and nitroglycerin spray as needed. New line. 2 period. Dyslipidemia, L D L three point four, now on "
+     "rosuvastatin twenty milligrams. New line. 3 period. Former smoker, thirty pack years. New paragraph. "
+     "I would appreciate your opinion on an exercise stress test or C T coronary angiography. Kind regards.",
+     "Dear Dr. Haddad, I would be grateful if you could see Mr. Victor Nguyen, a 61-year-old man with exertional "
+     "chest pressure for 6 weeks, relieved by rest within 5 minutes. He has no rest pain or syncope. ECG shows "
+     "sinus rhythm with no acute changes, and troponin was negative.\n1. Suspected stable angina. I have started "
+     "aspirin 81 mg daily, bisoprolol 2.5 mg daily and nitroglycerin spray as needed.\n2. Dyslipidemia, LDL 3.4, "
+     "now on rosuvastatin 20 mg.\n3. Former smoker, 30 pack years.\n\nI would appreciate your opinion on an "
+     "exercise stress test or CT coronary angiography. Kind regards.",
+     ["exertional chest pressure", "ECG", "sinus rhythm", "troponin", "stable angina", "aspirin", "bisoprolol",
+      "nitroglycerin", "dyslipidemia", "LDL", "rosuvastatin", "exercise stress test", "CT coronary angiography"]),
+    ("letter",
+     "Dear Dr. Chen, Thank you for seeing Mrs. Alice Moreau, a 58-year-old woman with eight months of dry eyes "
+     "and dry mouth, and intermittent parotid swelling. Her A N A is positive with anti Ro antibodies. "
+     "New line. 1 period. Dry eyes. Start lubricating drops four times daily. New line. 2 period. Xerostomia. "
+     "Start water based lubricant and sugar free lozenges. New line. 3 period. Suspected Sjogren's syndrome. "
+     "I would value your assessment. Kind regards.",
+     "Dear Dr. Chen, Thank you for seeing Mrs. Alice Moreau, a 58-year-old woman with 8 months of dry eyes "
+     "and dry mouth, and intermittent parotid swelling. Her ANA is positive with anti-Ro antibodies.\n"
+     "1. Dry eyes. Start lubricating drops 4 times daily.\n2. Xerostomia. Start water-based lubricant and "
+     "sugar-free lozenges.\n3. Suspected Sjogren's syndrome. I would value your assessment. Kind regards.",
+     ["dry eyes", "parotid", "ANA", "anti-Ro", "lubricating drops", "xerostomia", "water-based lubricant",
+      "lozenges"]),
 ]
 PROFILES = ("headset", "conference")
 

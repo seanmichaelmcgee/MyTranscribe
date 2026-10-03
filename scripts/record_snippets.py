@@ -39,23 +39,27 @@ def list_devices(pa):
             print(f"  {i}: {d['name']}")
 
 
-def record_until_enter(pa, device):
-    """Record from the mic until the user presses Enter; returns int16 PCM bytes."""
-    import pyaudio
-    stream = pa.open(format=pyaudio.paInt16, channels=1, rate=SR, input=True,
-                     frames_per_buffer=FRAMES, input_device_index=device)
+def record_until_enter(mic):
+    """Record until the user presses Enter; returns int16 PCM bytes.
+
+    Uses the app's ReadyMic (device kept open, 0.5 s pre-roll), so recordings
+    behave like the app: no clipped first word on Bluetooth headsets.
+    """
+    session, _ = mic.session()
     frames, stop = [], threading.Event()
 
     def loop():
         while not stop.is_set():
-            frames.append(stream.read(FRAMES, exception_on_overflow=False))
+            try:
+                frames.append(session.read(FRAMES))
+            except OSError:
+                break
     t = threading.Thread(target=loop, daemon=True)
     t.start()
     input("   ● recording… press Enter to stop ")
     stop.set()
-    t.join(timeout=1)
-    stream.stop_stream()
-    stream.close()
+    t.join(timeout=2)
+    session.close()
     return b"".join(frames)
 
 
@@ -71,11 +75,20 @@ def main(argv=None):
     args = ap.parse_args(argv)
 
     import pyaudio
+    sys.path.insert(0, str(ROOT / "src"))
+    from mic_ready import ReadyMic
     pa = pyaudio.PyAudio()
+    mic = None
     try:
         if args.list_devices:
             list_devices(pa)
             return 0
+
+        def open_stream():
+            return pa.open(format=pyaudio.paInt16, channels=1, rate=SR, input=True,
+                           frames_per_buffer=FRAMES, input_device_index=args.device), None
+        mic = ReadyMic(open_stream=open_stream)
+        mic.start()
         keep = set(args.only.split(",")) if args.only else None
         redo = {int(n) for n in args.redo.split(",")} if args.redo else None
         items = [(i, s) for i, s in enumerate(SNIPPETS)
@@ -92,7 +105,7 @@ def main(argv=None):
             cmd = input("   Enter = start, q = quit: ").strip().lower()
             if cmd == "q":
                 break
-            pcm = record_until_enter(pa, args.device)
+            pcm = record_until_enter(mic)
             name = f"{i:02d}_{cat}__{args.profile}.wav"
             with wave.open(str(args.out / name), "wb") as w:
                 w.setnchannels(1)
@@ -111,6 +124,8 @@ def main(argv=None):
             k += 1
         print(f"\n{len(manifest)} recordings in {args.out}. Score them with eval_snippets.py (see --help).")
     finally:
+        if mic is not None:
+            mic.stop()
         pa.terminate()
     return 0
 

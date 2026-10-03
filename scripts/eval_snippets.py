@@ -10,6 +10,8 @@ per category (message / result / exam):
   format %         line breaks and quotes match (snippets that use voice commands)
   wait s           mean / max transcription time per snippet. Snippets are shorter
                    than one chunk, so this is the wait between Stop and the text.
+                   (Not for letters: they are longer than a chunk, and in the app
+                   most of a letter is transcribed while you are still talking.)
 
     venv1060\\Scripts\\python.exe scripts\\eval_snippets.py --manifest results_1060\\snippets\\manifest.json ^
         --settings large-v3-turbo,large-v3,large-v3:b1 --json results_1060\\snippets_eval.json
@@ -91,7 +93,7 @@ def main(argv=None):
                 print("      " + hyp.replace("\n", " ⏎ "))
         print(f"{'category':10s} {'WER %':>7s} {'terms %':>8s} {'format':>8s} {'wait mean':>10s} {'wait max':>9s}")
         summary[setting] = {}
-        for cat in ("message", "result", "exam", "ALL"):
+        for cat in ("message", "result", "exam", "letter", "ALL"):
             s = stats[cat]
             if not s["words"]:
                 continue
