@@ -5,7 +5,7 @@ Replaces transcriber_v12.RealTimeTranscriber in the 1060 edition. Differences:
 
   * Audio stays in RAM (numpy), never written to a temp WAV (PHI on disk).
   * Two threads per session:
-      capture thread  reads the mic, cuts the audio into ~30 s chunks at the
+      capture thread  reads the mic, cuts the audio into ~20 s chunks at the
                       quietest moment near the target length (so words are
                       not split), and queues them;
       worker thread   transcribes queued chunks in order.
@@ -18,7 +18,7 @@ Replaces transcriber_v12.RealTimeTranscriber in the 1060 edition. Differences:
 
 Audio format (CLAUDE.md: document chunk size/format/rate):
   capture: 16 kHz, mono, int16 (paInt16), FRAMES_PER_BUFFER = 1024 samples (64 ms)
-  chunks : float32 in [-1, 1], target CHUNK_TARGET_S = 30 s, cut point chosen
+  chunks : float32 in [-1, 1], target CHUNK_TARGET_S = 20 s, cut point chosen
            as the lowest-energy 30 ms frame within the last CUT_SEARCH_S = 5 s
   memory : 32 KB/s while buffered -> 1 h session = ~115 MB worst case
 """
@@ -38,7 +38,12 @@ logger = logging.getLogger("chunked_transcriber")
 SAMPLE_RATE = 16000
 FRAMES_PER_BUFFER = 1024          # 64 ms per read
 BYTES_PER_SAMPLE = 2              # int16
-CHUNK_TARGET_S = 30.0             # Whisper's native window is 30 s
+# 20 s, not Whisper's full 30 s window: after Stop only the unfinished chunk is
+# left, so the worst-case wait scales with chunk length. GTX 1660 Ti, large-v3
+# greedy (2026-10-03): Stop->text for 20-60 s dictations ~1.3-2.5 s (30 s chunks:
+# up to ~3-4 s), and letter accuracy no worse (WER 4.5 vs 5.0 %). Below 15 s,
+# accuracy drops and compute rises (each chunk still costs a 30 s encoder pass).
+CHUNK_TARGET_S = 20.0
 CUT_SEARCH_S = 5.0                # look this far back for a pause to cut at
 CUT_FRAME_MS = 30                 # energy window for finding the pause
 MAX_SESSION_S = 60 * 60           # hard cap: 1 hour per recording
