@@ -126,3 +126,12 @@ abbr: RSV, HFMD, ORS, AOM, OME, URTI, ED, PICU
 other: periodic health examination, annual physical, preventive care, lifestyle counselling, Mediterranean diet, physical activity, 150 minutes per week, weight loss, smoking cessation counselling, alcohol counselling, advance care planning, goals of care, medication reconciliation, polypharmacy, deprescribing, falls risk, driving assessment, home care, community care access, palliative care
 test: colorectal cancer screening, FIT, colonoscopy, breast cancer screening, mammography, cervical screening, HPV self-sampling, lung cancer screening, low-dose CT, abdominal aortic aneurysm screening, AAA ultrasound, osteoporosis screening, bone density, diabetes screening, hepatitis C screening, HIV screening, hearing screening, vision screening, blood pressure screening
 abbr: PHE, ACP, MOST, DNR, CPR, BMD, LDCT
+
+
+## exam-shorthand | exam, examination, on exam, abdomen, tender, tenderness, well appearing, alert, chest clear, heart sounds
+abbr: SNT, NAD, HEENT, TMs, JVP, PERRLA, EOMI, CVA tenderness, S1 S2, cap refill, ROM, BS
+other: soft non-tender, non-distended, no guarding, no rebound, Murphy's sign, McBurney's point, bowel sounds, air entry, good air entry, crackles, no murmurs, well perfused, well appearing, no acute distress, capillary refill, pitting edema, pedal edema, erythematous, no exudate, cranial nerves, power 5 out of 5
+
+## results-shorthand | normal, results, labs, bloodwork, blood work, repeat, stable, similar, improved
+abbr: CBC, lytes, eGFR, INR, TSH, A1c, LDL, ALT, AST, ALP, GGT, CRP, ESR, PSA, B12, WBC, ACR, FIT
+lab: hemoglobin, platelets, ferritin, creatinine, potassium, sodium, vitamin D, urinalysis, urine albumin-to-creatinine ratio
