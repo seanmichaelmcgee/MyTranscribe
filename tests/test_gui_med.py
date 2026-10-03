@@ -115,10 +115,12 @@ def test_toggle_button_follows_state(qapp, make_window):
     assert w._state.name == "NORMAL_RECORDING"
     assert w._toggle_btn.text() == "Stop" and w._toggle_btn.property("recording") is True
     assert "Recording" in w._status_text.text() and not w._copy_btn.isEnabled()
+    assert not w._options_btn.isEnabled()        # no hook rebuild mid-recording
     w._on_toggle_clicked()
     assert w._state.name == "IDLE"
     assert finish(w, qapp)
     assert w._toggle_btn.text() == "Start dictation" and w._copy_btn.isEnabled()
+    assert w._options_btn.isEnabled()
 
 
 def test_stop_does_not_block_gui_with_slow_engine(qapp, make_window):

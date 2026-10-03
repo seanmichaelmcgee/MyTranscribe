@@ -352,6 +352,9 @@ class MedTranscriptionWindow(TranscriptionWindow):
             btn.style().polish(btn)
         self._copy_btn.setEnabled(not recording and not self._finishing
                                   and bool(self._text_area.toPlainText().strip()) and self.ready)
+        # Saving Options rebuilds the F9 / mouse hooks: never mid-recording (a held
+        # F9 would lose its release).
+        self._options_btn.setEnabled(not recording and not self._finishing)
 
     def _set_copy_attention(self, on: bool) -> None:
         if self._copy_btn.property("attention") != on:
