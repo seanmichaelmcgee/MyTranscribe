@@ -104,6 +104,7 @@ def main(argv=None):
     ap.add_argument("--compute-type")
     ap.add_argument("--beam-size", type=int)
     ap.add_argument("--chunk-s", type=float, help="chunk target in seconds (default: the app's)")
+    ap.add_argument("--style-file", type=Path, help="style example to use instead of the app's")
     ap.add_argument("--max-new-tokens", type=int, help="random-weight test models only")
     ap.add_argument("--show-missed", action="store_true", help="list missed terms (fictional data only)")
     ap.add_argument("--json", type=Path)
@@ -135,7 +136,7 @@ def main(argv=None):
             return raw(audio, **kw)
         engine.model.transcribe = capped
 
-    style = load_prompt()
+    style = args.style_file.read_text(encoding="utf-8").strip() if args.style_file else load_prompt()
     builder, corrector = build_text_pipeline(style, count=engine.count_tokens, env={})
     print(f"Model {cfg.model} on {cfg.device}/{cfg.compute_type}; {len(entries)} files; "
           f"corrector {'available' if corrector else 'MISSING (pip install rapidfuzz jellyfish wordfreq)'}")

@@ -48,12 +48,13 @@ def main(argv=None):
     ap.add_argument("--settings", default="large-v3-turbo,large-v3")
     ap.add_argument("--compute-type", default="int8_float32")
     ap.add_argument("--show-text", action="store_true", help="print each transcript (fictional data only)")
+    ap.add_argument("--style-file", type=Path, help="style example to use instead of the app's")
     ap.add_argument("--json", type=Path)
     args = ap.parse_args(argv)
 
     entries = json.loads(args.manifest.read_text(encoding="utf-8"))
     register_cuda_dll_dirs()
-    style = load_prompt()
+    style = args.style_file.read_text(encoding="utf-8").strip() if args.style_file else load_prompt()
     summary = {}
     for setting in args.settings.split(","):
         model, beam = parse_setting(setting)
