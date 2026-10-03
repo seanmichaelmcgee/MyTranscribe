@@ -27,6 +27,42 @@ def test_wer():
     assert word_error_rate("", "x")[1] == 0
 
 
+def test_align_ops():
+    from eval_metrics import align
+    ops = align("a b c d".split(), "a x c e d".split())
+    assert [o[0] for o in ops] == ["ok", "sub", "ok", "ins", "ok"]
+    assert align([], ["x"]) == [("ins", None, 0)] and align(["x"], []) == [("del", 0, None)]
+
+
+def test_breakdown_names_free_medical_common_invented():
+    from eval_metrics import breakdown
+    zipf = {"shows": 4.5, "sinus": 3.3, "rhythm": 4.0, "psoas": 1.9, "troponin": 2.1, "and": 7.0,
+            "was": 7.0, "negative": 4.6, "interponem": 0.0, "ecg": 2.0}.get
+    medical = {"sinus", "troponin", "ecg"}.__contains__
+    b = breakdown("Dear Dr. Haddad, ECG shows sinus rhythm and troponin was negative.",
+                  "Dear Dr. Hadad Smith, ECG psoas sinus rhythm interponem was negative.",
+                  names=["Haddad"], is_medical=medical, zipf=lambda w: zipf(w, 5.0))
+    # "Hadad Smith" for "Haddad": free (name). "psoas" for "shows", "interponem" for "and troponin".
+    assert b.words == 9                              # "dear" + 8 words; dr/haddad excluded
+    assert b.errors == 3                             # shows->psoas, and->interponem, troponin dropped
+    assert b.medical == 3 and b.medical_errors == 1 and b.medical_missed == ["troponin"]
+    assert b.common_errors == 2                      # shows, and
+    assert sorted(b.invented) == ["interponem", "psoas"]
+    r = b.rates()
+    assert r["medical_wer"] == 33.3 and r["invented_per_100"] == 22.2
+
+
+def test_load_medical_words(tmp_path):
+    from eval_metrics import load_medical_words
+    p = tmp_path / "v.txt"
+    p.write_text("# comment\n## exam | abdomen, tender\nabbr: SNT, HEENT\nother: soft non-tender, chest\n",
+                 encoding="utf-8")
+    zipf = {"abdomen": 3.6, "tender": 3.9, "snt": 1.8, "heent": 0.0, "soft": 4.6, "non": 4.0,
+            "chest": 4.5}.get
+    words = load_medical_words([p], zipf=lambda w: zipf(w, 5.0))
+    assert words == {"abdomen", "tender", "snt", "heent"}
+
+
 def test_term_hits_ignores_case_hyphen_space():
     found, missed = term_hits(["Trelegy Ellipta", "DTaP-IPV-Hib", "apixaban", "HbA1c"],
                               "switched to trelegy ellipta; given DTaP IPV Hib; HbA1c 7")

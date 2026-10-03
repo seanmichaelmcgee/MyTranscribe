@@ -149,6 +149,8 @@ SNIPPETS = [
       "lozenges"]),
 ]
 PROFILES = ("headset", "conference")
+# Names in the letters: scoring ignores how names are spelled (the user doesn't need them right).
+NAMES = {27: ["Okafor", "Lena", "Brooks"], 28: ["Haddad", "Victor", "Nguyen"], 29: ["Chen", "Alice", "Moreau"]}
 
 
 def main(argv=None):
