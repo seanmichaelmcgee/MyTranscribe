@@ -135,3 +135,19 @@ other: soft non-tender, non-distended, no guarding, no rebound, Murphy's sign, M
 ## results-shorthand | normal, results, labs, bloodwork, blood work, repeat, stable, similar, improved
 abbr: CBC, lytes, eGFR, INR, TSH, A1c, LDL, ALT, AST, ALP, GGT, CRP, ESR, PSA, B12, WBC, ACR, FIT
 lab: hemoglobin, platelets, ferritin, creatinine, potassium, sodium, vitamin D, urinalysis, urine albumin-to-creatinine ratio
+## exam-findings | exam, examination, on exam, palpation, auscultation, tender, swelling, effusion, reflexes
+other: auscultation, palpation, percussion, crepitus, effusions, ballottement, rigidity, distension, hepatomegaly, splenomegaly, lymphadenopathy, adenopathy, cervical lymphadenopathy, submandibular, tonsillar, tonsillar exudate, exudative, injected, conjunctival injection, scleral icterus, icterus, pallor, cyanosis, clubbing, thyromegaly, bruit, bruits, gallop, rub, rales, wheezes, papilledema, fundoscopy, pronator drift, dysdiadochokinesia, ataxic, antalgic gait, impingement, supraspinatus, valgus, varus, anterior drawer, paraspinal tenderness, costovertebral angle tenderness, epigastric, periumbilical, suprapubic, hypogastric, parotid, parotid swelling
+
+## derm-morphology | rash, skin, lesion, lesions, mole, spots, itchy, patch, bump
+dx: macules, papules, plaques, nodules, pustules, vesicles, bullae, wheal, wheals, annular, scaly, excoriated, lichenified, indurated, induration, fluctuant, fluctuance, hyperpigmented, hypopigmented, telangiectasia, maculopapular, morbilliform, desquamation, xerosis, pruritic, intertrigo, paronychia, dermatophyte
+
+## symptoms | complains, reports, presents, presented, history of, denies, symptoms, feels
+dx: orthopnea, claudication, diaphoresis, rigors, malaise, lethargy, myalgia, arthralgia, paresthesias, photophobia, diplopia, scotoma, otalgia, otorrhea, rhinorrhea, hoarseness, odynophagia, tenesmus, bloating, nocturia, polyuria, polydipsia, urinary urgency, urinary hesitancy, nocturnal symptoms, xerostomia
+
+## results-more | labs, bloodwork, results, urine, culture
+lab: hematocrit, leukocytes, eosinophils, transaminases, amylase, bicarbonate, transferrin, microalbumin, ketones, glycosuria, natriuretic peptide, culture and sensitivities
+
+## ent-eye-more | eye, eyes, ear, ears, mouth, dry, throat
+dx: keratitis, uveitis, sialolithiasis, xerostomia
+drug: lubricating eye drops, water-based lubricant, sugar-free lozenges, lozenges
+test: tympanostomy tubes, myringotomy
