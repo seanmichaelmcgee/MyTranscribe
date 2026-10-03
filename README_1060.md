@@ -13,7 +13,9 @@ unchanged and still works; this one lives alongside it.
 | Transcript in the console log? | First 60 characters | **Never**: length only |
 | Windows clipboard history / cloud sync | Keeps a copy | Each copy is marked "don't keep, don't sync" |
 | Vocabulary | Programming terms | ~1,100 primary-care terms (FM, IM, peds) picked per chunk by topic, plus spelling correction of near-miss drug names |
-| Long recordings | 3 min cap in Long mode | 1 hour per recording, either mode |
+| Long recordings | 3 min cap in Long mode | 1 hour per recording; one Start/Stop button (no separate Long mode) |
+| Start/stop | Buttons, Space, Ctrl+Alt+Q | Also **F9 (hold to talk)** and the **mouse forward button (toggle)**, changeable in Options |
+| Clipboard | Copy, unchecked | **Verified** copy; if another program holds the clipboard it says "Not copied" and never pastes old text |
 | Auto-paste into your app | No | Optional (`MYTRANSCRIBE_AUTOPASTE=1`) |
 
 ## Install (Windows)
@@ -35,24 +37,45 @@ venv1060\Scripts\python.exe -m pip install -r requirements-1060.txt
 run_1060.bat
 ```
 
-On the **first run** the model (~1.6 GB) is downloaded from Hugging Face into
+On the **first run** the model (~1.6 GB for turbo, ~3 GB for large-v3) is downloaded from Hugging Face into
 `%USERPROFILE%\.cache\huggingface`. The window says "Loading speech model…" and the
 buttons unlock when it's ready. After that, everything runs offline; set
 `HF_HUB_OFFLINE=1` (see `run_1060.bat`) to guarantee nothing is contacted.
 
 The console prints the chosen setup, e.g.
-`Engine config: model=large-v3-turbo device=cuda compute=int8_float32 ... GPU NVIDIA GeForce GTX 1060 6GB (CC 6.1, 6144 MB): slow fp16`.
-On a 1060 you want `device=cuda` and `compute=int8_float32`. If it says `device=cpu`,
-see Troubleshooting.
+`Engine config: model=large-v3 device=cuda compute=int8_float32 ... GPU NVIDIA GeForce GTX 1660 Ti (CC 7.5, 6144 MB): fast fp16, best-accuracy model`.
+On GTX 10xx and 16xx cards you want `device=cuda` and `compute=int8_float32` (measured
+26-29 % faster than `int8_float16` on a GTX 1660 Ti). If it says `device=cpu`, see
+Troubleshooting.
+
+**Antivirus HTTPS scanning (Norton, Avast, corporate proxies):** if `pip install` fails
+with `CERTIFICATE_VERIFY_FAILED`, your security software is re-signing HTTPS traffic.
+Don't turn verification off. Export its root certificate from the Windows certificate
+store, append it to a copy of pip's `cacert.pem`, and point `venv1060\pip.ini`
+(`[global] cert = ...`) and `REQUESTS_CA_BUNDLE` at that file for the install and the
+first model download.
 
 ## Use
 
-Same controls as the original:
+The window starts small (compact view) and stays on top of other windows:
 
-- **Ctrl+Alt+Q** from any app: start; press again to stop.
-- **Space** (window focused): start/stop. **Start / Stop / Long Record** buttons.
-- Text appears in the window as each ~30 s piece finishes. After Stop you'll see
-  "[Finishing transcription…]" for a few seconds, then the full text is on the clipboard.
+- The **round light** at the top left is **green while recording, red when not**.
+- **F9**: hold to talk; release to stop. **Mouse forward (thumb) button**: press to start,
+  press again to stop. These presses are swallowed, so your EMR never sees them.
+- **Ctrl+Alt+Q** from any app, or **Space** with the window focused: start/stop.
+  The big **Start dictation / Stop** button does the same.
+- Hotkeys never pull MyTranscribe to the front, so your cursor stays in the EMR.
+- When you stop, the text is copied (status: "Copied — paste with Ctrl+V"). If the status
+  says **Not copied**, another program was using the clipboard: click **Copy**, then paste.
+- **Voice commands:** say "new line", "new paragraph", or "open quote … close quote".
+  They only count when you pause around them (Whisper then punctuates them), so
+  "a new line of therapy" stays as text. Turn off in Options.
+- **+** shows the transcript (live while you talk), **–** hides it again.
+- **⚙ Options**: change the key, the mouse button, hold-to-talk vs toggle, accuracy
+  (Best = large-v3, Fast = large-v3-turbo; applies next start) and the start-up view.
+  Saved in `%APPDATA%\MyTranscribe\settings.json` (bindings and view only, never text).
+- One recording can run up to an hour. Text is transcribed in ~30 s pieces while you
+  talk; after Stop only the last piece is left (see the latency table below).
 
 **Auto-paste mode** (`set MYTRANSCRIBE_AUTOPASTE=1` in `run_1060.bat`): click into your
 EMR/Word field, press Ctrl+Alt+Q, dictate, press Ctrl+Alt+Q again. When transcription
@@ -96,10 +119,15 @@ general medical list (see NOTICE.md).
 
 ## Settings (environment variables)
 
+Most people only need the Options screen. Environment variables override it (handy for
+testing):
+
 | Variable | Default | Meaning |
 |---|---|---|
-| `MYTRANSCRIBE_MODEL` | `large-v3-turbo` (GPU), `small.en` (CPU) | Any faster-whisper name (`large-v3`, `medium.en`, `distil-large-v3.5`…) or a local model folder |
-| `MYTRANSCRIBE_COMPUTE_TYPE` | auto (`int8_float32` on Pascal) | CTranslate2 compute type |
+| `MYTRANSCRIBE_KEY` / `MYTRANSCRIBE_KEY_MODE` | `f9` / `hold` | `f1`-`f12`, `pause`, `scroll_lock` or `none` / `hold` or `toggle` |
+| `MYTRANSCRIBE_MOUSE` / `MYTRANSCRIBE_MOUSE_MODE` | `x2` / `toggle` | `x2` (forward), `x1` (back), `middle` or `none` / `hold` or `toggle` |
+| `MYTRANSCRIBE_MODEL` | `large-v3` (GPU ≥ 5 GB, Options → Best), else `large-v3-turbo`; `small.en` (CPU) | Any faster-whisper name (`large-v3-turbo`, `medium.en`…) or a local model folder |
+| `MYTRANSCRIBE_COMPUTE_TYPE` | auto (`int8_float32` on GTX 10xx/16xx, `int8_float16` on RTX) | CTranslate2 compute type |
 | `MYTRANSCRIBE_DEVICE` | auto | `cpu` forces CPU |
 | `MYTRANSCRIBE_BEAM_SIZE` | `5` | `1` is ~2x faster, slightly less accurate |
 | `MYTRANSCRIBE_AUTOPASTE` | off | `1` = paste into the focused app after a hotkey stop |
