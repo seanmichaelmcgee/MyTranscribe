@@ -276,14 +276,45 @@ def make_wordfreq_is_common(threshold: float = 4.0) -> Optional[Callable[[str], 
     return is_common
 
 
+class PostProcess:
+    """Chunk post-processing chain: spelling corrector, then text_fixes (letters, personal rules)."""
+
+    def __init__(self, corrector=None, fixes: Optional[Callable[[str], str]] = None):
+        self.corrector, self.fixes = corrector, fixes
+
+    @property
+    def total_corrections(self) -> int:
+        return getattr(self.corrector, "total_corrections", 0)
+
+    def __call__(self, text: str) -> str:
+        if self.corrector is not None:
+            text = self.corrector(text)
+        if self.fixes is not None:
+            text = self.fixes(text)
+        return text
+
+
+def known_abbreviations(lex: Lexicon) -> set:
+    """Abbreviations from the vocabulary (for joining spelled-out letters)."""
+    out = set()
+    for t in lex.all_terms():
+        for w in re.split(r"[\s,/]+", t.text):
+            w = w.strip(".()")
+            if 2 <= len(w) <= 8 and w.isalpha() and (t.category == "abbr" or w.isupper()):
+                out.add(w.lower())
+    return out
+
+
 def build_text_pipeline(style: str, count: Optional[Callable[[str], int]] = None,
-                        env: Optional[dict] = None):
+                        env: Optional[dict] = None, correction_files: Optional[Iterable[Path]] = None):
     """
-    Returns (prompt_builder_or_None, corrector_or_None) according to env:
+    Returns (prompt_builder_or_None, postprocess_or_None) according to env:
       MYTRANSCRIBE_VOCAB=off        -> no topic prompts (static prompt only)
-      MYTRANSCRIBE_AUTOCORRECT=off  -> no spelling correction
+      MYTRANSCRIBE_AUTOCORRECT=off  -> no spelling correction / text fixes
       MYTRANSCRIBE_VOCAB_FILES      -> extra vocabulary files
       MYTRANSCRIBE_VOCAB_TOPICS     -> comma list of topics to assume before anything is said
+    postprocess = spelling corrector + text_fixes (spelled-out abbreviations, personal
+    "heard => correct" rules); it exposes .total_corrections like the corrector.
     """
     env = os.environ if env is None else env
     off = lambda name: env.get(name, "").strip().lower() in ("0", "off", "false", "no")
@@ -295,8 +326,10 @@ def build_text_pipeline(style: str, count: Optional[Callable[[str], int]] = None
         defaults = [t.strip().lower() for t in env.get("MYTRANSCRIBE_VOCAB_TOPICS", "").split(",") if t.strip()]
         builder = PromptBuilder(style, lex, count=count, is_common=make_wordfreq_is_common(),
                                 default_topics=defaults)
-    corrector = None
+    post = None
     if not off("MYTRANSCRIBE_AUTOCORRECT"):
         from vocab_correct import make_corrector
-        corrector = make_corrector(t.text for t in lex.all_terms())
-    return builder, corrector
+        from text_fixes import make_text_fixes
+        post = PostProcess(make_corrector(t.text for t in lex.all_terms()),
+                           make_text_fixes(known_abbreviations(lex), correction_files))
+    return builder, post
