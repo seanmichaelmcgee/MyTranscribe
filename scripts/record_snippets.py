@@ -13,6 +13,7 @@ output folder. Delete them when you're done if you like.
 
     --list-devices     show microphones;  --device N  use one other than the default
     --only message,exam   record just some categories
+    --redo 6           re-record snippet 06 only (keeps everything else already recorded)
 """
 
 import argparse
@@ -65,6 +66,8 @@ def main(argv=None):
     ap.add_argument("--list-devices", action="store_true")
     ap.add_argument("--only", help="comma list of categories: message,result,exam")
     ap.add_argument("--profile", default="real", help="label stored in the manifest")
+    ap.add_argument("--redo", help="comma list of snippet numbers to (re)record, e.g. 6 or 6,12 "
+                                   "(the number in the file name, 00-26)")
     args = ap.parse_args(argv)
 
     import pyaudio
@@ -74,9 +77,13 @@ def main(argv=None):
             list_devices(pa)
             return 0
         keep = set(args.only.split(",")) if args.only else None
-        items = [(i, s) for i, s in enumerate(SNIPPETS) if keep is None or s[0] in keep]
+        redo = {int(n) for n in args.redo.split(",")} if args.redo else None
+        items = [(i, s) for i, s in enumerate(SNIPPETS)
+                 if (keep is None or s[0] in keep) and (redo is None or i in redo)]
         args.out.mkdir(parents=True, exist_ok=True)
-        manifest, k = [], 0
+        mpath = args.out / "manifest.json"
+        manifest = json.loads(mpath.read_text(encoding="utf-8")) if mpath.exists() else []   # add to earlier runs
+        k = 0
         print(f"{len(items)} snippets. Read each one naturally, including commands like "
               f"'new line'.\nSay abbreviations the way you normally would (e.g. 'S N T').\n")
         while k < len(items):
@@ -99,7 +106,8 @@ def main(argv=None):
             manifest.append({"audio": name, "scenario": f"{i:02d}_{cat}", "category": cat,
                              "profile": args.profile, "spoken": spoken, "reference": written,
                              "terms": terms, "seconds": round(secs, 1)})
-            (args.out / "manifest.json").write_text(json.dumps(manifest, indent=1), encoding="utf-8")
+            manifest.sort(key=lambda m: m["audio"])
+            mpath.write_text(json.dumps(manifest, indent=1), encoding="utf-8")
             k += 1
         print(f"\n{len(manifest)} recordings in {args.out}. Score them with eval_snippets.py (see --help).")
     finally:

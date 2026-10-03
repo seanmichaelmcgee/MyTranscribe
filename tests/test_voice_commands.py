@@ -24,7 +24,24 @@ def test_commands(raw, want):
     assert apply(raw) == want
 
 
+@pytest.mark.parametrize("raw, want", [
+    # The user's own way of dictating a numbered list, in the forms Whisper writes it.
+    ("Plan as follows. New line, 1 period, dry eyes. Start lubricating drops. "
+     "New line, 2 period, xerostomia. Start water-based lubricant.",
+     "Plan as follows.\n1. Dry eyes. Start lubricating drops.\n2. Xerostomia. Start water-based lubricant."),
+    ("Plan. New line. 2. Period. Xerostomia.", "Plan.\n2. Xerostomia."),
+    ("Plan. New line, two period, xerostomia.", "Plan.\n2. Xerostomia."),
+    ("Plan. New line, number 3 period, follow up in 6 weeks.", "Plan.\n3. Follow up in 6 weeks."),
+    ("1 period, refer to general surgery.", "1. Refer to general surgery."),
+])
+def test_numbered_items(raw, want):
+    assert apply(raw) == want
+
+
 @pytest.mark.parametrize("text", [
+    "Her last period was 2 weeks ago.",
+    "She had 2 periods of chest pain this week.",
+    "Take 1 tablet daily for a period of 2 weeks.",
     "We will start a new line of therapy if this fails.",
     "There is a new line on the chest film that was not there before.",
     "Patient is quite open to the plan.",

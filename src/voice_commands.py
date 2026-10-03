@@ -4,6 +4,10 @@ voice_commands.py — spoken formatting commands, applied to the final text.
   "new line" / "next line"   -> line break
   "new paragraph"            -> blank line
   "open quote(s)" ... "close quote(s)" / "end quote(s)" / "unquote"  -> "..."
+  "<number> period" at the start of a line                          -> "2. "
+      e.g. "... new line, 2 period, Xerostomia. Start water-based lubricant."
+      -> "\n2. Xerostomia. Start water-based lubricant." Only at a line start, so
+      "her last period" or "2 periods of chest pain" mid-sentence are untouched.
 
 Conservative on purpose: a phrase only counts as a command when Whisper set it
 off with punctuation on at least one side (or it starts/ends the text), which is
@@ -17,6 +21,13 @@ import re
 PUNCT = ",.;:!?"
 _BREAKS = [(re.compile(r"\bnew\s+paragraph\b", re.I), "\n\n"),
            (re.compile(r"\b(?:new|next)\s+line\b", re.I), "\n")]
+_NUMBER_WORDS = {w: str(i) for i, w in enumerate(
+    "zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen "
+    "sixteen seventeen eighteen nineteen twenty".split())}
+# At a line start: "2 period," / "2. Period." / "two period" / "number 2 period" / "2 full stop".
+_LIST_ITEM = re.compile(
+    r"(^|\n)[ \t]*(?:number[ \t]+)?(\d{1,2}|" + "|".join(_NUMBER_WORDS) + r")[ \t]*[.,]?[ \t]*"
+    r"(?:period|full[ \t]+stop|dot)\b[ \t]*[.,:;]*[ \t]*", re.I)
 _OPEN = re.compile(r"\bopen\s+quotes?\b", re.I)
 _CLOSE = re.compile(r"\b(?:close\s+quotes?|end\s+quotes?|unquote)\b", re.I)
 
@@ -65,6 +76,8 @@ def apply(text: str) -> str:
     text = re.sub(r"[ \t]+\n", "\n", text)
     text = re.sub(r"\n[ \t]+", "\n", text)
     text = re.sub(r"[ \t]{2,}", " ", text).strip(" \n")
-    # Capitalise the first letter of each new line (and of a quote opening it). The very
-    # start of the text is left as dictated: it may be pasted mid-sentence.
+    text = _LIST_ITEM.sub(lambda m: f"{m.group(1)}{_NUMBER_WORDS.get(m.group(2).lower(), m.group(2))}. ", text)
+    # Capitalise the first letter of each new line / list item (and of a quote opening
+    # it). The very start of the text is left as dictated: it may be pasted mid-sentence.
+    text = re.sub(r'(^\d{1,2}\. |\n\d{1,2}\. )("?)([a-z])', lambda m: m.group(1) + m.group(2) + m.group(3).upper(), text)
     return re.sub(r'(\n)("?)([a-z])', lambda m: m.group(1) + m.group(2) + m.group(3).upper(), text)
