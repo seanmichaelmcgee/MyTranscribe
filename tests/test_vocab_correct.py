@@ -29,6 +29,9 @@ def corrector():
     ("metaformin", "metformin"),
     ("empaglyflozin", "empagliflozin"),
     ("levothyroxin", "levothyroxine"),
+    # From the user's real headset recordings (2026-10-03).
+    ("amlodiphene", "amlodipine"),
+    ("arithmatous", "erythematous"),
 ])
 def test_fixes_near_misses(corrector, heard, expected):
     assert corrector(heard) == expected

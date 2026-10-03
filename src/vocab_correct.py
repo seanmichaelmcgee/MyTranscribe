@@ -32,9 +32,31 @@ TARGET_MAX_ZIPF = 3.0       # only fix towards uncommon (medical) words, never "
 ACCEPT_SCORE = 88           # similarity (0-100) accepted on spelling alone
 PHONETIC_SCORE = 78         # lower band: also needs a Metaphone match
 MIN_MARGIN = 6              # best must beat the runner-up by this much
+# Near-phonetic band: Metaphone keys one edit apart (e.g. "amlodiphene" AMLTFN vs
+# amlodipine AMLTPN: Metaphone turns "ph" into F), accepted only when the match is
+# far ahead of every other vocabulary word. From the user's real recordings
+# (2026-10-03): amlodiphene -> amlodipine, arithmatous -> erythematous.
+NEAR_PHONETIC_MARGIN = 15
 MAX_SPAN = 3                # also try joining up to 3 split words ("licen opril")
 
 _WORD_RE = re.compile(r"[A-Za-z][A-Za-z'\-]*")
+
+
+def _same_lexeme(a: str, b: str) -> bool:
+    """Singular/plural of one word ('vesicle'/'vesicles', 'bulla'/'bullae'): not rival targets."""
+    short, long_ = sorted((a, b), key=len)
+    return long_ in (short + "s", short + "es", short + "e") or (short.endswith("a") and long_ == short + "e")
+
+
+def _edit_distance(a: str, b: str) -> int:
+    """Levenshtein distance (short phonetic keys only)."""
+    prev = list(range(len(b) + 1))
+    for i, ca in enumerate(a, 1):
+        cur = [i]
+        for j, cb in enumerate(b, 1):
+            cur.append(min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (ca != cb)))
+        prev = cur
+    return prev[-1]
 
 
 @dataclass
@@ -74,11 +96,16 @@ class TermCorrector:
 
     # ── matching ────────────────────────────────────────────────────────────
     def _top2(self, word: str) -> List[Tuple[str, float]]:
+        """Best match and the best *different* word (a plural/singular of the best doesn't compete)."""
         if self._extract is not None:
-            hits = self._extract(word, self.choices, limit=2)
-            return [(h[0], h[1]) for h in hits]
-        scored = sorted(((c, self.ratio(word, c)) for c in self.choices), key=lambda x: -x[1])
-        return scored[:2]
+            hits = [(h[0], h[1]) for h in self._extract(word, self.choices, limit=6)]
+        else:
+            hits = sorted(((c, self.ratio(word, c)) for c in self.choices), key=lambda x: -x[1])[:6]
+        if not hits:
+            return []
+        best = hits[0]
+        rivals = [h for h in hits[1:] if not _same_lexeme(best[0], h[0])]
+        return [best] + rivals[:1]
 
     def best_match(self, word: str) -> Optional[Tuple[str, float]]:
         """Vocabulary word for a non-word, or None if no safe unique match."""
@@ -95,6 +122,9 @@ class TermCorrector:
         if score >= ACCEPT_SCORE:
             return cand, score
         if score >= PHONETIC_SCORE and self.phonetic(w) == self._phon[cand]:
+            return cand, score
+        if (score >= PHONETIC_SCORE and score - second >= NEAR_PHONETIC_MARGIN
+                and _edit_distance(self.phonetic(w), self._phon[cand]) <= 1):
             return cand, score
         return None
 

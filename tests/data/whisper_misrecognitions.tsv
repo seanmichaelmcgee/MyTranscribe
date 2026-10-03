@@ -126,7 +126,7 @@ keep	insulin aspart	insulin per
 keep	cetuximab	sittaxad
 keep	ipratropium	atropium
 keep	linagliptin	lnad glibton
-keep	ixekizumab	exekizimab
+fix	ixekizumab	exekizimab
 keep	gastrectomy	destrectomy
 keep	topiramate	top made
 keep	escitalopram	esit olopram
@@ -134,7 +134,7 @@ keep	cariprazine	carapizine
 keep	imipramine	amipranim
 keep	purpura	perpora
 keep	reslizumab	relizamab
-keep	fexofenadine	frexofinadyne
+fix	fexofenadine	frexofinadyne
 keep	ischemia	aschemia
 keep	ponatinib	ponet mnb
 keep	herniorrhaphy	hernirafy
@@ -162,7 +162,7 @@ keep	pustule	puss
 keep	ductule	duct
 keep	methylprednisolone	metho pred alone
 keep	dysphagia	disstazhia
-keep	vortioxetine	vordioxyteine
+fix	vortioxetine	vordioxyteine
 keep	azelastine	a lasting
 keep	neutrophilia	neutropenia
 keep	tacrolimus	to craw luh muss
