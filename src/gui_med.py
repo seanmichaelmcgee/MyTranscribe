@@ -59,6 +59,7 @@ from gui_qt import AppState, TranscriptionWindow             # noqa: E402
 from triggers import InputTriggers                           # noqa: E402
 import settings as settings_store                            # noqa: E402
 import voice_commands                                        # noqa: E402
+from mic_ready import ReadyMic                               # noqa: E402
 from options_dialog import OptionsDialog                     # noqa: E402
 
 logger = logging.getLogger("gui_med")
@@ -78,6 +79,8 @@ COMPACT_WIDTH = 380
 # Recording light: always visible, green = recording, red = not recording.
 REC_ON_COLOUR = "#2E9E4F"
 REC_OFF_COLOUR = "#C8322B"
+REC_WARM_COLOUR = "#E0A100"     # amber: mic opening (only when it isn't kept ready)
+MIC_WARMUP_S = 0.35             # Bluetooth headsets send ~0.3 s of near-silence after opening
 # Status text colour per kind.
 STATUS_COLOURS = {"idle": "#5E5D59", "recording": "#1F6E37", "busy": "#5E5D59",
                   "ok": "#3B6347", "warn": "#93370D"}
@@ -121,6 +124,34 @@ def env_flag(name: str, env: Optional[dict] = None) -> bool:
     return env.get(name, "").strip().lower() in ("1", "true", "yes", "on")
 
 
+class _StartChimeGate:
+    """
+    Wraps ChimePlayer so the start chime means "talk now". gui_qt plays it the
+    moment the state changes; here it is held until the microphone is really
+    live (_mic_now_live -> play_live), which is immediately when the mic is kept
+    ready and after the warm-up otherwise.
+    """
+
+    def __init__(self, inner):
+        self._inner = inner
+        self._pending = False
+
+    def play_start(self):
+        self._pending = True
+
+    def play_live(self):
+        if self._pending:
+            self._pending = False
+            self._inner.play_start()
+
+    def play_end(self):
+        self._pending = False
+        self._inner.play_end()
+
+    def cleanup(self):
+        self._inner.cleanup()
+
+
 def build_default_engine(accurate: bool = True):
     """Detect hardware, pick a config, load + warm up faster-whisper."""
     from fw_engine import FasterWhisperEngine
@@ -149,8 +180,13 @@ class MedTranscriptionWindow(TranscriptionWindow):
                  text_pipeline: Optional[tuple] = None,
                  settings: Optional["settings_store.Settings"] = None,
                  settings_path: Optional[Path] = None,
-                 install_hooks: bool = True) -> None:
+                 install_hooks: bool = True,
+                 mic_warmup_s: Optional[float] = None) -> None:
+        self._injected_stream = stream_factory is not None
         self._stream_factory = stream_factory
+        self._ready_mic = None
+        self._mic_warmup_override = mic_warmup_s
+        self._mic_live = False
         self._autopaste = env_flag("MYTRANSCRIBE_AUTOPASTE") if autopaste is None else autopaste
         self._base_prompt = load_prompt() if base_prompt is None else base_prompt
         self._settings_path = settings_path
@@ -173,6 +209,8 @@ class MedTranscriptionWindow(TranscriptionWindow):
         self.copy_ok: Optional[bool] = None
 
         super().__init__()
+        self._chime = _StartChimeGate(self._chime)
+        self._apply_mic_mode()
         self.setWindowTitle(WINDOW_TITLE_MED + (" [auto-paste]" if self._autopaste else ""))
         self.setWindowOpacity(1.0)
         self.setMinimumSize(COMPACT_WIDTH, 0)      # height: whatever the visible rows need
@@ -180,7 +218,7 @@ class MedTranscriptionWindow(TranscriptionWindow):
 
         self._triggers = None
         self._apply_triggers()
-        self._set_rec_light(False)
+        self._set_rec_light("off")
         if self._settings.start_compact:
             self._toggle_compact()
 
@@ -327,11 +365,48 @@ class MedTranscriptionWindow(TranscriptionWindow):
         self._status_text.setStyleSheet(f"color: {STATUS_COLOURS[kind]};")
         self._status_text.setText(text)
 
-    def _set_rec_light(self, recording: bool) -> None:
-        """Green = recording, red = not recording. Visible in every view."""
-        self.rec_light_on = recording
-        self._rec_light.setStyleSheet(f"background: {REC_ON_COLOUR if recording else REC_OFF_COLOUR};")
-        self._rec_light.setToolTip("Recording" if recording else "Not recording")
+    def _set_rec_light(self, state: str) -> None:
+        """Green = recording, red = not recording, amber = mic opening. Visible in every view."""
+        self.rec_light_state = state
+        self.rec_light_on = state == "on"
+        colour = {"on": REC_ON_COLOUR, "warm": REC_WARM_COLOUR, "off": REC_OFF_COLOUR}[state]
+        self._rec_light.setStyleSheet(f"background: {colour};")
+        self._rec_light.setToolTip({"on": "Recording", "warm": "Starting microphone…",
+                                    "off": "Not recording"}[state])
+
+    # ── Microphone: kept ready (pre-roll) or opened per recording (warm-up) ──
+    def _apply_mic_mode(self) -> None:
+        """Start/stop the always-open mic to match settings.keep_mic_ready."""
+        want = self._settings.keep_mic_ready and not self._injected_stream
+        if want and self._ready_mic is None:
+            try:
+                self._ready_mic = ReadyMic()
+                self._ready_mic.start()
+            except Exception as exc:
+                logger.error("Could not keep the microphone ready: %s", exc)
+                self._ready_mic = None
+        elif not want and self._ready_mic is not None:
+            self._ready_mic.stop()
+            self._ready_mic = None
+        if not self._injected_stream:
+            self._stream_factory = self._ready_mic.session if self._ready_mic else None
+            if self._transcriber is not None:
+                from chunked_transcriber import _default_stream_factory
+                self._transcriber._stream_factory = self._stream_factory or _default_stream_factory
+
+    @property
+    def _warmup_s(self) -> float:
+        if self._mic_warmup_override is not None:
+            return self._mic_warmup_override
+        return 0.0 if (self._ready_mic is not None or self._injected_stream) else MIC_WARMUP_S
+
+    def _mic_now_live(self) -> None:
+        """The microphone is really listening: green light, 'Recording', start chime."""
+        self._mic_live = True
+        self._set_rec_light("on")
+        self._set_status("Recording" if self._state == AppState.NORMAL_RECORDING else "Recording (long)",
+                         "recording")
+        self._chime.play_live()
 
     def _refresh_controls(self) -> None:
         """Mirror the state machine onto the visible toggle / copy buttons."""
@@ -363,12 +438,16 @@ class MedTranscriptionWindow(TranscriptionWindow):
             self._copy_btn.style().polish(self._copy_btn)
 
     def _set_state(self, new_state: AppState) -> None:
-        super()._set_state(new_state)
-        self._set_rec_light(new_state in (AppState.NORMAL_RECORDING, AppState.LONG_RECORDING))
-        if new_state == AppState.NORMAL_RECORDING:
-            self._set_status("Recording", "recording")
-        elif new_state == AppState.LONG_RECORDING:
-            self._set_status("Recording (long)", "recording")
+        super()._set_state(new_state)          # start chime is held by _StartChimeGate
+        if new_state in (AppState.NORMAL_RECORDING, AppState.LONG_RECORDING):
+            if self._mic_live:
+                self._mic_now_live()
+            else:
+                self._set_rec_light("warm")
+                self._set_status("Starting mic…", "busy")
+        else:
+            self._mic_live = False
+            self._set_rec_light("off")
         self._set_copy_attention(False)
         self._refresh_controls()
 
@@ -410,7 +489,8 @@ class MedTranscriptionWindow(TranscriptionWindow):
             return
         self._text_area.setPlainText("")
         self._copy_generation += 1      # cancel any pending copy retries
-        self._set_state(state)          # plays start chime
+        self._mic_live = self._warmup_s <= 0
+        self._set_state(state)          # green + chime now, or amber until the mic is live
         self._poll_timer.start()
 
     def _start_normal(self) -> None:
@@ -450,6 +530,9 @@ class MedTranscriptionWindow(TranscriptionWindow):
                 logger.error("Recording ended: %s", t.capture_error)
             self._stop_recording(from_hotkey=False)
             return
+
+        if not self._mic_live and t.captured_s >= self._warmup_s:
+            self._mic_now_live()
 
         if self._state == AppState.LONG_RECORDING:
             self._text_area.setPlainText("Recording in long mode...")
@@ -605,6 +688,7 @@ class MedTranscriptionWindow(TranscriptionWindow):
         self._settings = new.clean()
         settings_store.save(self._settings, self._settings_path)
         self._apply_triggers()
+        self._apply_mic_mode()
 
     def closeEvent(self, event) -> None:
         if self._triggers is not None:
@@ -612,6 +696,8 @@ class MedTranscriptionWindow(TranscriptionWindow):
                 self._triggers.stop()
             except Exception:
                 pass
+        if self._ready_mic is not None:
+            self._ready_mic.stop()             # closes the device, drops the pre-roll
         if self._transcriber is not None:
             try:
                 self._transcriber.cleanup()

@@ -27,7 +27,9 @@ HOW_TO = (
     "(nothing leaves the computer) and copied to the clipboard when you stop. "
     "Click in your EMR and press <b>Ctrl+V</b>.<br><br>"
     "The light at the top left is <b><span style='color:#2E9E4F'>green while recording</span></b> "
-    "and <b><span style='color:#C8322B'>red when not</span></b>.<br>"
+    "and <b><span style='color:#C8322B'>red when not</span></b> "
+    "(briefly <b><span style='color:#B98500'>amber</span></b> while the mic opens, if it isn't kept "
+    "ready: start talking on green).<br>"
     "If the status says <b>Not copied</b>, another program was using the clipboard: "
     "click <b>Copy</b> and paste again.<br>"
     "Use <b>+</b> / <b>–</b> to show or hide the transcript. "
@@ -83,6 +85,12 @@ class OptionsDialog(QDialog):
         acc_form.addRow("", note)
         layout.addLayout(acc_form)
 
+        layout.addWidget(self._title("Microphone"))
+        self.keep_mic_ready = QCheckBox("Keep microphone ready (no clipped first word; Windows shows "
+                                        "the mic in use while the app is open)")
+        self.keep_mic_ready.setChecked(settings.keep_mic_ready)
+        layout.addWidget(self.keep_mic_ready)
+
         layout.addWidget(self._title("Text"))
         self.voice_commands = QCheckBox("Voice commands: say “new line”, “new paragraph”, "
                                         "“open quote … close quote”")
@@ -135,4 +143,5 @@ class OptionsDialog(QDialog):
         return replace(self._original, key=self.key.currentData(), key_mode=self.key_mode.currentData(),
                        mouse=self.mouse.currentData(), mouse_mode=self.mouse_mode.currentData(),
                        start_compact=self.start_compact.isChecked(), accuracy=self.accuracy.currentData(),
-                       voice_commands=self.voice_commands.isChecked())
+                       voice_commands=self.voice_commands.isChecked(),
+                       keep_mic_ready=self.keep_mic_ready.isChecked())

@@ -242,6 +242,11 @@ class ChunkedTranscriber:
     def queue_depth(self) -> int:
         return self._queue.qsize()
 
+    @property
+    def captured_s(self) -> float:
+        """Seconds of audio read from the microphone in this session."""
+        return self._captured_samples / SAMPLE_RATE
+
     def start_recording(self, mode: str = "normal") -> None:
         """Open the mic and start the capture + worker threads for a new session."""
         if self._running or self.busy:

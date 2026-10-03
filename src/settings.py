@@ -39,6 +39,7 @@ class Settings:
     start_compact: bool = True
     accuracy: str = "best"             # "best" (large-v3 if the GPU allows) | "fast" (turbo)
     voice_commands: bool = True        # "new line", "new paragraph", "open/close quote"
+    keep_mic_ready: bool = True        # mic open between dictations + 0.5 s pre-roll (like Dragon)
 
     def triggers(self) -> TriggerConfig:
         return TriggerConfig(
@@ -59,6 +60,7 @@ class Settings:
             self.mouse_mode = d.mouse_mode
         self.start_compact = bool(self.start_compact)
         self.voice_commands = bool(self.voice_commands)
+        self.keep_mic_ready = bool(self.keep_mic_ready)
         if self.accuracy not in ("best", "fast"):
             self.accuracy = d.accuracy
         return self

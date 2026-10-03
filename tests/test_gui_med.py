@@ -23,7 +23,8 @@ def make_window(qapp, monkeypatch, tmp_path):
     monkeypatch.setattr(phi_clipboard, "modifiers_held", lambda *a, **k: False)
     windows = []
 
-    def make(engine=None, stream=None, autopaste=False, engine_factory=None, clip=None, settings=None):
+    def make(engine=None, stream=None, autopaste=False, engine_factory=None, clip=None, settings=None,
+             mic_warmup_s=None):
         engine = engine or FakeEngine()
         stream = stream or EndlessStream(speech_like(3), pace_s=0.002)
         w = gui_med.MedTranscriptionWindow(
@@ -31,9 +32,13 @@ def make_window(qapp, monkeypatch, tmp_path):
             stream_factory=lambda: (stream, None),
             autopaste=autopaste, base_prompt="Vocab.", text_pipeline=(None, None),
             settings=settings or Settings(start_compact=False),
-            settings_path=tmp_path / "settings.json", install_hooks=False,
+            settings_path=tmp_path / "settings.json", install_hooks=False, mic_warmup_s=mic_warmup_s,
         )
-        w._chime.play_start = w._chime.play_end = lambda: None
+        chimes = []
+        w._chime._inner = type("Chime", (), {"play_start": lambda s: chimes.append("start"),
+                                             "play_end": lambda s: chimes.append("end"),
+                                             "cleanup": lambda s: None})()
+        w.chimes = chimes
         w.clip = clip if clip is not None else FakeClipboard()
         w._clipboard = lambda: w.clip
         w._clipboard_seq = w.clip.sequence                 # fake clipboard's own counter
@@ -312,6 +317,65 @@ def test_recording_light_green_on_red_off(qapp, make_window):
     w._on_toggle_clicked()
     assert w.rec_light_on is False
     assert finish(w, qapp)
+
+
+def test_mic_warmup_amber_then_green_with_chime(qapp, make_window):
+    """Mic opened per recording: amber until it's really listening, then green + chime."""
+    w = make_window(mic_warmup_s=0.3, stream=EndlessStream(speech_like(3), pace_s=0.064))  # ~real time
+    w._on_toggle_clicked()
+    assert w._state.name == "NORMAL_RECORDING"
+    assert w.rec_light_state == "warm" and "Starting mic" in w._status_text.text()
+    assert w.chimes == []                                   # no "talk now" chime yet
+    assert wait_for(lambda: w.rec_light_state == "on", timeout=3, app=qapp)
+    assert w.chimes == ["start"] and w._status_text.text() == "Recording"
+    w._on_toggle_clicked()
+    assert w.rec_light_state == "off" and w.chimes == ["start", "end"]
+    assert finish(w, qapp)
+
+
+def test_no_warmup_when_mic_kept_ready(qapp, make_window):
+    w = make_window()                                       # injected stream: like a ready mic
+    w._on_toggle_clicked()
+    assert w.rec_light_state == "on" and w.chimes == ["start"]
+    w._on_toggle_clicked()
+    assert finish(w, qapp)
+
+
+def test_ready_mic_feeds_recordings_with_preroll(qapp, tmp_path, monkeypatch):
+    """Real wiring: keep_mic_ready=True uses ReadyMic sessions, device stays open."""
+    import gui_qt
+    import gui_med
+    import mic_ready
+    from settings import Settings
+    monkeypatch.setattr(gui_qt.HotkeyBridge, "start", lambda self: None)
+    monkeypatch.setattr(gui_qt.HotkeyBridge, "stop", lambda self: None)
+    opened = []
+
+    def open_stream():
+        s = EndlessStream(speech_like(3), pace_s=0.004)
+        opened.append(s)
+        return s, None
+    monkeypatch.setattr(gui_med, "ReadyMic", lambda: mic_ready.ReadyMic(open_stream=open_stream))
+    w = gui_med.MedTranscriptionWindow(engine_factory=FakeEngine, autopaste=False, base_prompt="",
+                                       text_pipeline=(None, None), settings=Settings(start_compact=False),
+                                       settings_path=tmp_path / "s.json", install_hooks=False)
+    w._chime._inner = type("C", (), {"play_start": lambda s: None, "play_end": lambda s: None,
+                                     "cleanup": lambda s: None})()
+    w._clipboard = lambda: FakeClipboard()
+    w._clipboard_seq = None
+    try:
+        assert wait_for(lambda: w.ready, app=qapp) and w._ready_mic is not None
+        assert wait_for(lambda: w._ready_mic.reads > 10, app=qapp)
+        for _ in range(2):
+            w._on_toggle_clicked()
+            assert w.rec_light_state == "on"                # no warm-up needed
+            wait_for(lambda: False, timeout=0.3, app=qapp)
+            w._on_toggle_clicked()
+            assert finish(w, qapp)
+        assert len(opened) == 1                             # one device open for both recordings
+    finally:
+        w.close()
+    assert w._ready_mic is not None and not w._ready_mic._running
 
 
 def test_starts_compact_and_plus_expands(qapp, make_window):
