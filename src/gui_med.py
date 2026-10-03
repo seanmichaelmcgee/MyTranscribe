@@ -20,9 +20,12 @@ Same window, buttons, chimes and Ctrl+Alt+Q hotkey; different engine:
     copied" and nothing is auto-pasted (the clipboard would still hold the
     previous text).
   * Start/stop: big on-screen button, Space (window focused), Ctrl+Alt+Q,
-    plus F9 and the mouse "forward" button anywhere (triggers.py; toggle or
-    hold-to-talk). Hotkeys never pull the window to the front: it stays on
+    plus F9 (hold to talk) and the mouse "forward" button (toggle) anywhere
+    (triggers.py). Hotkeys never pull the window to the front: it stays on
     top, and keyboard focus stays in your EMR for Ctrl+V.
+  * A round light, always visible: green = recording, red = not recording.
+    Starts in compact view (+ shows the transcript). The ⚙ Options screen
+    (options_dialog.py) changes the keys and hold/toggle; saved by settings.py.
   * Optional auto-paste: set MYTRANSCRIBE_AUTOPASTE=1 and, after a hotkey
     stop, the text is pasted into whatever window has focus (your EMR /
     Word).
@@ -53,7 +56,9 @@ from prompt_loader import load_prompt                        # noqa: E402
 from vocab import build_text_pipeline                        # noqa: E402
 import phi_clipboard                                         # noqa: E402
 from gui_qt import AppState, TranscriptionWindow             # noqa: E402
-from triggers import InputTriggers, TriggerConfig            # noqa: E402
+from triggers import InputTriggers                           # noqa: E402
+import settings as settings_store                            # noqa: E402
+from options_dialog import OptionsDialog                     # noqa: E402
 
 logger = logging.getLogger("gui_med")
 
@@ -67,16 +72,14 @@ COPY_RETRY_MS = 100             # ...this often (~0.5 s total) before giving up
 LOADING_TEXT = "Loading speech model… (first run downloads ~1.6 GB)"
 TRANSCRIBING_SUFFIX = "\n\n[Finishing transcription…]"
 NORMAL_SIZE = (560, 300)
-COMPACT_SIZE = (360, 64)
+COMPACT_WIDTH = 380
 
-# Status pill: (dot colour, text colour) per kind.
-STATUS_COLOURS = {
-    "idle": ("#8A8880", "#5E5D59"),
-    "recording": ("#C2412D", "#8F2F21"),
-    "busy": ("#C96442", "#5E5D59"),
-    "ok": ("#4A7C59", "#3B6347"),
-    "warn": ("#B54708", "#93370D"),
-}
+# Recording light: always visible, green = recording, red = not recording.
+REC_ON_COLOUR = "#2E9E4F"
+REC_OFF_COLOUR = "#C8322B"
+# Status text colour per kind.
+STATUS_COLOURS = {"idle": "#5E5D59", "recording": "#1F6E37", "busy": "#5E5D59",
+                  "ok": "#3B6347", "warn": "#93370D"}
 
 # Warm, Claude-desktop-like light theme. Replaces gui_qt.APP_QSS for this window.
 MED_QSS = """
@@ -87,7 +90,7 @@ QTextEdit#transcriptionView {
     padding: 8px 10px; font-size: 11pt; selection-background-color: #F0D9CD; selection-color: #1F1E1D;
 }
 QLabel#statusText { font-weight: 600; }
-QLabel#hintText { color: #8A8880; font-size: 8.5pt; }
+QLabel#recLight { border-radius: 9px; border: 1px solid rgba(0, 0, 0, 0.15); }
 QPushButton { border-radius: 8px; padding: 6px 12px; }
 QPushButton#toggleButton {
     background: #C96442; color: #FFFFFF; border: none; font-size: 11pt; font-weight: 600; min-height: 34px;
@@ -97,10 +100,13 @@ QPushButton#toggleButton:pressed { background: #A14E33; }
 QPushButton#toggleButton[recording="true"] { background: #2F2E2A; }
 QPushButton#toggleButton[recording="true"]:hover { background: #1F1E1D; }
 QPushButton#toggleButton:disabled { background: #E6CDC1; color: #FFFFFF; }
-QPushButton#longButton, QPushButton#copyButton, QPushButton#compactButton {
+QPushButton#longButton, QPushButton#copyButton, QPushButton#compactButton, QPushButton#optionsButton {
     background: transparent; color: #3D3C38; border: 1px solid #DAD8CD;
 }
-QPushButton#longButton:hover, QPushButton#copyButton:hover, QPushButton#compactButton:hover {
+QPushButton#compactButton, QPushButton#optionsButton { padding: 6px 9px; }
+QPushButton#optionsButton { font-family: "Segoe UI Symbol"; font-size: 12pt; padding: 3px 8px; }
+QPushButton#longButton:hover, QPushButton#copyButton:hover, QPushButton#compactButton:hover,
+QPushButton#optionsButton:hover {
     background: #ECEADF;
 }
 QPushButton#longButton:disabled, QPushButton#copyButton:disabled { color: #B4B2A9; border-color: #E6E4DA; }
@@ -131,8 +137,9 @@ class MedTranscriptionWindow(TranscriptionWindow):
     """
     TranscriptionWindow with the background faster-whisper pipeline.
 
-    engine_factory / stream_factory / autopaste / trigger_config are injectable
-    for tests; trigger_config=False disables the global F9 / mouse triggers.
+    engine_factory / stream_factory / autopaste / settings / settings_path are
+    injectable for tests; install_hooks=False never installs the global F9 /
+    mouse hooks (the trigger logic still works via self._triggers.handle()).
     """
 
     def __init__(self, engine_factory: Optional[Callable] = None,
@@ -140,12 +147,16 @@ class MedTranscriptionWindow(TranscriptionWindow):
                  autopaste: Optional[bool] = None,
                  base_prompt: Optional[str] = None,
                  text_pipeline: Optional[tuple] = None,
-                 trigger_config=None) -> None:
+                 settings: Optional["settings_store.Settings"] = None,
+                 settings_path: Optional[Path] = None,
+                 install_hooks: bool = True) -> None:
         self._engine_factory = engine_factory or build_default_engine
         self._stream_factory = stream_factory
         self._autopaste = env_flag("MYTRANSCRIBE_AUTOPASTE") if autopaste is None else autopaste
         self._base_prompt = load_prompt() if base_prompt is None else base_prompt
-        self._trigger_config = TriggerConfig.from_env() if trigger_config is None else trigger_config
+        self._settings_path = settings_path
+        self._settings = settings if settings is not None else settings_store.load(settings_path)
+        self._install_hooks = install_hooks
         self._engine = None
         self._text_pipeline = text_pipeline    # (prompt_builder, corrector); built on load if None
         self._load_error: Optional[str] = None
@@ -161,20 +172,14 @@ class MedTranscriptionWindow(TranscriptionWindow):
         super().__init__()
         self.setWindowTitle(WINDOW_TITLE_MED + (" [auto-paste]" if self._autopaste else ""))
         self.setWindowOpacity(1.0)
-        self.setMinimumSize(*COMPACT_SIZE)
+        self.setMinimumSize(COMPACT_WIDTH, 0)      # height: whatever the visible rows need
         self.resize(*NORMAL_SIZE)
 
         self._triggers = None
-        if self._trigger_config:
-            self._triggers = InputTriggers(self._trigger_config, parent=self)
-            self._triggers.pressed.connect(self._on_trigger_pressed, Qt.ConnectionType.QueuedConnection)
-            self._triggers.released.connect(self._on_trigger_released, Qt.ConnectionType.QueuedConnection)
-            try:
-                self._triggers.start()
-            except Exception as exc:          # never let an input hook stop the app
-                logger.error("Could not start F9 / mouse triggers: %s", exc)
-                self._triggers = None
-        self._hint.setText(self._hint_text())
+        self._apply_triggers()
+        self._set_rec_light(False)
+        if self._settings.start_compact:
+            self._toggle_compact()
 
         # Background model load; buttons stay disabled until it finishes.
         self._set_buttons_enabled(False)
@@ -251,21 +256,26 @@ class MedTranscriptionWindow(TranscriptionWindow):
         layout.setContentsMargins(12, 10, 12, 10)
         layout.setSpacing(8)
 
-        # Status row: ● Ready ............................ [Copy] [–]
+        # Status row: (light) Ready ..................... [Copy] [⚙] [–]
         top = QHBoxLayout()
         top.setSpacing(6)
-        self._status_dot = QLabel("●")
+        self._rec_light = QLabel()
+        self._rec_light.setObjectName("recLight")
+        self._rec_light.setFixedSize(18, 18)
         self._status_text = QLabel("Loading…")
         self._status_text.setObjectName("statusText")
-        top.addWidget(self._status_dot)
+        top.addWidget(self._rec_light)
+        top.addSpacing(2)
         top.addWidget(self._status_text)
         top.addStretch(1)
         self._copy_btn = self._small_button("Copy", "copyButton", self._on_copy_clicked,
                                             "Copy the transcript again")
+        self._options_btn = self._small_button("⚙", "optionsButton", self._open_options,
+                                               "Options: keys, hold-to-talk, help")
         self._compact_btn = self._small_button("–", "compactButton", self._toggle_compact,
                                                "Compact view (button only)")
-        top.addWidget(self._copy_btn)
-        top.addWidget(self._compact_btn)
+        for b in (self._copy_btn, self._options_btn, self._compact_btn):
+            top.addWidget(b)
         layout.addLayout(top)
 
         self._text_area = QTextEdit()
@@ -294,10 +304,6 @@ class MedTranscriptionWindow(TranscriptionWindow):
         row.addWidget(self._long_btn, stretch=1)
         layout.addLayout(row)
 
-        self._hint = QLabel("")
-        self._hint.setObjectName("hintText")
-        layout.addWidget(self._hint)
-
         # State holders for the shared gui_qt state machine (never shown).
         self._start_btn = QPushButton(root)
         self._stop_btn = QPushButton(root)
@@ -314,17 +320,15 @@ class MedTranscriptionWindow(TranscriptionWindow):
         b.clicked.connect(slot)
         return b
 
-    def _hint_text(self) -> str:
-        extra = self._trigger_config.describe() if self._triggers else ""
-        mode = " (hold to talk)" if self._triggers and self._trigger_config.hold else ""
-        keys = " · ".join(k for k in (extra + mode, "Ctrl+Alt+Q", "Space") if k)
-        return f"Start/stop: {keys}"
-
     def _set_status(self, text: str, kind: str) -> None:
-        dot, fg = STATUS_COLOURS[kind]
-        self._status_dot.setStyleSheet(f"color: {dot}; font-size: 14pt;")
-        self._status_text.setStyleSheet(f"color: {fg};")
+        self._status_text.setStyleSheet(f"color: {STATUS_COLOURS[kind]};")
         self._status_text.setText(text)
+
+    def _set_rec_light(self, recording: bool) -> None:
+        """Green = recording, red = not recording. Visible in every view."""
+        self.rec_light_on = recording
+        self._rec_light.setStyleSheet(f"background: {REC_ON_COLOUR if recording else REC_OFF_COLOUR};")
+        self._rec_light.setToolTip("Recording" if recording else "Not recording")
 
     def _refresh_controls(self) -> None:
         """Mirror the state machine onto the visible toggle / copy buttons."""
@@ -354,6 +358,7 @@ class MedTranscriptionWindow(TranscriptionWindow):
 
     def _set_state(self, new_state: AppState) -> None:
         super()._set_state(new_state)
+        self._set_rec_light(new_state in (AppState.NORMAL_RECORDING, AppState.LONG_RECORDING))
         if new_state == AppState.NORMAL_RECORDING:
             self._set_status("Recording", "recording")
         elif new_state == AppState.LONG_RECORDING:
@@ -362,17 +367,27 @@ class MedTranscriptionWindow(TranscriptionWindow):
         self._refresh_controls()
 
     def _toggle_compact(self) -> None:
+        """Hide/show the transcript. Compact keeps the light, status and buttons."""
         self._compact = not self._compact
-        self._text_area.setVisible(not self._compact)
-        self._hint.setVisible(not self._compact)
         self._compact_btn.setText("+" if self._compact else "–")
         self._compact_btn.setToolTip("Show transcript" if self._compact else "Compact view (button only)")
         if self._compact:
-            self._normal_size = (self.width(), self.height())
-            self.resize(max(COMPACT_SIZE[0], self.width() // 2), COMPACT_SIZE[1])
-            self.adjustSize()
+            if self.isVisible():
+                self._normal_size = (self.width(), self.height())
+            self._text_area.setVisible(False)
+            self._fit_compact()
+            QTimer.singleShot(0, self._fit_compact)    # again once the layout has settled
         else:
+            self._text_area.setVisible(True)
             self.resize(*getattr(self, "_normal_size", NORMAL_SIZE))
+
+    def _fit_compact(self) -> None:
+        """Shrink to exactly the visible rows (an explicit minimum height would clip them)."""
+        if not self._compact:
+            return
+        self.centralWidget().layout().invalidate()
+        self.centralWidget().layout().activate()
+        self.resize(max(COMPACT_WIDTH, min(self.width(), 420)), self.minimumSizeHint().height())
 
     # ── Start / stop ──────────────────────────────────────────────────────────
     def _can_start(self) -> bool:
@@ -536,16 +551,44 @@ class MedTranscriptionWindow(TranscriptionWindow):
             return
         super().on_hotkey()
 
-    def _on_trigger_pressed(self) -> None:
-        if self._trigger_config.hold:
-            if self._state == AppState.IDLE:
-                self.on_hotkey()
-        else:
+    # ── F9 / mouse triggers and Options ───────────────────────────────────────
+    def _apply_triggers(self) -> None:
+        """(Re)create the F9 / mouse triggers from the current settings."""
+        if self._triggers is not None:
+            try:
+                self._triggers.stop()
+            except Exception:
+                pass
+            self._triggers.deleteLater()
+        self._triggers = InputTriggers(self._settings.triggers(), parent=self)
+        self._triggers.pressed.connect(self._on_trigger_pressed, Qt.ConnectionType.QueuedConnection)
+        self._triggers.released.connect(self._on_trigger_released, Qt.ConnectionType.QueuedConnection)
+        if self._install_hooks:
+            try:
+                self._triggers.start()
+            except Exception as exc:          # never let an input hook stop the app
+                logger.error("Could not start F9 / mouse triggers: %s", exc)
+
+    def _on_trigger_pressed(self, source: str) -> None:
+        hold = self._triggers.config.hold_for(source)
+        if hold and self._state != AppState.IDLE:
+            return                      # hold-to-talk: a press only ever starts
+        self.on_hotkey()
+
+    def _on_trigger_released(self, source: str) -> None:
+        if self._triggers.config.hold_for(source) and self._state == AppState.NORMAL_RECORDING:
             self.on_hotkey()
 
-    def _on_trigger_released(self) -> None:
-        if self._state == AppState.NORMAL_RECORDING:
-            self.on_hotkey()
+    def _open_options(self) -> None:
+        dlg = OptionsDialog(self._settings, parent=self)
+        if dlg.exec():
+            self.apply_settings(dlg.result_settings())
+
+    def apply_settings(self, new: "settings_store.Settings") -> None:
+        """Save and apply edited options (start_compact only affects the next start)."""
+        self._settings = new.clean()
+        settings_store.save(self._settings, self._settings_path)
+        self._apply_triggers()
 
     def closeEvent(self, event) -> None:
         if self._triggers is not None:

@@ -10,10 +10,11 @@ from fakes import ArrayStream, EndlessStream, FakeClipboard, FakeEngine, speech_
 
 
 @pytest.fixture
-def make_window(qapp, monkeypatch):
+def make_window(qapp, monkeypatch, tmp_path):
     import gui_qt
     import gui_med
     import phi_clipboard
+    from settings import Settings
     # No real global keyboard hook in tests (and avoids its 2 s shutdown join).
     monkeypatch.setattr(gui_qt.HotkeyBridge, "start", lambda self: None)
     monkeypatch.setattr(gui_qt.HotkeyBridge, "stop", lambda self: None)
@@ -22,14 +23,15 @@ def make_window(qapp, monkeypatch):
     monkeypatch.setattr(phi_clipboard, "modifiers_held", lambda *a, **k: False)
     windows = []
 
-    def make(engine=None, stream=None, autopaste=False, engine_factory=None, clip=None, triggers=False):
+    def make(engine=None, stream=None, autopaste=False, engine_factory=None, clip=None, settings=None):
         engine = engine or FakeEngine()
         stream = stream or EndlessStream(speech_like(3), pace_s=0.002)
         w = gui_med.MedTranscriptionWindow(
             engine_factory=engine_factory or (lambda: engine),
             stream_factory=lambda: (stream, None),
             autopaste=autopaste, base_prompt="Vocab.", text_pipeline=(None, None),
-            trigger_config=triggers,
+            settings=settings or Settings(start_compact=False),
+            settings_path=tmp_path / "settings.json", install_hooks=False,
         )
         w._chime.play_start = w._chime.play_end = lambda: None
         w.clip = clip if clip is not None else FakeClipboard()
@@ -55,9 +57,10 @@ def record_and_stop(w, qapp, via_hotkey=False, seconds=0.2):
     assert finish(w, qapp)
 
 
-def test_buttons_disabled_until_model_loaded(qapp, make_window):
+def test_buttons_disabled_until_model_loaded(qapp, make_window, tmp_path):
     import gui_med
     import threading
+    from settings import Settings
     gate = threading.Event()
 
     def slow_factory():
@@ -65,7 +68,8 @@ def test_buttons_disabled_until_model_loaded(qapp, make_window):
         return FakeEngine()
     w = gui_med.MedTranscriptionWindow(engine_factory=slow_factory,
                                        stream_factory=lambda: (None, None), base_prompt="",
-                                       text_pipeline=(None, None), trigger_config=False)
+                                       text_pipeline=(None, None), settings=Settings(),
+                                       settings_path=tmp_path / "s.json", install_hooks=False)
     try:
         qapp.processEvents()
         assert not w._start_btn.isEnabled() and "Loading" in w._text_area.toPlainText()
@@ -242,41 +246,87 @@ def test_mic_open_failure_message(qapp, make_window):
     assert "Could not open the microphone" in w._text_area.toPlainText()
 
 
-def test_trigger_toggle_mode(qapp, make_window, monkeypatch):
-    import triggers
-    monkeypatch.setattr(triggers.InputTriggers, "start", lambda self: None)
-    monkeypatch.setattr(triggers.InputTriggers, "stop", lambda self: None)
-    w = make_window(triggers=triggers.TriggerConfig(key="f9", mouse="x2", hold=False))
-    assert "F9" in w._hint.text() and "mouse forward button" in w._hint.text()
-    w._triggers.handle("down")
+def test_mouse_toggle_mode(qapp, make_window):
+    w = make_window()                            # defaults: F9 hold, mouse forward toggle
+    w._triggers.handle("mouse", "down")
     assert wait_for(lambda: w._state.name == "NORMAL_RECORDING", app=qapp)
-    w._triggers.handle("up")                    # toggle mode: release does nothing
+    w._triggers.handle("mouse", "up")            # toggle mode: release does nothing
     wait_for(lambda: False, timeout=0.2, app=qapp)
     assert w._state.name == "NORMAL_RECORDING"
-    w._triggers.handle("down")
+    w._triggers.handle("mouse", "down")
     assert wait_for(lambda: w._state.name == "IDLE", app=qapp)
     assert finish(w, qapp)
 
 
-def test_trigger_hold_to_talk(qapp, make_window, monkeypatch):
-    import triggers
-    monkeypatch.setattr(triggers.InputTriggers, "start", lambda self: None)
-    monkeypatch.setattr(triggers.InputTriggers, "stop", lambda self: None)
-    w = make_window(triggers=triggers.TriggerConfig(key="f9", mouse=None, hold=True))
-    assert "hold to talk" in w._hint.text()
-    w._triggers.handle("down")
-    w._triggers.handle("down")                  # keyboard auto-repeat while held
+def test_f9_hold_to_talk(qapp, make_window):
+    w = make_window()
+    w._triggers.handle("key", "down")
+    w._triggers.handle("key", "down")            # keyboard auto-repeat while held
     assert wait_for(lambda: w._state.name == "NORMAL_RECORDING", app=qapp)
     wait_for(lambda: False, timeout=0.2, app=qapp)
-    w._triggers.handle("up")
+    assert w._state.name == "NORMAL_RECORDING"
+    w._triggers.handle("key", "up")
     assert wait_for(lambda: w._state.name == "IDLE", app=qapp)
     assert finish(w, qapp)
 
 
-def test_compact_view_toggles(qapp, make_window):
+def test_hold_press_while_recording_does_not_stop(qapp, make_window):
     w = make_window()
+    w._on_toggle_clicked()                       # started with the button
+    w._triggers.handle("key", "down")            # hold-to-talk press only ever starts
+    wait_for(lambda: False, timeout=0.2, app=qapp)
+    assert w._state.name == "NORMAL_RECORDING"
+    w._triggers.handle("key", "up")              # ...but releasing stops (talk ended)
+    assert wait_for(lambda: w._state.name == "IDLE", app=qapp)
+    assert finish(w, qapp)
+
+
+def test_recording_light_green_on_red_off(qapp, make_window):
+    w = make_window()
+    assert w.rec_light_on is False and "#C8322B" in w._rec_light.styleSheet()
+    w._triggers.handle("key", "down")
+    assert wait_for(lambda: w.rec_light_on is True, app=qapp)
+    assert "#2E9E4F" in w._rec_light.styleSheet()
+    w._triggers.handle("key", "up")
+    assert wait_for(lambda: w.rec_light_on is False, app=qapp)
+    assert finish(w, qapp)
+    w._on_long_clicked()
+    assert w.rec_light_on is True                # long mode too
+    w._on_stop_clicked()
+    assert w.rec_light_on is False
+    assert finish(w, qapp)
+
+
+def test_starts_compact_and_plus_expands(qapp, make_window):
+    from settings import Settings
+    w = make_window(settings=Settings(start_compact=True))
     w.show()
-    w._toggle_compact()
-    assert not w._text_area.isVisible() and w._toggle_btn.isVisible()
-    w._toggle_compact()
-    assert w._text_area.isVisible()
+    qapp.processEvents()
+    assert w._compact and not w._text_area.isVisible() and w._compact_btn.text() == "+"
+    assert w._rec_light.isVisible() and w._toggle_btn.isVisible()
+    compact_h = w.height()
+    w._toggle_compact()                          # "+"
+    qapp.processEvents()
+    assert w._text_area.isVisible() and w.height() > compact_h + 100
+    w._toggle_compact()                          # "–" again
+    qapp.processEvents()
+    assert not w._text_area.isVisible() and w.height() <= compact_h + 5
+
+
+def test_options_change_applies_and_saves(qapp, make_window, tmp_path):
+    import json
+    from settings import Settings
+    w = make_window()
+    w.apply_settings(Settings(key="f10", key_mode="toggle", mouse="none", start_compact=True))
+    assert w._triggers.config.key == "f10" and w._triggers.config.key_hold is False
+    assert w._triggers.config.mouse is None
+    saved = json.loads((tmp_path / "settings.json").read_text(encoding="utf-8"))
+    assert saved["key"] == "f10" and saved["mouse"] == "none" and saved["start_compact"] is True
+    w._triggers.handle("key", "down")            # now a toggle
+    assert wait_for(lambda: w._state.name == "NORMAL_RECORDING", app=qapp)
+    w._triggers.handle("key", "up")
+    wait_for(lambda: False, timeout=0.2, app=qapp)
+    assert w._state.name == "NORMAL_RECORDING"
+    w._triggers.handle("key", "down")
+    assert wait_for(lambda: w._state.name == "IDLE", app=qapp)
+    assert finish(w, qapp)

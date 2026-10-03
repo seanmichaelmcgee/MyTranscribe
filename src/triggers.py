@@ -1,13 +1,13 @@
 """
 triggers.py — extra global start/stop triggers for gui_med.py.
 
-Besides Ctrl+Alt+Q (gui_qt.HotkeyBridge), dictation can be toggled with:
+Besides Ctrl+Alt+Q (gui_qt.HotkeyBridge), dictation can be started/stopped with:
 
-  * a single key, default F9      $MYTRANSCRIBE_KEY  = f9 | f8 | ... | f12 | pause | scroll_lock | none
-  * a mouse button, default the    $MYTRANSCRIBE_MOUSE = x2 (forward) | x1 (back) | middle | none
-    "forward" thumb button
-  * either one as toggle (press to start, press to stop) or hold-to-talk:
-                                   $MYTRANSCRIBE_TRIGGER_MODE = toggle | hold
+  * a single key (default F9, hold to talk)
+  * a mouse button (default the "forward" thumb button, toggle)
+
+Each has its own mode: "hold" (record while held) or "toggle" (press to
+start, press again to stop). Chosen in the Options screen (settings.py).
 
 On Windows the trigger key/button press is swallowed so the app with focus
 (the EMR) never sees it: F9 means "update field" in Word, and the thumb
@@ -21,7 +21,6 @@ thread. Hook callbacks must stay tiny or Windows lags all keyboard/mouse input.
 """
 
 import logging
-import os
 import sys
 from dataclasses import dataclass
 from typing import Optional
@@ -31,64 +30,68 @@ from PyQt6.QtCore import QObject, pyqtSignal
 logger = logging.getLogger("triggers")
 
 # Windows virtual-key codes for the keys we allow as a single-key trigger.
-_VK = {f"f{n}": 0x6F + n for n in range(1, 13)}       # F1 = 0x70 ... F12 = 0x7B
-_VK.update({"pause": 0x13, "scroll_lock": 0x91})
+KEY_CHOICES = {f"f{n}": 0x6F + n for n in range(1, 13)}       # F1 = 0x70 ... F12 = 0x7B
+KEY_CHOICES.update({"pause": 0x13, "scroll_lock": 0x91})
+MOUSE_CHOICES = {"x2": "Mouse forward button", "x1": "Mouse back button", "middle": "Middle mouse button"}
+
 _WM_KEYDOWN, _WM_KEYUP, _WM_SYSKEYDOWN, _WM_SYSKEYUP = 0x0100, 0x0101, 0x0104, 0x0105
 _WM_MBUTTONDOWN, _WM_MBUTTONUP = 0x0207, 0x0208
 _WM_XBUTTONDOWN, _WM_XBUTTONUP = 0x020B, 0x020C
 _XBUTTON = {"x1": 1, "x2": 2}
 
-MOUSE_LABELS = {"x2": "mouse forward button", "x1": "mouse back button", "middle": "middle mouse button"}
+
+def key_label(key: Optional[str]) -> str:
+    if not key:
+        return "None"
+    return key.replace("_", " ").title() if len(key) > 3 else key.upper()
 
 
 @dataclass
 class TriggerConfig:
     key: Optional[str] = "f9"          # None = no single-key trigger
+    key_hold: bool = True              # F9: hold to talk
     mouse: Optional[str] = "x2"        # None = no mouse trigger
-    hold: bool = False                 # hold-to-talk instead of toggle
+    mouse_hold: bool = False           # mouse button: toggle
 
-    @classmethod
-    def from_env(cls, env: Optional[dict] = None) -> "TriggerConfig":
-        env = os.environ if env is None else env
-        key = env.get("MYTRANSCRIBE_KEY", "f9").strip().lower() or "f9"
-        mouse = env.get("MYTRANSCRIBE_MOUSE", "x2").strip().lower() or "x2"
-        if key not in _VK:
-            if key != "none":
-                logger.warning("Unknown MYTRANSCRIBE_KEY %r; single-key trigger off", key)
-            key = None
-        if mouse not in ("x1", "x2", "middle"):
-            if mouse != "none":
-                logger.warning("Unknown MYTRANSCRIBE_MOUSE %r; mouse trigger off", mouse)
-            mouse = None
-        hold = env.get("MYTRANSCRIBE_TRIGGER_MODE", "toggle").strip().lower() == "hold"
-        return cls(key, mouse, hold)
+    def __post_init__(self):
+        if self.key not in KEY_CHOICES:
+            if self.key:
+                logger.warning("Unknown trigger key %r; single-key trigger off", self.key)
+            self.key = None
+        if self.mouse not in MOUSE_CHOICES:
+            if self.mouse:
+                logger.warning("Unknown trigger mouse button %r; mouse trigger off", self.mouse)
+            self.mouse = None
 
-    def describe(self) -> str:
-        """Short human-readable list, e.g. 'F9 · mouse forward button'."""
-        parts = []
+    def hold_for(self, source: str) -> bool:
+        return self.key_hold if source == "key" else self.mouse_hold
+
+    def describe(self) -> list:
+        """[(label, mode), ...] for each active trigger, e.g. [('F9', 'hold to talk')]."""
+        rows = []
         if self.key:
-            parts.append(self.key.replace("_", " ").title() if len(self.key) > 3 else self.key.upper())
+            rows.append((key_label(self.key), "hold to talk" if self.key_hold else "toggle"))
         if self.mouse:
-            parts.append(MOUSE_LABELS[self.mouse])
-        return " · ".join(parts)
+            rows.append((MOUSE_CHOICES[self.mouse], "hold to talk" if self.mouse_hold else "toggle"))
+        return rows
 
 
 class InputTriggers(QObject):
-    """Global single-key + mouse-button trigger. Emits pressed/released (GUI must queue)."""
+    """Global single-key + mouse-button trigger. Emits pressed/released(source) — GUI must queue."""
 
-    pressed = pyqtSignal()
-    released = pyqtSignal()
+    pressed = pyqtSignal(str)          # "key" or "mouse"
+    released = pyqtSignal(str)
 
     def __init__(self, config: TriggerConfig, parent: Optional[QObject] = None) -> None:
         super().__init__(parent)
         self.config = config
         self._listeners = []
-        self._down = False             # ignore keyboard auto-repeat while held
+        self._down = {"key": False, "mouse": False}   # ignore keyboard auto-repeat while held
 
     # ── Event classification (pure; unit-tested) ──────────────────────────────
     def classify_key(self, msg: int, vk: int) -> Optional[str]:
         """'down' / 'up' if this raw keyboard event is our trigger key, else None."""
-        if not self.config.key or vk != _VK[self.config.key]:
+        if not self.config.key or vk != KEY_CHOICES[self.config.key]:
             return None
         if msg in (_WM_KEYDOWN, _WM_SYSKEYDOWN):
             return "down"
@@ -106,17 +109,16 @@ class InputTriggers(QObject):
                 return "down" if msg == _WM_XBUTTONDOWN else "up"
         return None
 
-    def handle(self, edge: str) -> None:
-        """Turn a down/up edge into signals. Toggle mode: only key-down matters."""
+    def handle(self, source: str, edge: str) -> None:
+        """Turn a down/up edge from 'key' or 'mouse' into pressed/released signals."""
         if edge == "down":
-            if self._down:             # auto-repeat
+            if self._down[source]:     # auto-repeat
                 return
-            self._down = True
-            self.pressed.emit()
+            self._down[source] = True
+            self.pressed.emit(source)
         elif edge == "up":
-            self._down = False
-            if self.config.hold:
-                self.released.emit()
+            self._down[source] = False
+            self.released.emit(source)
 
     # ── Listeners ─────────────────────────────────────────────────────────────
     def start(self) -> None:
@@ -128,7 +130,7 @@ class InputTriggers(QObject):
             def key_filter(msg, data):
                 edge = self.classify_key(msg, data.vkCode)
                 if edge:
-                    self.handle(edge)
+                    self.handle("key", edge)
                     kl.suppress_event()        # raises: the focused app never sees it
                 return True
             kl = keyboard.Listener(win32_event_filter=key_filter)
@@ -139,15 +141,14 @@ class InputTriggers(QObject):
             def mouse_filter(msg, data):
                 edge = self.classify_mouse(msg, data.mouseData)
                 if edge:
-                    self.handle(edge)
+                    self.handle("mouse", edge)
                     ml.suppress_event()
                 return True
             ml = mouse.Listener(win32_event_filter=mouse_filter)
             ml.daemon = True
             ml.start()
             self._listeners.append(ml)
-        logger.info("Triggers: %s (%s)", self.config.describe() or "none",
-                    "hold-to-talk" if self.config.hold else "toggle")
+        logger.info("Triggers: %s", ", ".join(f"{a} ({b})" for a, b in self.config.describe()) or "none")
 
     def stop(self) -> None:
         for listener in self._listeners:

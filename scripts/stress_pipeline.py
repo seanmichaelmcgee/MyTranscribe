@@ -323,9 +323,11 @@ def scenario_gui(args, engine, audio, prompt, rep):
     print(f"\n== gui: {args.gui_cycles} hotkey start/stop cycles with live engine ==")
     from PyQt6.QtCore import QTimer
     from PyQt6.QtWidgets import QApplication
+    import tempfile
     import gui_qt
     import gui_med
     import phi_clipboard
+    from settings import Settings
     gui_qt.HotkeyBridge.start = lambda self: None
     gui_qt.HotkeyBridge.stop = lambda self: None
     pastes = []
@@ -342,7 +344,8 @@ def scenario_gui(args, engine, audio, prompt, rep):
 
     w = gui_med.MedTranscriptionWindow(engine_factory=lambda: engine, stream_factory=factory,
                                        autopaste=True, base_prompt=prompt, text_pipeline=PIPELINE,
-                                       trigger_config=False)
+                                       settings=Settings(start_compact=False), install_hooks=False,
+                                       settings_path=Path(tempfile.gettempdir()) / "mytranscribe_stress.json")
     w._chime.play_start = w._chime.play_end = lambda: None
     w.show()
 
