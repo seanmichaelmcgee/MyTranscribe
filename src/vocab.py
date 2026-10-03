@@ -207,12 +207,19 @@ class PromptBuilder:
         return terms
 
     def _pick_topics(self, context: str) -> List[str]:
+        """
+        Topics detected in what was just said (or the user's default topics).
+
+        Nothing detected -> no topics, and the prompt carries no term list at all.
+        A list sampled from every topic is all distractors for the words actually
+        spoken, and measurably hurt short snippets on real recordings (2026-10-03:
+        medical-word errors 8.2 % with the generic list vs 7.2 % without; the
+        research says list words that aren't said get inserted). Lists only help
+        once the topic is known (drug-heavy letters: 3.5 vs 5.6 %).
+        """
         ranked = [name for name, _ in score_topics(self.lexicon, context)][:MAX_ACTIVE_TOPICS]
         if not ranked:
             ranked = [t for t in self.default_topics if t in self.lexicon.topics]
-        if not ranked:
-            # Nothing said yet: a little of everything, most common topics first.
-            ranked = [n for n in self.lexicon.topics if n != "core"]
         return ranked
 
     def __call__(self, context: str) -> str:
@@ -227,6 +234,8 @@ class PromptBuilder:
         remaining = self.budget - self.count(fixed + " Vocabulary: .") - 2
         topics = self._pick_topics(context)
         self.last_topics = topics
+        if not topics:
+            return fixed                       # no known topic yet: style example + recent text only
 
         # Round-robin across topics (rotating start point per topic), then core.
         queues = []

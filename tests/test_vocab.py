@@ -99,14 +99,14 @@ def test_prompt_skips_terms_already_said_and_rotates():
     assert v1 != v2                                                 # rotation
 
 
-def test_prompt_first_chunk_uses_default_topics_then_mix():
+def test_prompt_first_chunk_uses_default_topics_else_no_list():
     lex = parse_lexicon_text(SAMPLE)
     b = PromptBuilder("", lex, count=words(1), budget=50, default_topics=["asthma"])
     b("")
     assert b.last_topics == ["asthma"]
-    b2 = PromptBuilder("", lex, count=words(1), budget=50)
-    b2("")
-    assert set(b2.last_topics) == {"diabetes", "asthma"}
+    # Nothing said and no default topics: no generic "sample of everything" list (distractors).
+    b2 = PromptBuilder("Style text.", lex, count=words(1), budget=50)
+    assert b2("") == "Style text." and b2.last_topics == []
 
 
 def test_common_terms_skipped():
