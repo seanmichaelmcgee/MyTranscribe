@@ -226,14 +226,11 @@ def test_capture_end_auto_finalizes(qapp, make_window):
     assert wait_for(lambda: w.clip.text() == "chunk0", app=qapp)
 
 
-def test_long_mode_shows_placeholder(qapp, make_window):
+def test_no_long_record_button(qapp, make_window):
     w = make_window()
-    w._on_long_clicked()
-    assert wait_for(lambda: "long mode" in w._text_area.toPlainText(), app=qapp)
-    w._on_space_pressed()                       # space ignored in long mode (UX §4.1)
-    assert w._state.name == "LONG_RECORDING" and w._toggle_btn.text() == "Stop"
-    w._on_stop_clicked()
-    assert finish(w, qapp)
+    w.show()
+    qapp.processEvents()
+    assert not w._long_btn.isVisible()          # one button handles any length (≤ 1 h)
 
 
 def test_mic_open_failure_message(qapp, make_window):
@@ -290,9 +287,9 @@ def test_recording_light_green_on_red_off(qapp, make_window):
     w._triggers.handle("key", "up")
     assert wait_for(lambda: w.rec_light_on is False, app=qapp)
     assert finish(w, qapp)
-    w._on_long_clicked()
-    assert w.rec_light_on is True                # long mode too
-    w._on_stop_clicked()
+    w._on_toggle_clicked()
+    assert w.rec_light_on is True                # button start too
+    w._on_toggle_clicked()
     assert w.rec_light_on is False
     assert finish(w, qapp)
 

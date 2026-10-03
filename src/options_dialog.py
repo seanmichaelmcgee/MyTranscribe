@@ -29,7 +29,7 @@ HOW_TO = (
     "If the status says <b>Not copied</b>, another program was using the clipboard: "
     "click <b>Copy</b> and paste again.<br>"
     "Use <b>+</b> / <b>–</b> to show or hide the transcript. "
-    "<b>Long record</b> records up to an hour and shows the text when you stop."
+    "One recording can run up to an hour; text appears as you go."
 )
 
 STYLE = """

@@ -100,16 +100,15 @@ QPushButton#toggleButton:pressed { background: #A14E33; }
 QPushButton#toggleButton[recording="true"] { background: #2F2E2A; }
 QPushButton#toggleButton[recording="true"]:hover { background: #1F1E1D; }
 QPushButton#toggleButton:disabled { background: #E6CDC1; color: #FFFFFF; }
-QPushButton#longButton, QPushButton#copyButton, QPushButton#compactButton, QPushButton#optionsButton {
+QPushButton#copyButton, QPushButton#compactButton, QPushButton#optionsButton {
     background: transparent; color: #3D3C38; border: 1px solid #DAD8CD;
 }
 QPushButton#compactButton, QPushButton#optionsButton { padding: 6px 9px; }
 QPushButton#optionsButton { font-family: "Segoe UI Symbol"; font-size: 12pt; padding: 3px 8px; }
-QPushButton#longButton:hover, QPushButton#copyButton:hover, QPushButton#compactButton:hover,
-QPushButton#optionsButton:hover {
+QPushButton#copyButton:hover, QPushButton#compactButton:hover, QPushButton#optionsButton:hover {
     background: #ECEADF;
 }
-QPushButton#longButton:disabled, QPushButton#copyButton:disabled { color: #B4B2A9; border-color: #E6E4DA; }
+QPushButton#copyButton:disabled { color: #B4B2A9; border-color: #E6E4DA; }
 QPushButton#copyButton[attention="true"] { background: #FCEFE6; color: #93370D; border-color: #E9B48F; }
 QFrame#audioIndicator { background: #C96442; border-radius: 2px; border: none; }
 """
@@ -243,7 +242,7 @@ class MedTranscriptionWindow(TranscriptionWindow):
     # ── UI ────────────────────────────────────────────────────────────────────
     def _build_ui(self) -> None:
         """
-        Status row, transcript, one big Start/Stop button, Long Record.
+        Status row (recording light), transcript, one big Start/Stop button.
 
         _start_btn / _stop_btn are kept (hidden) because the shared state
         machine in gui_qt enables/disables them; the visible toggle button
@@ -298,17 +297,17 @@ class MedTranscriptionWindow(TranscriptionWindow):
         self._toggle_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)   # Space must not click it
         self._toggle_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._toggle_btn.clicked.connect(self._on_toggle_clicked)
-        row.addWidget(self._toggle_btn, stretch=3)
-        self._long_btn = self._small_button("Long record", "longButton", self._on_long_clicked,
-                                            "Up to 1 hour; text appears when you stop")
-        row.addWidget(self._long_btn, stretch=1)
+        row.addWidget(self._toggle_btn)
         layout.addLayout(row)
 
-        # State holders for the shared gui_qt state machine (never shown).
+        # State holders for the shared gui_qt state machine (never shown). There is
+        # no Long record button here: chunked background transcription already
+        # handles any length up to MAX_SESSION_S with live text.
         self._start_btn = QPushButton(root)
         self._stop_btn = QPushButton(root)
-        self._start_btn.hide()
-        self._stop_btn.hide()
+        self._long_btn = QPushButton(root)
+        for b in (self._start_btn, self._stop_btn, self._long_btn):
+            b.hide()
         self._stop_btn.setEnabled(False)
 
     def _small_button(self, text: str, name: str, slot: Callable, tip: str) -> QPushButton:
