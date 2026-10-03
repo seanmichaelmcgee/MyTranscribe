@@ -72,6 +72,19 @@ def test_whisper_misrecognition_regressions(corrector):
     assert changed == [], changed
 
 
+def test_suspicious_flags_invented_non_words_not_names(corrector):
+    text = ("Dear Dr. Okafor, Right near fusion, neurothema. Interponem was negative. "
+            "Mrs. Szczepanski has erythematous papules and takes amlodipine.")
+    flagged = corrector.suspicious(text)
+    assert "neurothema" in flagged and "Interponem" in flagged      # sentence-initial still flagged
+    assert "Okafor" not in flagged and "Szczepanski" not in flagged  # names skipped
+    assert not {"erythematous", "papules", "amlodipine", "fusion", "near"} & set(flagged)
+
+
+def test_suspicious_empty_for_clean_clinical_text(corrector):
+    assert corrector.suspicious("Chest clear bilaterally, no wheeze. JVP not elevated. HEENT normal.") == []
+
+
 def test_ambiguous_match_left_alone():
     # Two equally close targets -> no change.
     ratio = lambda a, b: 90 if b in ("alphazine", "alphazone") else 10

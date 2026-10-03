@@ -40,6 +40,7 @@ NEAR_PHONETIC_MARGIN = 15
 MAX_SPAN = 3                # also try joining up to 3 split words ("licen opril")
 
 _WORD_RE = re.compile(r"[A-Za-z][A-Za-z'\-]*")
+_TITLE_RE = re.compile(r"\b(?:Dr|Mr|Mrs|Ms|Miss|Mx|Prof)\.?$")
 
 
 def _same_lexeme(a: str, b: str) -> bool:
@@ -166,6 +167,32 @@ class TermCorrector:
                     break
             if not done:
                 i += 1
+        return out
+
+    def suspicious(self, text: str) -> List[str]:
+        """
+        Non-words left in `text` (after correction) that the user should check.
+
+        A word is suspicious if it is not English (Zipf < UNKNOWN_ZIPF), not in the
+        vocabulary, and not a name: capitalised words that don't start a sentence
+        are taken as names and skipped (names don't matter to this user). These
+        are the words Whisper made up or merged ("neurothema" = "no erythema") and
+        the corrector would not guess at. Whisper's own word confidence does not
+        catch them (measured 2026-10-03: 0.78-0.90 on invented words).
+        """
+        out = []
+        for m in _WORD_RE.finditer(text):
+            word = m.group()
+            for piece in word.split("-"):
+                if not self._is_candidate(piece) or not piece.isalpha():
+                    continue
+                before = text[:m.start()].rstrip()
+                after_title = bool(_TITLE_RE.search(before))
+                sentence_start = (not before or before[-1] in ".!?:\n\"(") and not after_title
+                if piece[0].isupper() and not sentence_start:
+                    continue                      # a name
+                if piece not in out:
+                    out.append(piece)
         return out
 
     def __call__(self, text: str) -> str:

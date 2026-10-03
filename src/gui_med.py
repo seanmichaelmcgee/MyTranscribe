@@ -35,6 +35,7 @@ Run: python src/gui_med.py   (or run_1060.bat on Windows)
 
 import logging
 import os
+import re
 import signal
 import sys
 import threading
@@ -81,6 +82,7 @@ COMPACT_WIDTH = 380
 REC_ON_COLOUR = "#2E9E4F"
 REC_OFF_COLOUR = "#C8322B"
 REC_WARM_COLOUR = "#E0A100"     # amber: mic opening (only when it isn't kept ready)
+CHECK_HIGHLIGHT = "#FBE3A6"     # words to check (made-up / merged non-words)
 MIC_WARMUP_S = 0.35             # Bluetooth headsets send ~0.3 s of near-silence after opening
 # Status text colour per kind.
 STATUS_COLOURS = {"idle": "#5E5D59", "recording": "#1F6E37", "busy": "#5E5D59",
@@ -219,6 +221,7 @@ class MedTranscriptionWindow(TranscriptionWindow):
         self._insert_partial = False
         self._final_text_pending: Optional[str] = None
         self.inserted_pieces: list = []   # for tests / diagnostics (never logged)
+        self.check_words: list = []       # non-words to check in the last transcript
 
         super().__init__()
         self._chime = _StartChimeGate(self._chime)
@@ -501,6 +504,7 @@ class MedTranscriptionWindow(TranscriptionWindow):
             return
         self._text_area.setPlainText("")
         self._copy_generation += 1      # cancel any pending copy retries
+        self.check_words = []
         self._reset_live_insert()
         self._mic_live = self._warmup_s <= 0
         self._set_state(state)          # green + chime now, or amber until the mic is live
@@ -570,7 +574,8 @@ class MedTranscriptionWindow(TranscriptionWindow):
             self._text_area.setPlainText("")
             self._set_status("Nothing heard", "idle")
             return
-        self._text_area.setPlainText(text)
+        self.check_words = self._suspicious(text)
+        self._show_text(text, self.check_words)
         if self._settings.live_insert:
             # Insert whatever is left at the cursor, then put the FULL text on the clipboard.
             self._collect_pieces(final=True)
@@ -578,6 +583,40 @@ class MedTranscriptionWindow(TranscriptionWindow):
             self._pump_insert()
             return
         self._copy(text, paste=self._autopaste and from_hotkey)
+
+    # ── Words to check: non-words the corrector wouldn't guess at ────────────
+    def _suspicious(self, text: str) -> list:
+        post = self._text_pipeline[1] if self._text_pipeline else None
+        try:
+            return post.suspicious(text) if post is not None and hasattr(post, "suspicious") else []
+        except Exception:
+            logger.error("Word check failed", exc_info=True)
+            return []
+
+    def _show_text(self, text: str, flagged: list) -> None:
+        """Final transcript; flagged words highlighted (the copied text is unchanged)."""
+        if not flagged:
+            self._text_area.setPlainText(text)
+            return
+        import html
+        pattern = re.compile(r"\b(" + "|".join(re.escape(w) for w in flagged) + r")\b")
+        parts, last = [], 0
+        for m in pattern.finditer(text):
+            parts.append(html.escape(text[last:m.start()]))
+            parts.append(f'<span style="background:{CHECK_HIGHLIGHT}; text-decoration: underline;">'
+                         f"{html.escape(m.group(0))}</span>")
+            last = m.end()
+        parts.append(html.escape(text[last:]))
+        self._text_area.setHtml("<div style='white-space: pre-wrap;'>" + "".join(parts) + "</div>")
+
+    def _status_after_copy(self, base: Optional[str] = None):
+        """(text, kind) for the status line once the copy landed."""
+        words = getattr(self, "check_words", [])
+        if words:
+            shown = ", ".join(words[:3]) + ("…" if len(words) > 3 else "")
+            what = "Inserted" if base and base.startswith("Inserted") else "Copied"
+            return f"{what} — check: {shown}", "warn"
+        return base or "Copied — paste with Ctrl+V", "ok"
 
     # ── Live insert: paste each finished ~20 s piece at the cursor ────────────
     def _reset_live_insert(self) -> None:
@@ -698,7 +737,7 @@ class MedTranscriptionWindow(TranscriptionWindow):
             self.copy_ok = True
             logger.info("Copied %d chars to clipboard", len(text))   # length only: no PHI in logs
             self._set_copy_attention(False)
-            self._set_status(ok_status or "Copied — paste with Ctrl+V", "ok")
+            self._set_status(*self._status_after_copy(ok_status))
             if paste:
                 self._paste_waited_ms = 0
                 QTimer.singleShot(AUTOPASTE_DELAY_MS, self._try_paste)

@@ -295,6 +295,10 @@ class PostProcess:
     def total_corrections(self) -> int:
         return getattr(self.corrector, "total_corrections", 0)
 
+    def suspicious(self, text: str) -> List[str]:
+        """Words to flag for checking (non-words the corrector wouldn't guess at)."""
+        return self.corrector.suspicious(text) if self.corrector is not None else []
+
     def __call__(self, text: str) -> str:
         if self.corrector is not None:
             text = self.corrector(text)
