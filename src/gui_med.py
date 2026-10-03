@@ -9,7 +9,10 @@ Same window, buttons, chimes and Ctrl+Alt+Q hotkey; different engine:
   * Audio is chunked and transcribed in the background *while you dictate*,
     kept in RAM only (chunked_transcriber.py). Stop never freezes the window.
   * Model loads in a background thread at startup; buttons enable when ready.
-  * Medical vocabulary prompt (prompts/medical_prompt.txt, editable).
+  * Medical vocabulary: a style example (prompts/medical_prompt.txt) plus
+    topic-aware term lists (vocab/primary_care.txt) chosen per chunk from
+    what you're dictating, and conservative spelling correction of
+    near-miss drug/term names (vocab.py, vocab_correct.py).
   * Transcript text is never logged; clipboard copies opt out of Windows
     clipboard history / cloud sync (phi_clipboard.py).
   * Optional auto-paste: set MYTRANSCRIBE_AUTOPASTE=1 and, after a hotkey
@@ -38,6 +41,7 @@ from fw_engine import register_cuda_dll_dirs                 # noqa: E402
 from hw_profile import choose_config, detect_hardware        # noqa: E402
 from chunked_transcriber import ChunkedTranscriber           # noqa: E402
 from prompt_loader import load_prompt                        # noqa: E402
+from vocab import build_text_pipeline                        # noqa: E402
 import phi_clipboard                                         # noqa: E402
 from gui_qt import APP_QSS, AppState, TranscriptionWindow    # noqa: E402
 
@@ -80,12 +84,14 @@ class MedTranscriptionWindow(TranscriptionWindow):
     def __init__(self, engine_factory: Optional[Callable] = None,
                  stream_factory: Optional[Callable] = None,
                  autopaste: Optional[bool] = None,
-                 base_prompt: Optional[str] = None) -> None:
+                 base_prompt: Optional[str] = None,
+                 text_pipeline: Optional[tuple] = None) -> None:
         self._engine_factory = engine_factory or build_default_engine
         self._stream_factory = stream_factory
         self._autopaste = env_flag("MYTRANSCRIBE_AUTOPASTE") if autopaste is None else autopaste
         self._base_prompt = load_prompt() if base_prompt is None else base_prompt
         self._engine = None
+        self._text_pipeline = text_pipeline    # (prompt_builder, corrector); built on load if None
         self._load_error: Optional[str] = None
         self._finishing = False
         self._finish_from_hotkey = False
@@ -110,6 +116,9 @@ class MedTranscriptionWindow(TranscriptionWindow):
         """Runs on the model-load thread. Never touches widgets."""
         try:
             self._engine = self._engine_factory()
+            if self._text_pipeline is None:
+                self._text_pipeline = build_text_pipeline(
+                    self._base_prompt, count=getattr(self._engine, "count_tokens", None))
         except Exception as exc:
             logger.error("Model load failed", exc_info=True)
             self._load_error = str(exc) or exc.__class__.__name__
@@ -124,9 +133,13 @@ class MedTranscriptionWindow(TranscriptionWindow):
                 "Check the console log; see README_1060.md → Troubleshooting."
             )
             return
+        builder, corrector = self._text_pipeline
         self._transcriber = ChunkedTranscriber(
             self._engine, self._base_prompt, stream_factory=self._stream_factory,
+            prompt_builder=builder, postprocess=corrector,
         )
+        logger.info("Topic prompts %s, spelling correction %s",
+                    "on" if builder else "off", "on" if corrector else "off")
         self._device = getattr(getattr(self._engine, "config", None), "device", None)
         self._text_area.setPlainText("")
         self._set_buttons_enabled(True)

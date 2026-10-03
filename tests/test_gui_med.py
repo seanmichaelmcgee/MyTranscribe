@@ -28,7 +28,7 @@ def make_window(qapp, monkeypatch):
         w = gui_med.MedTranscriptionWindow(
             engine_factory=engine_factory or (lambda: engine),
             stream_factory=lambda: (stream, None),
-            autopaste=autopaste, base_prompt="Vocab.",
+            autopaste=autopaste, base_prompt="Vocab.", text_pipeline=(None, None),
         )
         w._chime.play_start = w._chime.play_end = lambda: None
         w.pastes = pastes
@@ -54,7 +54,8 @@ def test_buttons_disabled_until_model_loaded(qapp, make_window):
         gate.wait(5)
         return FakeEngine()
     w = gui_med.MedTranscriptionWindow(engine_factory=slow_factory,
-                                       stream_factory=lambda: (None, None), base_prompt="")
+                                       stream_factory=lambda: (None, None), base_prompt="",
+                                       text_pipeline=(None, None))
     try:
         qapp.processEvents()
         assert not w._start_btn.isEnabled() and "Loading" in w._text_area.toPlainText()

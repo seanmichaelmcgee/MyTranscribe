@@ -164,6 +164,13 @@ class FasterWhisperEngine:
         # segments is a lazy generator: decoding happens while we iterate.
         return " ".join(s.text.strip() for s in segments if s.text.strip())
 
+    def count_tokens(self, text: str) -> int:
+        """Exact Whisper token count (for prompt budgeting); estimate if unavailable."""
+        tok = getattr(self.model, "hf_tokenizer", None)
+        if tok is None:
+            return int(len(text) / 2.8) + 1
+        return len(tok.encode(" " + text.strip(), add_special_tokens=False).ids)
+
     def warmup(self) -> None:
         """Run one tiny inference so CUDA kernels/allocator are ready before first use."""
         try:

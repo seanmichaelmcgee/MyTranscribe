@@ -12,7 +12,7 @@ unchanged and still works; this one lives alongside it.
 | Audio written to disk? | Yes, temp WAV files (may be left behind on Windows) | **Never**: kept in memory only |
 | Transcript in the console log? | First 60 characters | **Never**: length only |
 | Windows clipboard history / cloud sync | Keeps a copy | Each copy is marked "don't keep, don't sync" |
-| Vocabulary hint | Programming terms | Medical letter (editable) |
+| Vocabulary | Programming terms | ~1,100 primary-care terms (FM, IM, peds) picked per chunk by topic, plus spelling correction of near-miss drug names |
 | Long recordings | 3 min cap in Long mode | 1 hour per recording, either mode |
 | Auto-paste into your app | No | Optional (`MYTRANSCRIBE_AUTOPASTE=1`) |
 
@@ -56,14 +56,36 @@ remote/Citrix EMRs block simulated keystrokes; if so, paste with Ctrl+V yourself
 
 **Always proofread** drug names, doses, laterality and numbers before signing.
 
-## Make it learn your vocabulary
+## Medical vocabulary
 
-Edit `src/prompts/medical_prompt.txt`, or point `MYTRANSCRIBE_PROMPT_FILE` at your own
-file. Whisper treats this as text that came *before* your audio, not as instructions,
-so write it as a letter opening in your own style, full of the drug names, tests,
-colleagues' names and abbreviations you use. Only the last ~150 words count, so keep it
-short and put the most important terms near the end. Don't put real patient details in
-it.
+Whisper can only take a short hint (~220 tokens, about 150 words) before each piece of
+audio. The app builds that hint fresh for every ~30 s chunk:
+
+1. **Your style**: `src/prompts/medical_prompt.txt`, a short letter opening in your voice.
+2. **Topic terms** from `src/vocab/primary_care.txt`: about 1,100 terms in 19 topics
+   (hypertension, diabetes, respiratory, pediatric acute, well-child, immunization, and so
+   on). The topics you've just been dictating about are switched on by their trigger
+   words, and their drugs, tests and diagnoses go into the hint. Long letters rotate
+   through each topic's list.
+3. **Your last few sentences**, so names and terms carry over between chunks.
+
+After each chunk, a **spelling corrector** fixes near-miss non-words to the right term
+("licenopril" → lisinopril, "semiglutide" → semaglutide). It only touches words that are
+neither real English nor known terms, and leaves anything ambiguous alone, so a correctly
+heard drug is never swapped for a sound-alike. It uses the topic list plus a 966-term
+general medical list (see NOTICE.md).
+
+**Make it yours:**
+- Edit `src/prompts/medical_prompt.txt` in your own letter style (no real patient details).
+- Add your colleagues, local services and favourite drugs to a file of your own, e.g.
+  `C:\MyTranscribe\my_terms.txt`, and set `MYTRANSCRIBE_VOCAB_FILES` to point at it:
+  ```
+  ## core | letter
+  other: Dr. Okonkwo-Bailey, Dr. Nguyen, Riverside Pediatrics, CHEO
+  ## diabetes | diabetes
+  drug: Ozempic, Rybelsus
+  ```
+  Terms under `## core` are always eligible; other sections join the matching topic.
 
 ## Settings (environment variables)
 
@@ -74,19 +96,30 @@ it.
 | `MYTRANSCRIBE_DEVICE` | auto | `cpu` forces CPU |
 | `MYTRANSCRIBE_BEAM_SIZE` | `5` | `1` is ~2x faster, slightly less accurate |
 | `MYTRANSCRIBE_AUTOPASTE` | off | `1` = paste into the focused app after a hotkey stop |
-| `MYTRANSCRIBE_PROMPT_FILE` | bundled medical prompt | Your vocabulary prompt |
+| `MYTRANSCRIBE_PROMPT_FILE` | bundled medical prompt | Your style example |
+| `MYTRANSCRIBE_VOCAB` | on | `off` = style example only, no topic terms |
+| `MYTRANSCRIBE_VOCAB_FILES` | none | Extra vocabulary files (`;`-separated on Windows) |
+| `MYTRANSCRIBE_VOCAB_TOPICS` | none | Topics to assume before you've said anything, e.g. `peds-acute,respiratory` |
+| `MYTRANSCRIBE_AUTOCORRECT` | on | `off` = no spelling correction |
 | `HF_HUB_OFFLINE` | off | `1` = never contact Hugging Face (after first download) |
 
-## Check speed on your machine
+## Check speed and accuracy on your machine (no microphone needed)
 
 ```bat
-venv1060\Scripts\python.exe scripts\bench_engine.py --audio sample.wav
-venv1060\Scripts\python.exe scripts\stress_pipeline.py --audio sample.wav --all
+scripts\run_1060_checks.bat          :: about 45-60 min, unattended
+scripts\run_1060_checks.bat quick    :: about 10 min
 ```
 
-`sample.wav` must be 16 kHz mono (`ffmpeg -i in.m4a -ar 16000 -ac 1 -sample_fmt s16 sample.wav`).
-Use a recording **without patient information**. See
-[docs/STRESS_TEST_PLAN_1060.md](docs/STRESS_TEST_PLAN_1060.md) for the full checklist.
+This generates fictional dictations with Windows' built-in voices, simulates four
+microphones (clean, headset, **conference mic** such as a Tenor, noisy room), and
+runs them through the real model on your GPU. It reports speed, VRAM, word error
+rate and **medical-term recall** with and without the vocabulary features, then
+stress-tests the pipeline. Send back `results_1060\SUMMARY.txt`.
+
+Computer voices mispronounce some drug names, so treat the absolute numbers as a
+pessimistic floor and use them to *compare* settings. For real numbers, read the
+scripts in `results_1060\testdict\read_aloud\` into your own mic and score them with
+`scripts\eval_dictation.py` (see its `--help`).
 
 ## Privacy checklist (your side)
 

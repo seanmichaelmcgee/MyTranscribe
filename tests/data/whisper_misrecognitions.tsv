@@ -1,0 +1,171 @@
+# Whisper (distil-large-v2) transcriptions of TTS-spoken medical terms, without context.
+# Derived from team-telnyx/medical-pronunciation-dictionary data/telnyx_naturalhd_audit.csv
+# (columns text, heard_without_dict), CC BY 4.0: https://creativecommons.org/licenses/by/4.0/
+# expect: fix = corrector must restore the term; keep = garbled, must be left unchanged.
+expect	term	heard
+fix	lisinopril	licenopril
+fix	endoscopy	endoscoppee
+fix	valproate	valprade
+fix	spironolactone	tick sparnalactone
+fix	oxcarbazepine	ox carbazapene
+fix	stridor	straitor
+fix	pantoprazole	pantaprazola
+fix	falciform	falcaform
+fix	apixaban	care at pixaban
+fix	sitagliptin	sigliptin
+fix	lurasidone	lurisidone
+fix	clopidogrel	clopidobrel
+fix	semaglutide	semiglutide
+fix	mirtazapine	murtazapine
+fix	almotriptan	almatriptan
+fix	sarcoidosis	sarcoidosus
+fix	roflumilast	rufflumalast desp
+fix	memantine	menantine
+fix	diphenhydramine	difenhydramine
+fix	diltiazem	deltiazem
+fix	paliperidone	paloperidone
+fix	risankizumab	risenkizumab
+fix	onabotulinumtoxinA	onabotulinum toxina
+fix	raloxifene	reloxifene
+fix	dronedarone	drondarone
+fix	fingolimod	finglimod
+fix	hematochezia	hematochesia
+fix	choledocholithiasis	coledocolithiasis
+fix	omeprazole	omeba prazole
+fix	olopatadine	olapatadina
+fix	oxybutynin	oxybutinin
+fix	subcutaneous	subctaneous
+fix	ziprasidone	ziprassidone
+fix	ketorolac	kitorolac
+fix	parasitemia	paracitemia
+fix	bisacodyl	bisacodl
+fix	mexiletine	mexlatine
+fix	tigecycline	tygecycline
+fix	lichenification	lickenification
+fix	abiraterone	abiraterona
+fix	fumarate	fumerate
+fix	letrozole	letrozol
+fix	vermiform	vermaform
+fix	metoprolol tartrate	metaprolol tartrate
+fix	cephalexin	cephlexin
+fix	dulaglutide	dile glutide
+fix	vincristine	vincristin
+fix	levothyroxine	lavothyroxin
+fix	piperacillin tazobactam	pypericillin tazabactum
+fix	losartan	lozartan
+fix	rosuvastatin	roseve statin
+fix	cefaclor	cephaclor
+fix	oxaprozin	oxaprozen
+fix	montelukast	montelucast
+fix	dexmethylphenidate	dexmethylfinidate
+fix	leuprolide	luperlide
+fix	ibandronate	eye bandronate
+fix	hydroxyzine	hydroxazine
+fix	galcanezumab	galkanezumab
+fix	ptosis	tosis
+fix	vesicle	vessicle
+fix	thyroidectomy	thyrodoctomy
+fix	osteotomy	osteodomy
+fix	neurectomy	nurectomy
+fix	ventricular	ventricula
+fix	papilla	papella
+fix	ipilimumab	ipilamo mab
+fix	saxagliptin	saxaliptin
+fix	durvalumab	dervalumab
+fix	dupilumab	duplomab
+fix	triptorelin	triptorlin
+fix	trastuzumab	tristuzumab
+fix	filum terminale	filum terminali
+fix	pitavastatin	pitovastatin
+fix	docusate	docosate
+fix	bronchoscopy	broncoscopy
+keep	OS	azz
+keep	MI	me
+keep	PE	p
+keep	AICD	aed
+keep	MICU	myku
+keep	PACU	paq
+keep	SpO2	spo
+keep	COPD	copped
+keep	VBG	bbb
+keep	PTT	ppt
+keep	SOB	saub
+keep	CA	c
+keep	LOC	lope
+keep	ETOH	dato
+keep	SLE	s
+keep	MgSO4	mgso
+keep	MAOI	maowi
+keep	ALL	ol
+keep	BB	b b
+keep	ethambutol	esan beetle aspro
+keep	carbuncle	carpal tunnel
+keep	nicardipine	nicker de peen
+keep	nefazodone	nifasatum
+keep	ibrutinib	eye root med bes
+keep	eplerenone	aptra known
+keep	dasatinib	disada nb
+keep	zonisamide	zenasamyda
+keep	atezolizumab	adazalizamab
+keep	fenofibrate	fibbrate
+keep	gentamicin	gym tanison
+keep	cefuroxime	safooxanmis
+keep	sildenafil	civitaltel
+keep	ubrogepant	youbrije pad
+keep	ganglion	ganglia
+keep	gemcitabine	jensibun
+keep	asenapine	sanapine
+keep	insulin detemir	insulin to
+keep	cisplatin	sis platen
+keep	furuncle	farunkl
+keep	thrombophilia	thrumuhfileeuh
+keep	budesonide	beezunaius
+keep	ciprofloxacin	seproflaxus in
+keep	pravastatin	protostatin is
+keep	insulin aspart	insulin per
+keep	cetuximab	sittaxad
+keep	ipratropium	atropium
+keep	linagliptin	lnad glibton
+keep	ixekizumab	exekizimab
+keep	gastrectomy	destrectomy
+keep	topiramate	top made
+keep	escitalopram	esit olopram
+keep	cariprazine	carapizine
+keep	imipramine	amipranim
+keep	purpura	perpora
+keep	reslizumab	relizamab
+keep	fexofenadine	frexofinadyne
+keep	ischemia	aschemia
+keep	ponatinib	ponet mnb
+keep	herniorrhaphy	hernirafy
+keep	teriflunomide	tear a fluno mided
+keep	rasagiline	rosaline
+keep	umeclidinium	um clidinium
+keep	ustekinumab	estacinum
+keep	ozanimod	osinimod
+keep	safinamide	sefnam andas
+keep	isoniazid	assanie it
+keep	ligamentum venosum	a ligamentum venosum
+keep	plicae	placky
+keep	abatacept	adatapsept
+keep	fluticasone	flukey sonas
+keep	bumetanide	boom at tea night
+keep	terazosin	tarzozin
+keep	nabumetone	nibitone
+keep	phenelzine	fenezin
+keep	azathioprine	azathiapreen
+keep	prednisolone	prennis o lone
+keep	erenumab	arena mab
+keep	D5LR	dlr
+keep	dysphonia	dysfomia
+keep	pustule	puss
+keep	ductule	duct
+keep	methylprednisolone	metho pred alone
+keep	dysphagia	disstazhia
+keep	vortioxetine	vordioxyteine
+keep	azelastine	a lasting
+keep	neutrophilia	neutropenia
+keep	tacrolimus	to craw luh muss
+keep	theophylline	feet off line
+keep	ezetimibe	easy t me ves
+keep	prasugrel	prosgrell

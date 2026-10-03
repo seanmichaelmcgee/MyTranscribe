@@ -26,6 +26,11 @@ pynput==1.8.2
 numpy>=1.26,<3
 PyQt6==6.11.0
 
+# ── Medical spelling correction (optional; app runs without them) ────────────
+rapidfuzz>=3.9
+jellyfish>=1.0
+wordfreq>=3.1
+
 # ── Benchmark / stress scripts (optional) ────────────────────────────────────
 psutil>=5.9
 pytest>=8

@@ -30,7 +30,7 @@ tokens on every 30 s window. To make timing realistic, decoding was capped at **
 tokens per window** (`--max-new-tokens 120`), about what 30 s of real dictation produces
 (~75–90 words). Encoder cost, which dominates, is unaffected.
 
-### Unit tests: `pytest tests` (78 tests, ~10 s)
+### Unit tests: `pytest tests` (78 tests at the time, ~10 s; now 128, see below)
 
 **78 passed** (run under `xvfb-run` for the Qt tests). Covers:
 
@@ -112,6 +112,27 @@ a worst-case backlog uses 2× the memory of keeping them as int16 until transcri
    the hotkey now leaves focus where it is, and paste waits for Ctrl/Alt to be released
    (otherwise the EMR receives Ctrl+Alt+V).
 
+### Vocabulary and spelling correction (added later)
+
+- **Prompt budget:** the full primary-care vocabulary is ~6,500 Whisper tokens
+  (measured with the real Whisper tokenizer: ~3.0 characters per token), against a
+  ~223-token prompt limit. The old static medical prompt alone used 214 tokens. The
+  topic builder now keeps every prompt at ~211 tokens: style example (~60) + topic terms
+  + the last ~160 characters of transcript.
+- **Topic switching** (examples): "barking cough… stridor… ear painful" → `peds-acute,
+  respiratory, ent-eye`; "HbA1c… metformin… semaglutide… ramipril" → `diabetes,
+  hypertension`.
+- **Spelling corrector vs real Whisper mistakes:** on 436 real Whisper transcriptions of
+  spoken medical terms (from the Telnyx audit data), it **fixed 76, changed 0 to a wrong
+  term**, and left the rest alone. The rest are mostly garbles nobody could fix safely
+  ("sub jack son" for ceftriaxone). 3 more were half-fixed in the right direction. Clean
+  clinical prose, including real sound-alikes (hydroxyzine/hydralazine,
+  clonidine/clonazepam), is never changed. Locked in by
+  `tests/data/whisper_misrecognitions.tsv`.
+- **Cost:** topic prompts plus correction added ~9 % compute per chunk on the VM.
+- **Unit tests:** 128 passing (adds parsing, topic scoring, budget, rotation, corrector
+  regressions, template coherence and mic-simulation tests).
+
 ### What Part A cannot tell us
 
 - Whether CTranslate2's CUDA build runs on compute capability 6.1 (Pascal).
@@ -123,6 +144,13 @@ a worst-case backlog uses 2× the memory of keeping them as int16 until transcri
 ---
 
 ## Part B: plan for the real machine (GTX 1060 6 GB, Windows)
+
+**Fastest path (no microphone needed):** run `scripts\run_1060_checks.bat` (about 45–60
+min unattended, or add `quick` for ~10 min). It covers B0, B1 and B2 below using
+synthetic fictional dictations rendered with Windows voices through four simulated mics
+(clean, headset, Tenor-style conference mic, noisy room), and writes
+`results_1060\SUMMARY.txt`. Send that file back. The manual steps below remain for
+digging deeper, and for B3/B4 once the Tenor mic is connected.
 
 **Before you start:** make three test recordings with **no real patient information**
 (read a made-up letter). Convert each to 16 kHz mono WAV:

@@ -1,0 +1,128 @@
+# primary_care.txt — MyTranscribe vocabulary for family practice, general internal
+# medicine and general pediatrics. Curated for MyTranscribe (MIT, same as the repo).
+#
+# FORMAT (edit freely; reloaded at app start)
+#   ## topic-name | trigger words that switch this topic on, comma separated
+#   category: term, term (Brand), term ...
+# - A "(Brand)" after a term adds the brand name as its own term.
+# - Categories: drug, dx (diagnosis/finding), lab, test (imaging/procedure/screening),
+#   vax (vaccine), abbr (abbreviation), other.
+# - Topic "core" is always active. Other topics switch on when their trigger
+#   words (or any of their terms) appear in what you've just dictated.
+# - Spellings: US/Canadian. Both "albuterol" (US) and "salbutamol" (Canada/UK)
+#   are listed so either is recognised.
+# - Sources consulted for coverage (not copied): AHRQ MEPS-based top prescribed
+#   drug rankings, CDC NAMCS primary-care visit diagnoses, CDC/NACI child
+#   immunization schedules. Verify anything clinical yourself.
+
+## core | patient, history, exam, plan, follow-up, referral, letter
+other: Dear Dr., referral, consultation, assessment, impression, plan, follow-up, history of presenting illness, past medical history, review of systems, physical examination, vital signs, unremarkable, noncontributory, afebrile, bilaterally, differential diagnosis, kind regards
+abbr: t.i.d., q.i.d., q.h.s., p.r.n., mg/kg, mmol/L, mg/dL, SpO2
+
+## hypertension | blood pressure, hypertension, hypertensive, BP
+dx: hypertension, essential hypertension, white coat hypertension, orthostatic hypotension, left ventricular hypertrophy
+drug: amlodipine (Norvasc), lisinopril, ramipril (Altace), perindopril (Coversyl), losartan, valsartan, candesartan, irbesartan, telmisartan, olmesartan, hydrochlorothiazide, chlorthalidone, indapamide, metoprolol, bisoprolol, atenolol, nifedipine, spironolactone
+test: ambulatory blood pressure monitoring, home blood pressure readings, ECG
+abbr: ACE inhibitor, ARB, HCTZ
+
+## lipids | cholesterol, lipid, statin, LDL
+dx: hyperlipidemia, dyslipidemia, hypercholesterolemia, familial hypercholesterolemia, hypertriglyceridemia
+drug: atorvastatin (Lipitor), rosuvastatin (Crestor), simvastatin, pravastatin, ezetimibe (Ezetrol), fenofibrate, icosapent ethyl (Vascepa), evolocumab (Repatha), alirocumab (Praluent)
+lab: lipid panel, LDL cholesterol, HDL cholesterol, triglycerides, non-HDL cholesterol, apolipoprotein B, lipoprotein(a), CK
+abbr: ASCVD, Framingham risk score
+
+## cardiac | chest pain, heart, palpitations, cardiology, murmur, edema, atrial
+dx: atrial fibrillation, atrial flutter, coronary artery disease, stable angina, myocardial infarction, heart failure, heart failure with reduced ejection fraction, heart failure with preserved ejection fraction, peripheral arterial disease, aortic stenosis, mitral regurgitation, peripheral edema, syncope, presyncope, palpitations, deep vein thrombosis, pulmonary embolism
+drug: apixaban (Eliquis), rivaroxaban (Xarelto), dabigatran (Pradaxa), edoxaban, warfarin, ASA, aspirin, clopidogrel (Plavix), ticagrelor (Brilinta), furosemide (Lasix), sacubitril-valsartan (Entresto), digoxin, diltiazem, nitroglycerin spray, carvedilol
+lab: troponin, BNP, NT-proBNP, D-dimer, INR, potassium
+test: echocardiogram, Holter monitor, exercise stress test, coronary angiogram, CT coronary angiography, event monitor, ejection fraction, sinus rhythm, ST depression, left bundle branch block, QTc
+abbr: CHA2DS2-VASc, HAS-BLED, CAD, CHF, HFrEF, HFpEF, DOAC, NSTEMI, STEMI
+
+## diabetes | diabetes, diabetic, glucose, sugar, insulin, A1c
+dx: type 2 diabetes mellitus, type 1 diabetes, prediabetes, impaired fasting glucose, gestational diabetes, hypoglycemia, diabetic retinopathy, diabetic neuropathy, diabetic nephropathy, diabetic foot ulcer, microalbuminuria
+drug: metformin (Glucophage), empagliflozin (Jardiance), dapagliflozin (Forxiga), dapagliflozin (Farxiga), canagliflozin (Invokana), semaglutide (Ozempic), semaglutide (Rybelsus), semaglutide (Wegovy), tirzepatide (Mounjaro), tirzepatide (Zepbound), dulaglutide (Trulicity), liraglutide (Victoza), sitagliptin (Januvia), linagliptin (Trajenta), linagliptin (Tradjenta), gliclazide, glipizide, glyburide, pioglitazone, insulin glargine (Lantus), insulin glargine (Basaglar), insulin degludec (Tresiba), insulin lispro (Humalog), insulin aspart (NovoRapid), insulin aspart (NovoLog)
+lab: HbA1c, fasting plasma glucose, oral glucose tolerance test, urine albumin-to-creatinine ratio, ACR, capillary glucose
+test: diabetic foot exam, monofilament testing, retinal screening, continuous glucose monitor, Freestyle Libre, Dexcom
+abbr: SGLT2 inhibitor, GLP-1 receptor agonist, DPP-4 inhibitor, CGM, DKA
+
+## thyroid-endo | thyroid, TSH, levothyroxine, hormone, menopause, osteoporosis, bone density
+dx: hypothyroidism, subclinical hypothyroidism, hyperthyroidism, Hashimoto thyroiditis, Graves disease, thyroid nodule, goiter, osteoporosis, osteopenia, vitamin D deficiency, vitamin B12 deficiency, hyperparathyroidism, adrenal insufficiency, polycystic ovary syndrome, menopause, perimenopause, vasomotor symptoms
+drug: levothyroxine (Synthroid), levothyroxine (Eltroxin), methimazole, propylthiouracil, alendronate (Fosamax), risedronate (Actonel), denosumab (Prolia), zoledronic acid (Aclasta), raloxifene, vitamin D3, cholecalciferol, calcium carbonate, cyanocobalamin, estradiol, conjugated estrogens, micronized progesterone, medroxyprogesterone
+lab: TSH, free T4, free T3, thyroid peroxidase antibodies, 25-hydroxy vitamin D, vitamin B12, calcium, PTH, ferritin
+test: thyroid ultrasound, bone mineral density, DEXA scan, T-score, FRAX
+
+## respiratory | cough, asthma, COPD, wheeze, inhaler, breath, lung, chest, sputum, pneumonia
+dx: asthma, COPD, acute exacerbation of COPD, community-acquired pneumonia, acute bronchitis, bronchiectasis, obstructive sleep apnea, chronic cough, upper respiratory tract infection, influenza, COVID-19, pertussis, pulmonary nodule, wheeze, crackles, rhonchi, dyspnea, shortness of breath
+drug: albuterol, salbutamol (Ventolin), budesonide-formoterol (Symbicort), fluticasone-salmeterol (Advair), fluticasone furoate-vilanterol (Breo Ellipta), fluticasone (Flovent), budesonide (Pulmicort), beclomethasone (Qvar), ciclesonide (Alvesco), mometasone, tiotropium (Spiriva), umeclidinium-vilanterol (Anoro Ellipta), fluticasone-umeclidinium-vilanterol (Trelegy Ellipta), glycopyrronium, ipratropium, montelukast (Singulair), prednisone, azithromycin, doxycycline, amoxicillin-clavulanate, oseltamivir (Tamiflu), nirmatrelvir-ritonavir (Paxlovid), varenicline (Champix), varenicline (Chantix), nicotine patch, benzonatate, dextromethorphan
+test: spirometry, FEV1, FVC, FEV1/FVC ratio, bronchodilator response, peak flow, chest X-ray, low-dose CT, CT chest, oxygen saturation, sleep study, polysomnography, CPAP
+abbr: ICS, LABA, LAMA, SABA, MDI, spacer, pack-years
+
+## ent-eye | ear, throat, sore throat, sinus, nose, tonsil, eye, red eye, hearing, otitis
+dx: acute otitis media, otitis media with effusion, otitis externa, acute sinusitis, chronic rhinosinusitis, allergic rhinitis, streptococcal pharyngitis, viral pharyngitis, tonsillitis, peritonsillar abscess, infectious mononucleosis, cerumen impaction, conjunctivitis, allergic conjunctivitis, blepharitis, chalazion, hordeolum, subconjunctival hemorrhage, epistaxis, benign paroxysmal positional vertigo, tinnitus, sensorineural hearing loss
+drug: amoxicillin, cefuroxime, cefdinir, cephalexin, clarithromycin, penicillin V, fluticasone nasal spray (Flonase), mometasone nasal spray (Nasonex), azelastine, cetirizine (Reactine), cetirizine (Zyrtec), loratadine (Claritin), desloratadine (Aerius), fexofenadine (Allegra), bilastine, ciprofloxacin-dexamethasone (Ciprodex), polymyxin B-trimethoprim (Polytrim), moxifloxacin eye drops, erythromycin ophthalmic ointment, olopatadine, saline irrigation
+test: tympanic membrane, otoscopy, pneumatic otoscopy, tympanometry, audiogram, rapid strep test, throat culture, monospot, Centor score, Dix-Hallpike, Epley maneuver, visual acuity, fluorescein staining
+
+## gi | abdominal, abdomen, bowel, stool, reflux, heartburn, nausea, vomiting, diarrhea, constipation, liver
+dx: gastroesophageal reflux disease, dyspepsia, Helicobacter pylori, peptic ulcer disease, irritable bowel syndrome, inflammatory bowel disease, Crohn disease, ulcerative colitis, celiac disease, diverticulosis, diverticulitis, gastroenteritis, constipation, hemorrhoids, anal fissure, cholelithiasis, biliary colic, fatty liver, metabolic dysfunction-associated steatotic liver disease, nonalcoholic fatty liver disease, elevated liver enzymes, iron deficiency anemia, rectal bleeding, hematochezia, melena, dysphagia
+drug: pantoprazole (Pantoloc), pantoprazole (Protonix), omeprazole (Losec), esomeprazole (Nexium), rabeprazole (Pariet), lansoprazole, famotidine, PEG 3350, polyethylene glycol (RestoraLAX), polyethylene glycol (Lax-A-Day), polyethylene glycol (MiraLAX), lactulose, sennosides, bisacodyl, docusate, psyllium (Metamucil), loperamide (Imodium), ondansetron (Zofran), domperidone, dimenhydrinate (Gravol), metoclopramide, dicyclomine, peppermint oil, mesalamine, linaclotide, clarithromycin-amoxicillin-PPI triple therapy, bismuth quadruple therapy
+lab: liver enzymes, ALT, AST, alkaline phosphatase, GGT, bilirubin, lipase, albumin, tissue transglutaminase IgA, tTG, fecal calprotectin, fecal immunochemical test, FIT, H. pylori breath test, stool culture, C. difficile toxin
+test: abdominal ultrasound, colonoscopy, gastroscopy, upper endoscopy, FibroScan, Cologuard
+abbr: GERD, IBS, IBD, PPI, MASLD, NAFLD
+
+## renal-gu | kidney, renal, urine, urinary, bladder, prostate, creatinine, UTI
+dx: chronic kidney disease, acute kidney injury, urinary tract infection, uncomplicated cystitis, pyelonephritis, asymptomatic bacteriuria, nephrolithiasis, renal colic, benign prostatic hyperplasia, lower urinary tract symptoms, overactive bladder, stress urinary incontinence, urge incontinence, hematuria, proteinuria, erectile dysfunction, prostatitis, epididymitis
+drug: nitrofurantoin (Macrobid), nitrofurantoin (Macrodantin), fosfomycin, trimethoprim-sulfamethoxazole (Septra), trimethoprim-sulfamethoxazole (Bactrim), cephalexin, ciprofloxacin, tamsulosin (Flomax), silodosin, alfuzosin, finasteride, dutasteride (Avodart), mirabegron (Myrbetriq), oxybutynin, solifenacin (Vesicare), tadalafil (Cialis), sildenafil (Viagra)
+lab: creatinine, eGFR, urea, BUN, electrolytes, sodium, potassium, urinalysis, urine dipstick, urine culture and sensitivity, leukocyte esterase, nitrites, PSA, prostate-specific antigen
+test: renal ultrasound, bladder scan, post-void residual, digital rectal exam, cystoscopy, CT KUB
+abbr: CKD, AKI, BPH, LUTS, OAB, KUB
+
+## msk | pain, joint, knee, back, shoulder, hip, ankle, wrist, neck, fracture, sprain, arthritis
+dx: osteoarthritis, rheumatoid arthritis, gout, pseudogout, polymyalgia rheumatica, fibromyalgia, mechanical low back pain, lumbar radiculopathy, sciatica, spinal stenosis, cervical radiculopathy, rotator cuff tendinopathy, adhesive capsulitis, subacromial bursitis, lateral epicondylitis, medial epicondylitis, de Quervain tenosynovitis, carpal tunnel syndrome, trigger finger, greater trochanteric pain syndrome, patellofemoral pain syndrome, meniscal tear, anterior cruciate ligament tear, ankle sprain, plantar fasciitis, Achilles tendinopathy, Morton neuroma, osteoporotic fracture
+drug: acetaminophen (Tylenol), ibuprofen (Advil), ibuprofen (Motrin), naproxen (Aleve), diclofenac gel (Voltaren), celecoxib (Celebrex), meloxicam, cyclobenzaprine, methocarbamol, colchicine, allopurinol, febuxostat, prednisone, triamcinolone injection, methylprednisolone, duloxetine, hydroxychloroquine, methotrexate, tramadol
+lab: uric acid, ESR, CRP, rheumatoid factor, anti-CCP, ANA, CK
+test: X-ray, MRI, ultrasound-guided injection, corticosteroid injection, physiotherapy, range of motion, straight leg raise, McMurray test, Lachman test, Ottawa ankle rules, Phalen test, Tinel sign, Finkelstein test
+
+## neuro-psych | headache, migraine, dizzy, numb, mood, anxiety, depression, sleep, memory, ADHD, alcohol, mental
+dx: migraine without aura, migraine with aura, tension-type headache, medication overuse headache, cluster headache, peripheral neuropathy, Bell palsy, essential tremor, Parkinson disease, transient ischemic attack, stroke, mild cognitive impairment, dementia, Alzheimer disease, major depressive disorder, generalized anxiety disorder, panic disorder, social anxiety disorder, post-traumatic stress disorder, obsessive-compulsive disorder, bipolar disorder, insomnia, attention deficit hyperactivity disorder, autism spectrum disorder, alcohol use disorder, opioid use disorder, cannabis use, tobacco use disorder, suicidal ideation, adjustment disorder, eating disorder, anorexia nervosa
+drug: sertraline (Zoloft), escitalopram (Cipralex), escitalopram (Lexapro), citalopram, fluoxetine (Prozac), paroxetine, venlafaxine (Effexor), desvenlafaxine (Pristiq), duloxetine (Cymbalta), bupropion (Wellbutrin), mirtazapine (Remeron), vortioxetine (Trintellix), trazodone, quetiapine (Seroquel), aripiprazole (Abilify), lithium, lamotrigine, buspirone, hydroxyzine, lorazepam, clonazepam, zopiclone, zolpidem, melatonin, methylphenidate (Concerta), methylphenidate (Ritalin), methylphenidate (Biphentin), lisdexamfetamine (Vyvanse), amphetamine salts (Adderall), guanfacine (Intuniv), atomoxetine (Strattera), sumatriptan (Imitrex), rizatriptan (Maxalt), amitriptyline, nortriptyline, propranolol, topiramate, gabapentin (Neurontin), pregabalin (Lyrica), donepezil (Aricept), naltrexone, acamprosate, buprenorphine-naloxone (Suboxone), methadone, naloxone kit
+test: PHQ-9, GAD-7, AUDIT-C, CAGE questionnaire, MoCA, Montreal Cognitive Assessment, MMSE, Mini-Mental State Examination, Vanderbilt assessment scale, SNAP-IV, Columbia Suicide Severity Rating Scale, CT head, MRI brain, cranial nerves, Romberg, gait, reflexes, nerve conduction study
+abbr: MDD, GAD, PTSD, OCD, ADHD, ASD, SSRI, SNRI, CBT, TIA
+
+## derm | rash, skin, itch, lesion, mole, eczema, acne, wart, wound
+dx: atopic dermatitis, eczema, contact dermatitis, seborrheic dermatitis, psoriasis, acne vulgaris, rosacea, urticaria, cellulitis, impetigo, abscess, tinea corporis, tinea pedis, tinea capitis, onychomycosis, pityriasis versicolor, pityriasis rosea, scabies, molluscum contagiosum, common warts, verruca, herpes zoster, shingles, cold sores, actinic keratosis, seborrheic keratosis, basal cell carcinoma, squamous cell carcinoma, melanoma, dysplastic nevus, skin tag, epidermoid cyst, lipoma, hidradenitis suppurativa, alopecia areata, androgenetic alopecia, ingrown toenail
+drug: hydrocortisone cream, betamethasone valerate, clobetasol (Dermovate), mometasone cream, triamcinolone cream, tacrolimus ointment (Protopic), pimecrolimus (Elidel), crisaborole, mupirocin (Bactroban), fusidic acid (Fucidin), clotrimazole (Canesten), terbinafine (Lamisil), ketoconazole shampoo, ciclopirox, permethrin (Kwellada), permethrin (Nix), ivermectin, valacyclovir (Valtrex), acyclovir, benzoyl peroxide, adapalene (Differin), tretinoin, clindamycin gel, isotretinoin (Accutane), isotretinoin (Epuris), spironolactone, minocycline, metronidazole gel, dupilumab (Dupixent)
+test: dermoscopy, punch biopsy, shave biopsy, excisional biopsy, cryotherapy, liquid nitrogen, KOH scraping, Wood lamp, incision and drainage
+
+## womens-health | pregnant, pregnancy, period, menstrual, contraception, birth control, IUD, Pap, breast, vaginal, prenatal
+dx: contraception counselling, pregnancy, first trimester, hyperemesis gravidarum, nausea and vomiting of pregnancy, gestational hypertension, preeclampsia, postpartum depression, dysmenorrhea, menorrhagia, heavy menstrual bleeding, amenorrhea, polycystic ovary syndrome, endometriosis, uterine fibroids, bacterial vaginosis, vulvovaginal candidiasis, trichomoniasis, chlamydia, gonorrhea, genital herpes, pelvic inflammatory disease, breast lump, mastitis, cervical cancer screening
+drug: levonorgestrel intrauterine system (Mirena), levonorgestrel intrauterine system (Kyleena), copper IUD, ethinyl estradiol-levonorgestrel, drospirenone (Yaz), drospirenone (Slynd), norethindrone, medroxyprogesterone injection (Depo-Provera), etonogestrel implant (Nexplanon), levonorgestrel emergency contraception (Plan B), ulipristal (Ella), doxylamine-pyridoxine (Diclectin), doxylamine-pyridoxine (Diclegis), folic acid, prenatal vitamin, metronidazole, fluconazole, clotrimazole vaginal cream, ceftriaxone, tranexamic acid, mifepristone-misoprostol (Mifegymiso)
+lab: beta-hCG, quantitative hCG, urine pregnancy test, Pap smear, HPV testing, vaginal swab, chlamydia and gonorrhea NAAT, group B strep swab, prenatal bloodwork, rubella immunity, Rh status
+test: transvaginal ultrasound, pelvic ultrasound, dating ultrasound, nuchal translucency, mammogram, breast ultrasound, colposcopy, endometrial biopsy
+abbr: LMP, EDD, G2P1, gravida, para, IUD, IUS, OCP, STI, PID, GBS
+
+## infectious-travel | fever, infection, antibiotic, travel, vaccine, STI, HIV, hepatitis
+dx: sepsis, cellulitis, Lyme disease, erythema migrans, tick bite, HIV, hepatitis B, hepatitis C, syphilis, tuberculosis, latent tuberculosis infection, traveller's diarrhea, malaria prophylaxis, mumps, measles
+drug: doxycycline, amoxicillin, cephalexin (Keflex), clindamycin, azithromycin (Zithromax), ciprofloxacin, levofloxacin, metronidazole (Flagyl), trimethoprim-sulfamethoxazole, penicillin G benzathine, emtricitabine-tenofovir (Truvada), pre-exposure prophylaxis, atovaquone-proguanil (Malarone), rifampin, isoniazid
+lab: blood cultures, CBC with differential, white blood cell count, neutrophils, lymphocytes, CRP, procalcitonin, HIV serology, hepatitis B surface antigen, hepatitis C antibody, syphilis serology, RPR, interferon-gamma release assay, QuantiFERON, tuberculin skin test
+abbr: PrEP, PEP, STI, TB, IGRA, TST
+
+## immunization | vaccine, vaccination, immunization, shot, booster, jab
+vax: DTaP-IPV-Hib, DTaP-IPV-Hib-HepB, Pediacel, Infanrix hexa, Tdap, Adacel, Boostrix, Td, MMR, MMRV, Priorix-Tetra, ProQuad, varicella vaccine, Varivax, pneumococcal conjugate vaccine, PCV15, PCV20, Prevnar 20, Vaxneuvance, Pneumovax 23, PPSV23, rotavirus vaccine, Rotarix, RotaTeq, hepatitis B vaccine, Engerix-B, Recombivax, hepatitis A vaccine, Havrix, Twinrix, HPV vaccine, Gardasil 9, meningococcal conjugate vaccine, MenACWY, Menactra, Menveo, MenQuadfi, MenB, Bexsero, Trumenba, Men-C-C, influenza vaccine, high-dose influenza vaccine, Fluzone High-Dose, COVID-19 vaccine, Shingrix, recombinant zoster vaccine, RSV vaccine, Arexvy, Abrysvo, nirsevimab, Beyfortus, palivizumab, Synagis, BCG
+abbr: IPV, Hib, HepB, HepA, VZV, RSV, NACI, ACIP, AEFI
+
+## peds-wellchild | baby, infant, newborn, child, toddler, well-child, well baby, growth, milestone, feeding, breastfeeding, formula, percentile
+dx: well-child visit, well baby visit, newborn jaundice, neonatal hyperbilirubinemia, physiologic jaundice, infantile colic, infant reflux, gastroesophageal reflux in infants, cow's milk protein allergy, tongue tie, ankyloglossia, positional plagiocephaly, torticollis, developmental dysplasia of the hip, umbilical hernia, inguinal hernia, undescended testis, cryptorchidism, hypospadias, nasolacrimal duct obstruction, diaper dermatitis, oral thrush, cradle cap, seborrheic dermatitis of infancy, erythema toxicum, mongolian spots, hemangioma, failure to thrive, faltering growth, iron deficiency, speech delay, global developmental delay, picky eating, toilet training, night terrors, breath-holding spells
+other: growth chart, weight-for-length, head circumference, percentile, WHO growth charts, developmental milestones, gross motor, fine motor, language, social smile, babbling, crawling, cruising, pincer grasp, Rourke Baby Record, Nipissing District Developmental Screen, Ages and Stages Questionnaire, M-CHAT-R, anticipatory guidance, safe sleep, car seat, tummy time, exclusive breastfeeding, expressed breast milk, infant formula, solids introduction, iron-fortified cereal, vitamin D drops, fluoride varnish, red reflex, Ortolani, Barlow, fontanelle, newborn screening, hearing screen, bilirubin nomogram
+drug: vitamin D drops, nystatin oral suspension, simethicone, gripe water, zinc oxide cream
+abbr: NDDS, ASQ, M-CHAT, DDH, FTT, SIDS
+
+## peds-acute | fever, cough, croup, ear, rash, vomiting, diarrhea, wheeze, seizure, limp, sick child
+dx: bronchiolitis, respiratory syncytial virus, croup, laryngotracheobronchitis, acute otitis media, febrile seizure, fever without a source, viral exanthem, roseola infantum, hand-foot-and-mouth disease, herpangina, fifth disease, erythema infectiosum, scarlet fever, Kawasaki disease, gastroenteritis, dehydration, intussusception, pyloric stenosis, appendicitis, urinary tract infection in children, vesicoureteral reflux, transient synovitis, nursemaid's elbow, Osgood-Schlatter disease, Sever disease, slipped capital femoral epiphysis, growing pains, head lice, pinworms, enuresis, encopresis, functional constipation, recurrent abdominal pain, adolescent depression, concussion
+drug: amoxicillin suspension, high-dose amoxicillin, 90 mg/kg/day, cefdinir suspension, cefprozil, azithromycin suspension, dexamethasone 0.6 mg/kg, prednisolone (Pediapred), ondansetron oral dissolving tablet, oral rehydration solution, Pedialyte, acetaminophen 15 mg/kg, ibuprofen 10 mg/kg, salbutamol MDI with spacer, AeroChamber, nebulized epinephrine, budesonide nebules, permethrin lotion, mebendazole, cetirizine syrup, epinephrine auto-injector (EpiPen), epinephrine auto-injector (Allerject)
+test: capillary refill, work of breathing, indrawing, retractions, nasal flaring, tracheal tug, barking cough, stridor at rest, Westley croup score, PECARN, urine catheter specimen, bag urine, nasopharyngeal swab, viral panel, rapid antigen test, abdominal X-ray, ultrasound for intussusception
+abbr: RSV, HFMD, ORS, AOM, OME, URTI, ED, PICU
+
+## prevention | screening, prevention, preventive, annual, physical, checkup, periodic health
+other: periodic health examination, annual physical, preventive care, lifestyle counselling, Mediterranean diet, physical activity, 150 minutes per week, weight loss, smoking cessation counselling, alcohol counselling, advance care planning, goals of care, medication reconciliation, polypharmacy, deprescribing, falls risk, driving assessment, home care, community care access, palliative care
+test: colorectal cancer screening, FIT, colonoscopy, breast cancer screening, mammography, cervical screening, HPV self-sampling, lung cancer screening, low-dose CT, abdominal aortic aneurysm screening, AAA ultrasound, osteoporosis screening, bone density, diabetes screening, hepatitis C screening, HIV screening, hearing screening, vision screening, blood pressure screening
+abbr: PHE, ACP, MOST, DNR, CPR, BMD, LDCT

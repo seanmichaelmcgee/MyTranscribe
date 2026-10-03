@@ -173,6 +173,10 @@ class ChunkedTranscriber:
     engine : object with transcribe(np.ndarray float32, prompt: str) -> str
     base_prompt : str
         Vocabulary/style prompt (see prompts/medical_prompt.txt).
+    prompt_builder : callable(context) -> prompt, optional
+        Replaces the static base_prompt + context prompt (see vocab.py).
+    postprocess : callable(text) -> text, optional
+        Applied to each chunk after phantom filtering (see vocab_correct.py).
     stream_factory : callable returning (stream, owner_or_None)
         stream needs read(n, exception_on_overflow=False), stop_stream(), close().
         Injected by tests and the stress harness.
@@ -183,9 +187,13 @@ class ChunkedTranscriber:
                  chunk_target_s: float = CHUNK_TARGET_S,
                  cut_search_s: float = CUT_SEARCH_S,
                  max_session_s: float = MAX_SESSION_S,
-                 level_threshold_rms: float = LEVEL_THRESHOLD_RMS) -> None:
+                 level_threshold_rms: float = LEVEL_THRESHOLD_RMS,
+                 prompt_builder: Optional[Callable[[str], str]] = None,
+                 postprocess: Optional[Callable[[str], str]] = None) -> None:
         self.engine = engine
         self.base_prompt = base_prompt
+        self.prompt_builder = prompt_builder      # context -> prompt (vocab.PromptBuilder)
+        self.postprocess = postprocess            # text -> text (vocab_correct.TermCorrector)
         self._stream_factory = stream_factory or _default_stream_factory
         self.chunk_target_s = chunk_target_s
         self.cut_search_s = min(cut_search_s, chunk_target_s / 2)
@@ -352,7 +360,14 @@ class ChunkedTranscriber:
             return
         # Context = previous good text only; never prime Whisper with error markers.
         context = " ".join(t for t in self.transcriptions if not t.startswith(ERROR_PREFIX))
-        prompt = build_prompt(self.base_prompt, context)
+        if self.prompt_builder is not None:
+            try:
+                prompt = self.prompt_builder(context)
+            except Exception:
+                logger.error("Prompt builder failed; using static prompt", exc_info=True)
+                prompt = build_prompt(self.base_prompt, context)
+        else:
+            prompt = build_prompt(self.base_prompt, context)
         t0 = time.perf_counter()
         try:
             raw = self.engine.transcribe(chunk, prompt)
@@ -362,6 +377,11 @@ class ChunkedTranscriber:
             return
         elapsed = time.perf_counter() - t0
         text = filter_phantoms(raw)
+        if text and self.postprocess is not None:
+            try:
+                text = self.postprocess(text)
+            except Exception:
+                logger.error("Post-processing failed; keeping raw text", exc_info=True)
         self.chunk_stats.append(ChunkStat(audio_s, elapsed, len(text)))
         # Log sizes and timing only — never transcript content (PHI).
         logger.info("Chunk %.1fs -> %d chars in %.2fs (RTF %.2f)",

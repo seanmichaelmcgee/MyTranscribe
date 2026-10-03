@@ -3,3 +3,5 @@ __pycache__/
 .pytest_cache/
 venv/
 venv1060/
+results_1060/
+testdict/

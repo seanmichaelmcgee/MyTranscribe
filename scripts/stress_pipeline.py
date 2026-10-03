@@ -46,6 +46,10 @@ from chunked_transcriber import ChunkedTranscriber, SAMPLE_RATE as SR  # noqa: E
 from fw_engine import FasterWhisperEngine, register_cuda_dll_dirs        # noqa: E402
 from hw_profile import choose_config, detect_hardware                    # noqa: E402
 from prompt_loader import load_prompt                                    # noqa: E402
+from vocab import build_text_pipeline                                    # noqa: E402
+
+# (prompt_builder, corrector) shared by all scenarios; set in main().
+PIPELINE = (None, None)
 
 log = logging.getLogger("stress")
 
@@ -171,7 +175,8 @@ class Report:
 def run_session(engine, stream, prompt, max_session_s=3600, stop_after_s=None):
     """One recording session; returns (transcriber, stop_latency_s, max_queue, rss_samples)."""
     t = ChunkedTranscriber(engine, prompt, stream_factory=lambda: (stream, None),
-                           max_session_s=max_session_s)
+                           max_session_s=max_session_s,
+                           prompt_builder=PIPELINE[0], postprocess=PIPELINE[1])
     t.start_recording()
     start = time.perf_counter()
     max_q, rss = 0, []
@@ -336,7 +341,7 @@ def scenario_gui(args, engine, audio, prompt, rep):
         return s, None
 
     w = gui_med.MedTranscriptionWindow(engine_factory=lambda: engine, stream_factory=factory,
-                                       autopaste=True, base_prompt=prompt)
+                                       autopaste=True, base_prompt=prompt, text_pipeline=PIPELINE)
     w._chime.play_start = w._chime.play_end = lambda: None
     w.show()
 
@@ -403,6 +408,7 @@ def main(argv=None):
     ap.add_argument("--cycle-speed", type=float, default=10.0)
     ap.add_argument("--gui-cycles", type=int, default=20)
     ap.add_argument("--no-prompt", action="store_true")
+    ap.add_argument("--no-vocab", action="store_true", help="static prompt only, no topic terms/correction")
     ap.add_argument("--json", type=Path)
     ap.add_argument("-v", "--verbose", action="store_true")
     args = ap.parse_args(argv)
@@ -413,10 +419,14 @@ def main(argv=None):
     audio = load_wav(args.audio)
     prompt = "" if args.no_prompt else load_prompt()
     engine = build_engine(args)
+    global PIPELINE
+    if not args.no_vocab:
+        PIPELINE = build_text_pipeline(prompt, count=engine.count_tokens, env={})
     rep = Report()
     rep.results["_meta"] = {"model": engine.config.model, "device": engine.config.device,
                             "compute_type": engine.config.compute_type,
-                            "max_new_tokens": args.max_new_tokens, "cpu_count": os.cpu_count()}
+                            "max_new_tokens": args.max_new_tokens, "cpu_count": os.cpu_count(),
+                            "vocab": not args.no_vocab}
     t0 = time.perf_counter()
     for s in chosen:
         SCENARIOS[s](args, engine, audio, prompt, rep)
