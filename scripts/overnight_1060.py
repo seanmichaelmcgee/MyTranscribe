@@ -17,7 +17,8 @@ Output folder (default results_overnight/<timestamp>/):
 
 Task cycle (repeats until --hours is up):
   smoke      unit tests (first cycle only)
-  bench      speed/VRAM: turbo default, beam 1, large-v3, distil-large-v3.5 (first cycle only)
+  bench      speed/VRAM: turbo default, beam 1, int8_float16 vs int8_float32, large-v3,
+             distil-large-v3.5 (first cycle only)
   eval       accuracy: all settings x all mic profiles
   long       30 min real-time dictation through the conference-mic audio
   churn      200 start/stop cycles + silence + fault injection
@@ -259,6 +260,8 @@ def main(argv=None):
                 run.task("smoke", [PY, "-m", "pytest", "-q", "tests"], 900)
             if first and "bench" not in skip:
                 for label, extra in (("bench_turbo", []), ("bench_turbo_beam1", ["--beam-size", "1"]),
+                                     ("bench_turbo_int8f16", ["--compute-type", "int8_float16"]),
+                                     ("bench_turbo_int8f32", ["--compute-type", "int8_float32"]),
                                      ("bench_large-v3", ["--model", "large-v3"]),
                                      ("bench_distil-v3.5", ["--model", "distil-large-v3.5"])):
                     if run.time_left() < 300:

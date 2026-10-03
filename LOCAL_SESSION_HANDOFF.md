@@ -7,7 +7,13 @@ This file has three parts:
 3. **Brief for the local Claude session:** context, specs, the overnight plan, the
    monitoring protocol and a troubleshooting playbook.
 
-Branch: `claude/festive-einstein-lb2tk9` (PR #4). All test audio is synthetic and
+Branch: `claude/festive-einstein-lb2tk9` (PR #4).
+
+> **Hardware correction:** the machine actually has a **GTX 1660** (6 GB, Turing,
+> compute capability 7.5), not a GTX 1060. Names below still say "1060 edition", but
+> the expected auto config is **`large-v3-turbo` / `cuda` / `int8_float16`**: Turing has
+> full-speed float16, unlike Pascal. The first overnight cycle benchmarks int8_float16
+> against int8_float32, so the data will confirm which to use. All test audio is synthetic and
 fictional. **No real patient audio or text goes anywhere near this run.**
 
 ---
@@ -77,8 +83,9 @@ Replace `<N>` with the hours you'll be away (e.g. 7).
 ## Part 3: Brief for the local Claude session
 
 ### 3.1 Mission, in priority order
-1. **Get the 1060 edition running on this GPU**: `device=cuda`, `compute=int8_float32`,
-   model `large-v3-turbo`. This is the main unknown: nobody has run it on a Pascal GPU yet.
+1. **Get the 1060 edition running on this GPU (a GTX 1660, Turing CC 7.5)**:
+   `device=cuda`, `compute=int8_float16`, model `large-v3-turbo`. Nobody has run it on
+   real GPU hardware yet.
 2. **Run the unattended overnight test** (`scripts/overnight_1060.py`) and **monitor it**
    (§3.6). Fix what's fixable, restart what crashed, and record everything.
 3. **Morning report** (§3.8), committed to the branch.
@@ -163,7 +170,7 @@ scripts\setup_1060.bat
 ```
 This creates `venv1060`, installs `requirements-1060.txt`, downloads the models (~6 GB:
 large-v3-turbo, large-v3, distil-large-v3.5) and runs `scripts\preflight_1060.py`. You
-need **GO**, with `Auto config: large-v3-turbo cuda int8_float32` and a `GPU smoke test`
+need **GO**, with `Auto config: large-v3-turbo cuda int8_float16` (GTX 1660) and a `GPU smoke test`
 PASS on `cuda/...`. On NO-GO, use the playbook (§3.7). The overnight run is still
 valuable on CPU if the GPU can't be made to work, but record that prominently.
 
@@ -186,8 +193,8 @@ It writes to `results_overnight\<YYYYMMDD_HHMM>\`:
 **Resume** after a crash or reboot with the same `--out <folder>`.
 
 The cycle:
-- First cycle only: unit tests, then benchmarks (turbo, turbo beam 1, large-v3,
-  distil-large-v3.5).
+- First cycle only: unit tests, then benchmarks (turbo, turbo beam 1, int8_float16 vs
+  int8_float32, large-v3, distil-large-v3.5).
 - Every cycle: `eval` (4 settings × 4 mic profiles), then `long` (30 min of real-time
   conference-mic dictation), then `churn` (200 start/stop cycles, silence, injected
   faults), then `gui` (20 hotkey cycles in the real window).
@@ -225,8 +232,8 @@ Each check:
 |---|---|---|
 | `cuda devices 0`, or `CUDA probe failed` | Driver too old, or DLLs not found | Check that `nvidia-smi` works. Reinstall `nvidia-cublas-cu12` and `nvidia-cudnn-cu12` in venv1060. Confirm `fw_engine.register_cuda_dll_dirs()` returns 2+ folders. Driver install needs the user: ask, or note it and continue on CPU |
 | `cublas64_12.dll` / `cudnn_ops64_9.dll` not found | DLL search path | Same as above; check `venv1060\Lib\site-packages\nvidia\*\bin` exists |
-| `no kernel image is available for execution on the device` | This CTranslate2 build lacks Pascal (sm_61) kernels | Try older wheels in venv1060, one at a time, re-running preflight after each: `ctranslate2==4.6.0`, then `4.5.0`. Last resort: `4.4.0` with `nvidia-cudnn-cu12==8.9.7.29` (4.4 uses cuDNN 8). Record which works and pin it in `requirements-1060.txt` (commit) |
-| Preflight picks `int8_float16` on the 1060 | nvidia-smi missing, so the card is unidentified | Set `MYTRANSCRIBE_COMPUTE_TYPE=int8_float32` and report it. Check `hw_profile.find_nvidia_smi()` |
+| `no kernel image is available for execution on the device` | This CTranslate2 build lacks kernels for this GPU (unlikely on Turing sm_75; was the main risk for Pascal) | Try older wheels in venv1060, one at a time, re-running preflight after each: `ctranslate2==4.6.0`, then `4.5.0`. Last resort: `4.4.0` with `nvidia-cudnn-cu12==8.9.7.29` (4.4 uses cuDNN 8). Record which works and pin it in `requirements-1060.txt` (commit) |
+| Auto config isn't `int8_float16` on the GTX 1660 | nvidia-smi didn't report compute capability | Check `hw_profile.find_nvidia_smi()` and the `gpu` line in status.json. Note it; the bench compares both compute types anyway |
 | CUDA out of memory | Desktop/other apps using VRAM, or large-v3 with beam 5 | Close GPU apps. For the large-v3 bench only, note it. Turbo should never OOM on 6 GB: if it does, that's a finding |
 | "Transcription is falling behind" in `long` | GPU too slow at beam 5 | Record the RTF. Compare `bench_turbo_beam1`. Don't change defaults overnight |
 | `make_testdict` fails (SAPI) | No Windows voices / PowerShell policy | `python scripts\make_test_dictation.py --list-voices`. Install a voice (Settings → Time & language → Speech), or install espeak-ng and use `--backend espeak` |

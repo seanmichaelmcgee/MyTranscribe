@@ -35,8 +35,7 @@ def test_gtx1060_detected_by_name_when_driver_lacks_compute_cap():
     assert pick_cuda_compute_type(hw) == "int8_float32"
 
 
-@pytest.mark.parametrize("name", ["NVIDIA GeForce GTX 1070", "GeForce GTX 980 Ti",
-                                  "NVIDIA GeForce GTX 1660 SUPER", "Quadro P2000"])
+@pytest.mark.parametrize("name", ["NVIDIA GeForce GTX 1070", "GeForce GTX 980 Ti", "Quadro P2000"])
 def test_other_slow_fp16_names(name):
     assert has_slow_fp16(HardwareInfo(gpu_name=name))
 
@@ -145,3 +144,11 @@ def test_find_nvidia_smi_windows_fallback_path():
     path = find_nvidia_smi(which=lambda n: None, exists=lambda p: "NVSMI" in p)
     assert path.endswith("NVSMI\\nvidia-smi.exe")
     assert find_nvidia_smi(which=lambda n: None, exists=lambda p: False) is None
+
+
+@pytest.mark.parametrize("cc", [7.5, None])
+def test_gtx1660_turing_uses_int8_float16(cc):
+    hw = gtx1060(gpu_name="NVIDIA GeForce GTX 1660 SUPER", compute_capability=cc)
+    assert not has_slow_fp16(hw)
+    cfg = choose_config(hw, env={})
+    assert (cfg.model, cfg.device, cfg.compute_type) == (GPU_DEFAULT_MODEL, "cuda", "int8_float16")

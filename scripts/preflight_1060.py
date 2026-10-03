@@ -60,11 +60,14 @@ def check_cuda():
         report("FAIL", "CUDA via ctranslate2", "0 devices (driver / DLL problem; app would run on CPU)")
         return False
     types = sorted(ctranslate2.get_supported_compute_types("cuda"))
-    report("PASS" if "int8_float32" in types else "WARN", "CUDA compute types", ", ".join(types))
+    report("PASS" if any(t.startswith("int8") for t in types) else "WARN", "CUDA compute types", ", ".join(types))
     from hw_profile import choose_config, detect_hardware
     hw = detect_hardware()
     cfg = choose_config(hw)
-    level = "PASS" if (cfg.device, cfg.compute_type) == ("cuda", "int8_float32") else "WARN"
+    # Pascal (GTX 10xx, CC < 7) should get int8_float32; Turing+ (GTX 16xx, RTX) int8_float16.
+    from hw_profile import has_slow_fp16
+    expected = "int8_float32" if has_slow_fp16(hw) else "int8_float16"
+    level = "PASS" if (cfg.device, cfg.compute_type) == ("cuda", expected) else "WARN"
     report(level, "Auto config", f"{cfg.model} {cfg.device} {cfg.compute_type} | {cfg.reason}")
     return True
 

@@ -34,9 +34,10 @@ GPU_SMALL_VRAM_THRESHOLD_MB = 3500    # below this, turbo+activations gets tight
 CPU_DEFAULT_MODEL = "small.en"
 
 # GPU names that are Pascal or older consumer cards (slow float16), used when
-# nvidia-smi cannot report compute capability (older drivers).
+# nvidia-smi cannot report compute capability (older drivers). NOT GTX 16xx:
+# those are Turing (CC 7.5) with full-rate float16, so int8_float16 suits them.
 _SLOW_FP16_NAME_RE = re.compile(
-    r"GTX\s*(9\d\d|10\d\d|16\d\d)|GT\s*10\d\d|Quadro\s*P\d|Tesla\s*P(4|40)\b|TITAN\s*X",
+    r"GTX\s*(9\d\d|10\d\d)|GT\s*10\d\d|Quadro\s*P\d|Tesla\s*P(4|40)\b|TITAN\s*X",
     re.IGNORECASE,
 )
 
