@@ -34,6 +34,16 @@ def test_copy_text_reports_failure(qapp):
     assert pc.copy_text(busy, "new text") is False and busy.text() == "old"
 
 
+def test_copy_text_never_reads_a_busy_clipboard_when_sequence_available(qapp):
+    """Reading a clipboard another program holds blocks Qt ~0.6 s: skip it."""
+    from fakes import FakeClipboard
+    busy = FakeClipboard("old", reject_writes=-1)
+    assert pc.copy_text(busy, "new", sequence=busy.sequence) is False
+    assert busy.reads == 0
+    free = FakeClipboard("old")
+    assert pc.copy_text(free, "new", sequence=free.sequence) is True and free.reads == 1
+
+
 def test_modifiers_held():
     assert pc.modifiers_held("linux") is False
     down = {0x11}

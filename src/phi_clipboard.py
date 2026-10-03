@@ -16,7 +16,7 @@ Paste-into-your-app still works normally; only history/sync skip it.
 
 import logging
 import sys
-from typing import Dict
+from typing import Callable, Dict, Optional
 
 logger = logging.getLogger("phi_clipboard")
 
@@ -48,7 +48,16 @@ def make_mime_data(text: str, platform: str = sys.platform):
     return mime
 
 
-def copy_text(clipboard, text: str, platform: str = sys.platform) -> bool:
+def windows_clipboard_sequence() -> Optional[Callable[[], int]]:
+    """GetClipboardSequenceNumber (never blocks, needs no clipboard access), or None."""
+    if sys.platform != "win32":
+        return None
+    import ctypes
+    return ctypes.windll.user32.GetClipboardSequenceNumber
+
+
+def copy_text(clipboard, text: str, platform: str = sys.platform,
+              sequence: Optional[Callable[[], int]] = None) -> bool:
     """
     Put `text` on a QClipboard with history/cloud-sync opt-out on Windows.
 
@@ -57,8 +66,16 @@ def copy_text(clipboard, text: str, platform: str = sys.platform) -> bool:
     program has the clipboard open, e.g. an EMR, Citrix or a remote-desktop
     client. Callers must not paste after a False: the clipboard still holds
     the PREVIOUS contents, which could be another patient's text.
+
+    `sequence` (Windows: GetClipboardSequenceNumber) detects a failed write
+    instantly: the number only changes when the clipboard changes. Reading the
+    clipboard back while another program holds it blocks Qt for ~0.6 s, so we
+    only read back (to confirm the text) once the sequence number has moved.
     """
+    before = sequence() if sequence else None
     clipboard.setMimeData(make_mime_data(text, platform))
+    if sequence and sequence() == before:
+        return False                      # write didn't happen; don't touch the busy clipboard
     try:
         return clipboard.text() == text
     except Exception as exc:              # reading back can fail the same way

@@ -59,6 +59,7 @@ def main(argv=None):
     w._chime.play_start = w._chime.play_end = lambda: None
     clip = FakeClipboard()
     w._clipboard = lambda: clip
+    w._clipboard_seq = clip.sequence
     w.show()
     pump(1.0)
 

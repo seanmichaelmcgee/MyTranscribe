@@ -36,6 +36,7 @@ def make_window(qapp, monkeypatch, tmp_path):
         w._chime.play_start = w._chime.play_end = lambda: None
         w.clip = clip if clip is not None else FakeClipboard()
         w._clipboard = lambda: w.clip
+        w._clipboard_seq = w.clip.sequence                 # fake clipboard's own counter
         w.pastes = pastes
         windows.append(w)
         assert wait_for(lambda: w.ready or w._load_error, app=qapp)

@@ -101,6 +101,11 @@ class FakeClipboard:
         self._text = text
         self.reject_writes = reject_writes
         self.writes = 0
+        self.seq = 0                     # like Windows GetClipboardSequenceNumber
+        self.reads = 0
+
+    def sequence(self):
+        return self.seq
 
     def setMimeData(self, mime):
         self.writes += 1
@@ -109,11 +114,14 @@ class FakeClipboard:
                 self.reject_writes -= 1
             return                       # silently fails, like OleSetClipboard
         self._text = mime.text()
+        self.seq += 1
 
-    def setText(self, text):
+    def setText(self, text):             # another program copying something
         self._text = text
+        self.seq += 1
 
     def text(self):
+        self.reads += 1
         return self._text
 
 

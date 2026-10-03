@@ -166,6 +166,8 @@ class MedTranscriptionWindow(TranscriptionWindow):
         self._paste_waited_ms = 0
         self._copy_generation = 0      # bumps on every new copy; stale retries give up
         self._copied_text: Optional[str] = None   # what we last verified on the clipboard
+        self._clipboard_seq = phi_clipboard.windows_clipboard_sequence()   # tests set None
+        self._copied_seq: Optional[int] = None    # clipboard sequence number right after our copy
         self._compact = False
         self.paste_count = 0           # for tests / diagnostics
         self.copy_ok: Optional[bool] = None
@@ -488,8 +490,9 @@ class MedTranscriptionWindow(TranscriptionWindow):
     def _try_copy(self, text: str, paste: bool, generation: int, attempt: int) -> None:
         if generation != self._copy_generation:
             return                      # superseded by a newer copy or recording
-        if phi_clipboard.copy_text(self._clipboard(), text):
+        if phi_clipboard.copy_text(self._clipboard(), text, sequence=self._clipboard_seq):
             self._copied_text = text
+            self._copied_seq = self._clipboard_seq() if self._clipboard_seq else None
             self.copy_ok = True
             logger.info("Copied %d chars to clipboard", len(text))   # length only: no PHI in logs
             self._set_copy_attention(False)
@@ -513,11 +516,15 @@ class MedTranscriptionWindow(TranscriptionWindow):
             QTimer.singleShot(AUTOPASTE_RETRY_MS, self._try_paste)
             return
         # Re-check right before pasting: something else may have taken the clipboard.
-        try:
-            current = self._clipboard().text()
-        except Exception:
-            current = None
-        if self._copied_text is None or current != self._copied_text:
+        # On Windows the sequence number answers that without a (possibly blocking) read.
+        if self._clipboard_seq is not None:
+            unchanged = self._copied_seq is not None and self._clipboard_seq() == self._copied_seq
+        else:
+            try:
+                unchanged = self._copied_text is not None and self._clipboard().text() == self._copied_text
+            except Exception:
+                unchanged = False
+        if self._copied_text is None or not unchanged:
             logger.warning("Clipboard changed before auto-paste; not pasting")
             self._set_status("Not pasted — clipboard changed. Click Copy", "warn")
             self._set_copy_attention(True)
