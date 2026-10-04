@@ -132,3 +132,12 @@ written. Exact-PCM Whisper replay reproduces the live transcript. Three fixed
 controls expose remaining eGFR/exam/drug errors in Whisper and HGB/age failures
 in MedASR; the working default remains unchanged. The same saved WAV and frozen
 script support subsequent paired readings and separately bounded comparisons.
+
+The [whispered headset pair](overnight/2026-10-04-headset-whisper-002.md) is also
+saved and replayed. Whisper reproduces the live text but loses a negative assertion
+and inserts a medication frequency; MedASR still misses HGB. The new
+[persistent personal curriculum](PERSONAL_ASR_CURRICULUM.md) records accepted
+spellings and personal priorities, prepares vocabulary/lesson candidates, and
+preserves literal scores beside an opt-in equivalent-spelling view. All 478 tests
+pass. Curriculum work centers on the headset; phone recordings stay historical.
+Candidate vocabulary is inactive and model weights/defaults are unchanged.
