@@ -113,5 +113,7 @@ def source_hashes() -> dict:
     paths = list((ROOT / "src").glob("*.py")) + list((ROOT / "src" / "vocab").glob("*.txt"))
     paths += list((ROOT / "src" / "prompts").glob("*.txt"))
     paths += [ROOT / "scripts" / name for name in (
-        "asr_trial_common.py", "trial_asr.py", "score_asr_trial.py", "medasr_native_format.py")]
+        "asr_trial_common.py", "trial_asr.py", "score_asr_trial.py", "medasr_native_format.py",
+        "medasr_decoder_trial.py", "medasr_ctc_decoder.py", "prepare_medasr_lm.py",
+        "whisper_accuracy_ablation.py") if (ROOT / "scripts" / name).exists()]
     return {p.relative_to(ROOT).as_posix(): sha256(p) for p in sorted(paths)}
