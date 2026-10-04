@@ -2,16 +2,26 @@
 
 ## Outcome
 
-The isolated MedASR dependencies and CUDA audio/CTC API work on this machine. Local OAuth is authenticated as `smichaelmcgee`; model access now works. The official pinned snapshot was downloaded and checksum-verified at approximately 21:35 Halifax. Its first float32 GPU pass completed all 30 recordings and was accepted by the matched scorer. The initial 16-task matrix completed at 22:13 Halifax. MedASR is much faster, but accuracy is currently worse overall than Whisper. A separate native-format configuration is being evaluated; this is not an adoption recommendation.
+**Keep Whisper as the working engine.** MedASR float32 is exceptionally fast on
+this machine, and recognizes some exam vocabulary better, but it makes more
+overall/common-word errors and still mishandles some numbered letters. The
+formatter-enabled real comparison is 11.2% overall WER for MedASR versus 6.2% for
+Whisper; medical error is 4.1% versus 5.1%. That limited medical-score advantage
+does not justify adopting the new engine for the user's main workflows.
+
+Both planned matrices are complete: 16 initial tasks finished at 22:13 Halifax
+and 14 native-format tasks at 22:53 on 3 October. The final native-format artifacts
+were independently rechecked against current source/corpus/configuration hashes,
+official model integrity and saved output hashes. No GPU worker remains active.
+The night finished early because the planned comparisons were done.
 
 The same 30 local fictional practice recordings reproduce the committed Whisper scorecard exactly. Production Whisper settings and GUI behavior have not changed.
 
-The tested overnight matrix started at 21:40:37 Halifax in a hidden local process,
-with a six-hour deadline at 03:40:37. The first scheduled check confirmed completed
-accuracy, precision, paired paced-latency, synthetic and stability runs. Scheduled
-chat checks run every 30 minutes, with a separate recovery
-checkpoint around 02:40 after five hours. Native-format findings will be appended
-when they exist.
+The official pinned model downloaded and verified at approximately 21:35 Halifax
+after local OAuth/model access succeeded. The first runner began at 21:40:37 with
+a six-hour deadline. The native-format runner began at 22:21:11 with a shortened
+budget ending at 03:39:11; neither needed its deadline. Scheduled monitoring and
+the five-hour recovery checkpoint can now be paused after report delivery.
 
 ## Reproduced Whisper baseline
 
@@ -125,11 +135,54 @@ on one and zero respectively. These are token-comparison alerts, including possi
 formatting/representation differences, not verified clinical error counts. The
 medical-score advantage alone does not justify changing the default engine.
 
-A fresh paired native-format matrix launched at 22:21:11 Halifax, regenerating
+A fresh paired native-format matrix completed at 22:53:07 Halifax, regenerating
 Whisper under the same source fingerprint and repeating paced timing, synthetic
-and stability checks. Its 5.3-hour deadline is 03:39:11. Findings are pending.
-Original completed scorecards are archived and will not be rescored with the
-modified pipeline. Keep Whisper as the working application for now.
+and stability checks. Original completed scorecards are archived and will not be
+rescored with the modified pipeline.
+
+## Final native-format paired measurements
+
+| Workflow | Whisper WER / medical error | MedASR WER / medical error | Whisper formatting / numbering | MedASR formatting / numbering |
+| --- | --- | --- | --- | --- |
+| message (8) | 4.0 / 0.0% | 11.4 / 6.7% | 8/8 / 8/8 | 8/8 / 8/8 |
+| result (10) | 2.3 / 7.1% | 6.8 / 7.1% | 10/10 / 10/10 | 10/10 / 10/10 |
+| exam (9) | 8.5 / 6.7% | 13.8 / 0.0% | 9/9 / 9/9 | 9/9 / 9/9 |
+| letter (3) | 7.2 / 5.1% | 10.8 / 5.1% | 3/3 / 3/3 | 2/3 / 1/3 |
+| ALL (30) | 6.2 / 5.1% | 11.2 / 4.1% | 30/30 / 30/30 | 29/30 / 28/30 |
+
+The numbered-sequence total includes clips without numbered items. The letter
+row makes the remaining deficit clearer: only one of three numbered letters
+matches the expected sequence. Count-based formatting also cannot prove placement.
+
+Final warm paced Stop-to-text measurements include the native bridge, shared
+cleanup and final commands, with three repeats per real clip:
+
+| Workflow | Replays per engine | Whisper median / p95 / max | Native MedASR median / p95 / max |
+| --- | ---: | --- | --- |
+| message | 24 | 1.483 / 1.631 / 1.689 s | 0.220 / 0.286 / 0.305 s |
+| result | 30 | 1.009 / 1.145 / 1.189 s | 0.154 / 0.184 / 0.192 s |
+| exam | 27 | 1.243 / 1.546 / 1.551 s | 0.196 / 0.261 / 0.271 s |
+| letter | 9 | 3.343 / 3.742 / 3.742 s | 0.231 / 0.348 / 0.348 s |
+| ALL | 90 | 1.246 / 3.343 / 3.742 s | 0.190 / 0.295 / 0.348 s |
+
+GUI polling/clipboard transfer are excluded. Median differences favor MedASR by
+roughly 0.85–1.26 s for short workflows and 3.11 s for letters. Offline WER remains
+the primary 30-clip paired score; paced repeats produce Whisper WER 5.8% and
+MedASR 11.2%, and are not additional independent examples.
+
+The adapted synthetic snippets score 4.7% overall / 0.0% medical WER for MedASR
+versus 1.7% / 5.1% for Whisper. All 60 MedASR snippets pass formatting and numbering
+counts; Whisper passes 59/60 formatting and 60/60 numbering. Native conversion
+does not improve the separate 40-dictation set: MedASR remains 12.4% overall /
+17.3% medical error versus Whisper 4.6% / 11.4%. Numeric-token review flags are
+4 versus 1 on snippets and 23 versus 7 on dictations, again requiring local review
+rather than being interpreted as confirmed clinical mistakes.
+
+Five adapted real-corpus passes produced identical raw and cleaned output per
+clip; within-clip peak allocated memory spread across repeats was 0.0 MiB. The
+maximum sampled GPU temperature in this matrix was 76 °C, below the 85 °C stop
+threshold; no thermal stop occurred. Initial model load/warmup were 6.60/1.72 s
+for Whisper and 6.39/0.31 s for MedASR, separate from warm dictation delay.
 
 ## Runtime and isolation
 
@@ -147,9 +200,22 @@ modified pipeline. Keep Whisper as the working application for now.
 - Frozen Whisper baseline and paced replay both completed and were accepted by the matching scorer.
 - Corpus/source changes, incomplete runs, duplicate clips/repeats and missing transcripts are rejected by the new scorer.
 
-## Resume the trained-model comparison
+## Next useful experiments
 
-See [the local trial guide](../MEDASR_TRIAL.md) and [the six-hour overnight plan](2026-10-03-medasr-overnight-plan.md). Ensure the signed-in account has accepted MedASR access conditions; repeating login will not fix denied model access. Then download and verify the pinned snapshot, replay the same 30 clips with MedASR, and score the paired runs. Follow with 3 warm paced repeats and separately labeled synthetic cross-checks. Inspect raw output for native punctuation/format tokens before adding any conversion; do not guess replacements that could alter dictated medical content.
+See [the local trial guide](../MEDASR_TRIAL.md) and [completed overnight plan](2026-10-03-medasr-overnight-plan.md). Prioritize new real examples of the user's paragraph-style referrals, quick result messages, and numbered items. Review the flagged numbers, terms and negation locally, then keep a held-out set when changing prompts or formatting. The existing synthetic repetitions and three letters cannot establish broad clinical accuracy.
+
+If continuing MedASR, its more promising next research question is decoder/context
+support and reliable spoken-command interpretation, rather than a faster GPU.
+Google's external 6-gram decoding and sliding-window example are separate
+configurations requiring a documented dependency/provenance review and new paired
+evaluation. No external decoder, LLM reviewer, new model, fine-tuning or cloud run
+was introduced tonight. An LLM reviewer would need its own tests for changed or
+invented clinical content and added latency before being considered.
+
+The current machine has ample MedASR inference headroom. A 4070 Ti Super or rented
+H100/RTX Pro 6000 is not justified by these measured bottlenecks; more GPU memory
+will not by itself fix the observed recognition and formatting errors. Keep the
+experimental runtime isolated until a future comparison supports adoption.
 
 The primary replay uses the current app’s 20 s non-overlapping pause cuts. Google’s 20 s/2 s-overlap sliding example is a separate candidate configuration. Greedy CTC can make substitutions and insertions; it does not guarantee absence of hallucination.
 
