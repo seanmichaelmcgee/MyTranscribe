@@ -110,3 +110,18 @@ agreement and human-adjudicated field checks. The user subsequently clarified
 that the Frontier values match what was spoken: 132/78 in 010 and 138/78 in 011.
 Both are human-adjudicated correct fields.
 The remaining medical-word, negation and prompt-copying failures still need work.
+
+All five focused reviews and the bounded two-configuration trial are now
+[complete](optimization/2026-10-04-accuracy-program/FINDINGS.md). The name/number-free
+style removes copied values on both short phone results but still gives wrong
+lab content, retains the quieter exam/letter errors, and loses an older quote
+command. Older cleaned errors worsen from 25/536 to 27/536. The candidate is
+rejected; production transcription settings remain unchanged and the app is Ready.
+No new paced latency or independent clinical accuracy claim is available.
+
+The [specification](optimization/2026-10-04-accuracy-program/SPEC.md) and
+[fixed experiment plan](optimization/2026-10-04-accuracy-program/EXPERIMENT_PLAN.md)
+include independent capture and a persistent external comparator queue.
+Tracked opt-in queue/worker tools pass the full 470-test suite; the existing two
+fictional-audio jobs await provider selection and secure authentication in the
+original chat, with zero new uploads and no background worker started.
