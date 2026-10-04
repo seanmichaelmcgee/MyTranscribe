@@ -128,9 +128,9 @@ def window_class():
     from gui_med import MedTranscriptionWindow
 
     class SampleWindow(MedTranscriptionWindow):
-        def __init__(self, archive, mic, **kwargs):
+        def __init__(self, archive, mic, include_combined=True, **kwargs):
             self.archive, self.sample_mic = archive, mic
-            self.samples = [combined_starters(archive.rows)] + archive.rows
+            self.samples = ([combined_starters(archive.rows)] if include_combined else []) + archive.rows
             super().__init__(stream_factory=self._test_stream, autopaste=False, **kwargs)
             self.setWindowTitle("MyTranscribe — FICTIONAL TEST CAPTURE")
             layout = self.centralWidget().layout()
@@ -138,7 +138,8 @@ def window_class():
             badge.setWordWrap(True)
             layout.insertWidget(0, badge)
             self.sample_select = QComboBox()
-            self.sample_select.addItem("Combined starters — read New paragraph between examples")
+            if include_combined:
+                self.sample_select.addItem("Combined starters — read New paragraph between examples")
             for i, row in enumerate(archive.rows):
                 self.sample_select.addItem(f"{i:02d} — {row['category']}")
             layout.insertWidget(1, self.sample_select)
@@ -200,8 +201,11 @@ def main():
     from overnight_medasr import RunLock
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--out", type=Path, default=ROOT / "results_1060" / "personal_v1_capture")
+    default_script = ROOT / "docs" / "samples" / "personal_v1.json"
+    parser.add_argument("--script", type=Path, default=default_script,
+                        help="Frozen fictional read-aloud packet; used for capture/scoring only")
     args = parser.parse_args()
-    archive = Archive(args.out, ROOT / "docs" / "samples" / "personal_v1.json")
+    archive = Archive(args.out, args.script)
     register_cuda_dll_dirs()
     app = QApplication(sys.argv[:1])
     app.setStyleSheet(MED_QSS)
@@ -211,6 +215,7 @@ def main():
             mic.start()
             options = replace(settings.load(), start_compact=False, live_insert=False)
             window = window_class()(archive, mic, settings=options,
+                                    include_combined=args.script.resolve() == default_script.resolve(),
                                     settings_path=archive.out / "test_ui_settings.json")
             window.show()
             app.exec()

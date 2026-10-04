@@ -83,7 +83,8 @@ def test_changed_source_refuses_new_capture_without_publishing_audio(archive, mo
     assert not list(archive.out.glob("*.wav*"))
 
 
-def test_sample_gui_saves_recording_and_disables_selection_during_capture(qapp, archive, monkeypatch):
+@pytest.mark.parametrize("single_script", [False, True])
+def test_sample_gui_saves_recording_and_disables_selection_during_capture(qapp, archive, monkeypatch, single_script):
     import gui_qt
     from hw_profile import EngineConfig
     from settings import Settings
@@ -96,7 +97,10 @@ def test_sample_gui_saves_recording_and_disables_selection_during_capture(qapp, 
     engine.config = EngineConfig("fake", "cpu", "float32", 2, "Test fixture")
     stream = ArrayStream(speech_like(1), pace_s=0.02)
     mic = type("Mic", (), {"session": lambda self: (stream, None)})()
+    if single_script:
+        archive.rows = archive.rows[:1]
     window = capture.window_class()(archive, mic, engine_factory=lambda: engine,
+        include_combined=not single_script,
         base_prompt="Vocab.", text_pipeline=(None, None), install_hooks=False,
         settings=Settings(start_compact=False), settings_path=archive.out / "test_settings.json")
     clip = FakeClipboard()
@@ -104,7 +108,8 @@ def test_sample_gui_saves_recording_and_disables_selection_during_capture(qapp, 
     window._clipboard_seq = clip.sequence
     try:
         assert wait_for(lambda: window.ready, app=qapp)
-        window.sample_select.setCurrentIndex(1)  # individual 00
+        assert window.sample_select.count() == (1 if single_script else 15)
+        window.sample_select.setCurrentIndex(0 if single_script else 1)  # individual 00
         window.profile_select.setCurrentIndex(2)  # phone normal
         assert "H G B" in window.read_aloud.toPlainText()
         window._on_start_clicked()

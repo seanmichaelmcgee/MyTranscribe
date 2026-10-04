@@ -49,6 +49,13 @@ explicit **New paragraph** commands between examples. It is scored as one combin
 recording; it cannot establish finishing latency for separate short snippets.
 Individual samples give the more useful short-workflow comparison.
 
+For a custom continuous reading, the test launcher also accepts a frozen JSON
+packet through `--script`, with a fresh ignored folder through `--out`. Custom
+packets display their own samples without adding the default Combined starters.
+A one-sample packet therefore provides one Start/Stop reading and one replayable
+WAV, while preserving the intended reference and each repeated attempt. The
+packet is capture/scoring data only and is not added to recognition prompts.
+
 If the remote connection does not deliver microphone audio to Windows, record
 the same examples in the phone's voice recorder and transfer the original audio
 files to this computer. Preserve those as a separate phone capture condition.
