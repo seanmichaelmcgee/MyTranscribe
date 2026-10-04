@@ -12,7 +12,7 @@ does not justify adopting the new engine for the user's main workflows.
 Both planned matrices are complete: 16 initial tasks finished at 22:13 Halifax
 and 14 native-format tasks at 22:53 on 3 October. The final native-format artifacts
 were independently rechecked against current source/corpus/configuration hashes,
-official model integrity and saved output hashes. No GPU worker remains active.
+official model integrity and saved output hashes. No trial GPU worker remains active.
 The night finished early because the planned comparisons were done.
 
 The same 30 local fictional practice recordings reproduce the committed Whisper scorecard exactly. Production Whisper settings and GUI behavior have not changed.
@@ -21,7 +21,8 @@ The official pinned model downloaded and verified at approximately 21:35 Halifax
 after local OAuth/model access succeeded. The first runner began at 21:40:37 with
 a six-hour deadline. The native-format runner began at 22:21:11 with a shortened
 budget ending at 03:39:11; neither needed its deadline. Scheduled monitoring and
-the five-hour recovery checkpoint can now be paused after report delivery.
+the five-hour recovery checkpoint were both paused at 23:09 Halifax after the
+completed report was pushed. No further unattended trial is scheduled.
 
 ## Reproduced Whisper baseline
 

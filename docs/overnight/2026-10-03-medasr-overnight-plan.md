@@ -6,8 +6,9 @@ The initial matrix completed at 22:13 and the native-format matrix at 22:53:07
 Halifax on 3 October. All 14 final artifacts passed an independent provenance,
 integrity, coverage and completion audit during the 23:04 check. No GPU job is
 active. The final recommendation and measurements are in the comparison report.
-Both scheduled monitors should now be paused; no recovery run is needed because
-all scoped comparisons have completed. Preserve the local results for review.
+Both scheduled monitors were confirmed paused at 23:09 Halifax; no recovery run
+is needed because all scoped comparisons have completed. Preserve the local
+results for review. No further unattended trial is scheduled.
 
 ## Objective and boundaries
 
