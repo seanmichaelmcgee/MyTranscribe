@@ -49,6 +49,8 @@ its original deadline must still be preserved. Read its status before launching
 anything else. When it completes, update the paired native-format report and
 recommend the working engine based on accuracy and speed, then pause the monitors
 if all scoped work is complete. This run excludes the failed float16 configuration.
+The native-format matrix launched at 22:21:11 Halifax (initial outer PID 5996),
+with deadline 03:39:11, inside both the original night budget and monitor cutoff.
 
 All measurements use the pinned official safetensors snapshot and verify its
 integrity before GPU work. Source and corpus fingerprints prevent stale runs from

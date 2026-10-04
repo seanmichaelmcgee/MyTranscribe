@@ -117,10 +117,11 @@ Raw recognition was byte-for-byte unchanged for all 30 clips versus the original
 MedASR run, so this improvement comes from representation and downstream cleanup,
 not a new acoustic model. Medical alignment scores can also change after formatting.
 
-A fresh paired native-format matrix will regenerate Whisper under the same source
-fingerprint and repeat paced timing, synthetic and stability checks. Its findings
-are pending. Original completed scorecards are archived and will not be rescored
-with the modified pipeline. Keep Whisper as the working application for now.
+A fresh paired native-format matrix launched at 22:21:11 Halifax, regenerating
+Whisper under the same source fingerprint and repeating paced timing, synthetic
+and stability checks. Its 5.3-hour deadline is 03:39:11. Findings are pending.
+Original completed scorecards are archived and will not be rescored with the
+modified pipeline. Keep Whisper as the working application for now.
 
 ## Runtime and isolation
 
