@@ -106,6 +106,7 @@ class ChimePlayer:
         self.p = pyaudio.PyAudio()
         self.is_playing = False
         self._lock = threading.Lock()
+        self._playback_lock = threading.Lock()  # stream lifetime must finish before device termination
     
     def play_start(self):
         """Play the start chime sound in a separate thread."""
@@ -129,11 +130,21 @@ class ChimePlayer:
     
     def _play_sound_thread(self, sound_path):
         """Thread function to play the sound."""
+        if not self._playback_lock.acquire(blocking=False):
+            return
+        try:
+            if self.p is not None:
+                self._play_sound_locked(sound_path)
+        finally:
+            self._playback_lock.release()
+
+    def _play_sound_locked(self, sound_path):
         with self._lock:
             if self.is_playing:
                 return
             self.is_playing = True
         
+        stream = None
         try:
             with wave.open(sound_path, 'rb') as wf:
                 stream = self.p.open(
@@ -148,16 +159,24 @@ class ChimePlayer:
                     stream.write(data)
                     data = wf.readframes(1024)
                 
-                stream.stop_stream()
-                stream.close()
         except Exception as e:
             logging.error(f"Error playing chime sound: {e}")
         finally:
+            if stream is not None:
+                try:
+                    stream.stop_stream()
+                except Exception:
+                    pass
+                try:
+                    stream.close()
+                except Exception:
+                    pass
             with self._lock:
                 self.is_playing = False
     
     def cleanup(self):
         """Clean up resources."""
-        if self.p:
-            self.p.terminate()
-            self.p = None
+        with self._playback_lock:
+            if self.p:
+                self.p.terminate()
+                self.p = None
