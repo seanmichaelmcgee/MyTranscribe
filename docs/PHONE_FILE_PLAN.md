@@ -92,3 +92,10 @@ The first phone recording, **Voice 010**, arrived on 4 October. Its combined
 samples and fixed label-free sections have been compared locally; see the
 [phone iteration report](overnight/2026-10-04-phone-010.md). The earlier ordinary-app
 recording was not saved as replay audio and has not been recovered by this importer.
+
+The second file, **Voice 011**, is quieter and has completed a local level check,
+Whisper controls and matched MedASR decoder comparisons. See the
+[quieter-file report](overnight/2026-10-04-phone-011.md). It is usable audio, but
+both engines still make content errors. Exact reading, the blood pressure value
+and soft-voice versus whisper condition remain pending confirmation; scoring
+against the original scripts is explicitly conditional.

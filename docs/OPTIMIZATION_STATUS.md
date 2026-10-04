@@ -78,3 +78,18 @@ values from the style example, although the continuous pass gets it right.
 A five-second minimal-style policy was rejected because it worsened the earlier
 corpus's medical error to 7.1%. The app retains its existing prompts and decoding.
 The exact spelling rule does not repair this abbreviated-result failure.
+
+The [quieter second phone file](overnight/2026-10-04-phone-011.md) decodes cleanly,
+is about 2.85 dB lower, and is retained by the existing speech detector. Bypassing
+that detector leaves the isolated Whisper transcripts unchanged. Medical content
+errors remain, including a lost negative nystagmus sentence and exertional
+misrecognized as vaginal. Scores against the unchanged scripts are provisional
+until exact reading and the BP 132-versus-138 discrepancy are confirmed; the file
+has not been established as genuine whispered speech.
+
+The existing weaker MedASR LM improves the matched 20-second exam control to all
+four target terms, with aggregate medical WER 11.8% to 5.9% but unchanged 13.3%
+overall WER. A fresh paced inference run reproduces its output and finishes in
+0.06/0.22/0.34 seconds for result/exam/letter. It still misses HGB and replaces the
+letter age with a placeholder. Whisper remains the product, with no prompt,
+decoder, gain or spelling-rule change from this follow-up.
