@@ -11,3 +11,7 @@
 
 anti-Rho => anti-Ro
 anti Rho antibodies => anti-Ro antibodies
+
+# Fictional personal sample, read as written: this recurring non-word has one
+# explicitly confirmed intended spelling. Do not generalize to real abbreviations.
+dysthyatokinesia => dysdiadochokinesia

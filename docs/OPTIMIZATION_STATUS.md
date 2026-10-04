@@ -65,3 +65,16 @@ launcher that retains only started dictations, with normal/whisper and local/pho
 labels, a combined option and the comparison runner's GPU lock. The ordinary
 application still keeps clinical audio in memory. The archive and chime shutdown
 change pass all 444 tests; fresh saved recordings are the next accuracy evidence.
+
+The [first phone recording](overnight/2026-10-04-phone-010.md) now supplies those
+three fictional workflows in one file. Continuous Whisper output scores 3.5%
+written error after one explicit non-word spelling correction, with 17/17 target
+terms. The prior 30 recordings retain 4.7% overall / 3.1% medical error in fresh
+matched controls. This is calibration on one normal-voice phone recording;
+whispering and headset transfer remain unverified.
+
+An important failure remains: the isolated 2.88-second result snippet copies
+values from the style example, although the continuous pass gets it right.
+A five-second minimal-style policy was rejected because it worsened the earlier
+corpus's medical error to 7.1%. The app retains its existing prompts and decoding.
+The exact spelling rule does not repair this abbreviated-result failure.

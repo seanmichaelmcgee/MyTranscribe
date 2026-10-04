@@ -75,7 +75,7 @@ preservation of originals and repeated samples, and combined held-out references
 The actual child-process import also passed with a generated one-second WAV.
 That fixture is labeled synthetic and is not part of the personal sample corpus.
 
-The final full-suite run had **450 passed and one failed** in 32.80 seconds.
+The importer's first full-suite run had **450 passed and one failed** in 32.80 seconds.
 The existing Windows clipboard round-trip check also failed on focused reruns;
 all seven importer tests passed. A separate synthetic diagnostic confirmed that
 Windows refused `OpenClipboard`, and neither plain nor privacy-marked Qt copies
@@ -83,6 +83,12 @@ changed its sequence number or could be read back. This session cannot validate
 clipboard integration until access returns. No clipboard or production app code
 was changed, and the failing test was not skipped or weakened.
 
-No phone recording has arrived yet. This work prepares ingestion; it supplies no
-new recognition accuracy score. The earlier ordinary-app recording was not saved
-as replay audio and has not been recovered by this importer.
+The later phone iteration passed **all 451 tests in 30.49 seconds with headless
+Qt**. This validates the unit suite, including the importer, without claiming
+native clipboard access has returned. The phone report records the scoped
+vocabulary change and its matched replay checks.
+
+The first phone recording, **Voice 010**, arrived on 4 October. Its combined
+samples and fixed label-free sections have been compared locally; see the
+[phone iteration report](overnight/2026-10-04-phone-010.md). The earlier ordinary-app
+recording was not saved as replay audio and has not been recovered by this importer.
