@@ -11,29 +11,29 @@ from dataclasses import replace
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
-    QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFormLayout, QFrame, QLabel, QVBoxLayout,
+    QApplication, QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFormLayout, QFrame,
+    QLabel, QScrollArea, QVBoxLayout, QWidget,
 )
 
 from settings import Settings
 from triggers import KEY_CHOICES, MOUSE_CHOICES, key_label
 
 MODES = [("hold", "Hold to talk"), ("toggle", "Toggle (press to start, press to stop)")]
-ACCURACY = [("best", "Best — large-v3 (text ~3 s after stop)"),
-            ("fast", "Fast — large-v3-turbo (text ~1.5 s after stop)")]
+ACCURACY = [("best", "Best — large-v3 (prioritize accuracy)"),
+            ("fast", "Fast — large-v3-turbo (prioritize speed)")]
 
 HOW_TO = (
     "<b>How it works</b><br>"
-    "Dictate, then stop. The text is transcribed on this PC while you speak "
-    "(nothing leaves the computer) and copied to the clipboard when you stop. "
-    "Click in your EMR and press <b>Ctrl+V</b>.<br><br>"
-    "The light at the top left is <b><span style='color:#2E9E4F'>green while recording</span></b> "
-    "and <b><span style='color:#C8322B'>red when not</span></b> "
-    "(briefly <b><span style='color:#B98500'>amber</span></b> while the mic opens, if it isn't kept "
-    "ready: start talking on green).<br>"
-    "If the status says <b>Not copied</b>, another program was using the clipboard: "
-    "click <b>Copy</b> and paste again.<br>"
-    "Use <b>+</b> / <b>–</b> to show or hide the transcript. "
-    "One recording can run up to an hour; text appears as you go."
+    "Dictate, stop, then wait for <b>Copied</b> and paste with <b>Ctrl+V</b>. "
+    "Transcription stays on this PC.<br><br>"
+    "Light: <b><span style='color:#2E9E4F'>green = recording</span></b>, "
+    "<b><span style='color:#C8322B'>red = stopped</span></b>, amber = mic opening. "
+    "Start talking on green.<br>"
+    "Level bar: captured input; amber = low, red = too loud. No automatic gain.<br>"
+    "Longer speech uses 30-second pieces; short snippets are sent immediately on Stop. "
+    "Record for up to an hour.<br>"
+    "<b>Not copied?</b> Click Copy and try again. <b>+</b> shows the transcript. "
+    "Always review medical terms and numbers."
 )
 
 STYLE = """
@@ -51,8 +51,15 @@ class OptionsDialog(QDialog):
         self.setWindowTitle("MyTranscribe — Options")
         self.setStyleSheet(STYLE)
         self._original = settings
-        layout = QVBoxLayout(self)
+        outer = QVBoxLayout(self)
+        self._scroll = QScrollArea()
+        self._scroll.setWidgetResizable(True)
+        self._scroll.setFrameShape(QFrame.Shape.NoFrame)
+        content = QWidget()
+        layout = QVBoxLayout(content)
         layout.setSpacing(10)
+        self._scroll.setWidget(content)
+        outer.addWidget(self._scroll)
 
         layout.addWidget(self._title("Start / stop dictation"))
         form = QFormLayout()
@@ -86,18 +93,20 @@ class OptionsDialog(QDialog):
         layout.addLayout(acc_form)
 
         layout.addWidget(self._title("Microphone"))
-        self.keep_mic_ready = QCheckBox("Keep microphone ready (no clipped first word; Windows shows "
-                                        "the mic in use while the app is open)")
+        self.keep_mic_ready = QCheckBox("Keep microphone ready (avoid clipped first words)")
+        self.keep_mic_ready.setToolTip("Windows shows the microphone in use while MyTranscribe is open. "
+                                      "Audio is kept in memory; idle audio is not transcribed.")
         self.keep_mic_ready.setChecked(settings.keep_mic_ready)
         layout.addWidget(self.keep_mic_ready)
 
         layout.addWidget(self._title("Text"))
-        self.voice_commands = QCheckBox("Voice commands: say “new line”, “new paragraph”, "
-                                        "“open quote … close quote”")
+        self.voice_commands = QCheckBox("Spoken formatting: new line, paragraph, quotes")
+        self.voice_commands.setToolTip("Say “new line”, “new paragraph” or “open quote … close quote”.")
         self.voice_commands.setChecked(settings.voice_commands)
         layout.addWidget(self.voice_commands)
-        self.live_insert = QCheckBox("Type at the cursor as I dictate (each ~20 s piece; the full "
-                                     "text is also copied when I stop)")
+        self.live_insert = QCheckBox("Insert finished pieces at cursor (about 30 seconds)")
+        self.live_insert.setToolTip("Each finished piece is inserted while you dictate. "
+                                   "The full text is also copied when you stop.")
         self.live_insert.setChecked(settings.live_insert)
         layout.addWidget(self.live_insert)
 
@@ -120,8 +129,11 @@ class OptionsDialog(QDialog):
                                    | QDialogButtonBox.StandardButton.Cancel)
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
-        layout.addWidget(buttons)
+        outer.addWidget(buttons)
         self.setMinimumWidth(460)
+        screen = QApplication.primaryScreen()
+        available_height = screen.availableGeometry().height() if screen else 900
+        self.resize(560, min(760, max(300, available_height - 80)))
 
     @staticmethod
     def _title(text: str) -> QLabel:

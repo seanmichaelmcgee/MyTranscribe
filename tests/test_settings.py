@@ -60,3 +60,24 @@ def test_options_dialog_result(qapp):
     d.accuracy.setCurrentIndex(d.accuracy.findData("fast"))
     r = d.result_settings()
     assert (r.key, r.mouse, r.mouse_mode, r.start_compact, r.accuracy) == ("none", "x2", "hold", False, "fast")
+
+
+def test_small_options_window_keeps_help_and_save_accessible(qapp):
+    from options_dialog import OptionsDialog
+    from PyQt6.QtWidgets import QLabel, QDialogButtonBox
+    d = OptionsDialog(st.Settings())
+    d.resize(560, 380)
+    d.show()
+    qapp.processEvents()
+    try:
+        scroll = d._scroll.verticalScrollBar()
+        assert scroll.maximum() > 0
+        help_text = next(x for x in d.findChildren(QLabel) if x.objectName() == "howTo")
+        scroll.setValue(scroll.maximum())
+        qapp.processEvents()
+        assert d._scroll.viewport().rect().contains(
+            help_text.mapTo(d._scroll.viewport(), help_text.rect().bottomLeft()))
+        save = d.findChild(QDialogButtonBox).button(QDialogButtonBox.StandardButton.Save)
+        assert save.isVisible() and d.rect().contains(save.mapTo(d, save.rect().center()))
+    finally:
+        d.close()

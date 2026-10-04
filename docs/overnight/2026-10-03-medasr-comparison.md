@@ -1,5 +1,9 @@
 # MedASR trial status — 2026-10-03
 
+This is the archived overnight comparison. See the [4 October optimization and
+current product report](2026-10-04-asr-optimization.md) for nine decoder trials,
+matched Whisper controls, 30-second chunk accuracy/timing and compact input feedback.
+
 ## Outcome
 
 **Keep Whisper as the working engine.** MedASR float32 is exceptionally fast on

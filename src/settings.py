@@ -40,7 +40,7 @@ class Settings:
     accuracy: str = "best"             # "best" (large-v3 if the GPU allows) | "fast" (turbo)
     voice_commands: bool = True        # "new line", "new paragraph", "open/close quote"
     keep_mic_ready: bool = True        # mic open between dictations + 0.5 s pre-roll (like Dragon)
-    live_insert: bool = False          # paste each ~20 s piece at the cursor while dictating
+    live_insert: bool = False          # paste each ~30 s piece at the cursor while dictating
 
     def triggers(self) -> TriggerConfig:
         return TriggerConfig(

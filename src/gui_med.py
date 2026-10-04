@@ -44,7 +44,7 @@ from typing import Callable, Optional
 
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtWidgets import (
-    QApplication, QFrame, QHBoxLayout, QLabel, QPushButton, QTextEdit, QVBoxLayout, QWidget,
+    QApplication, QFrame, QHBoxLayout, QLabel, QProgressBar, QPushButton, QTextEdit, QVBoxLayout, QWidget,
 )
 
 _SRC_DIR = Path(__file__).parent
@@ -52,7 +52,7 @@ sys.path.insert(0, str(_SRC_DIR))
 
 from fw_engine import register_cuda_dll_dirs                 # noqa: E402
 from hw_profile import choose_config, detect_hardware        # noqa: E402
-from chunked_transcriber import ERROR_PREFIX, ChunkedTranscriber   # noqa: E402
+from chunked_transcriber import ERROR_PREFIX, LEVEL_THRESHOLD_RMS, ChunkedTranscriber, InputLevel  # noqa: E402
 from prompt_loader import load_prompt                        # noqa: E402
 from vocab import build_text_pipeline                        # noqa: E402
 import phi_clipboard                                         # noqa: E402
@@ -118,7 +118,19 @@ QPushButton#copyButton:hover, QPushButton#compactButton:hover, QPushButton#optio
 QPushButton#copyButton:disabled { color: #B4B2A9; border-color: #E6E4DA; }
 QPushButton#copyButton[attention="true"] { background: #FCEFE6; color: #93370D; border-color: #E9B48F; }
 QFrame#audioIndicator { background: #C96442; border-radius: 2px; border: none; }
+QProgressBar#micLevel { background: #E3E1D7; border: none; border-radius: 3px; }
+QProgressBar#micLevel::chunk { background: #2E9E4F; border-radius: 3px; }
+QProgressBar#micLevel[levelKind="low"]::chunk { background: #B98500; }
+QProgressBar#micLevel[levelKind="clipping"]::chunk { background: #C8322B; }
 """
+
+
+def meter_display(level: InputLevel) -> tuple[int, str]:
+    """Logarithmic captured-signal meter; independent of the recording light."""
+    value = round(max(0.0, min(100.0, (level.dbfs + 60) * 100 / 60)))
+    kind = ("clipping" if level.peak >= 0.999 else
+            "low" if level.rms * 32768 <= LEVEL_THRESHOLD_RMS else "signal")
+    return value, kind
 
 
 def env_flag(name: str, env: Optional[dict] = None) -> bool:
@@ -324,6 +336,14 @@ class MedTranscriptionWindow(TranscriptionWindow):
         top.addSpacing(2)
         top.addWidget(self._status_text)
         top.addStretch(1)
+        self._mic_level = QProgressBar()
+        self._mic_level.setObjectName("micLevel")
+        self._mic_level.setRange(0, 100)
+        self._mic_level.setTextVisible(False)
+        self._mic_level.setFixedSize(56, 8)
+        self._mic_level.setAccessibleName("Microphone input level")
+        top.addWidget(self._mic_level)
+        self._update_mic_meter()
         self._copy_btn = self._small_button("Copy", "copyButton", self._on_copy_clicked,
                                             "Copy the transcript again")
         self._options_btn = self._small_button("⚙", "optionsButton", self._open_options,
@@ -463,6 +483,7 @@ class MedTranscriptionWindow(TranscriptionWindow):
         else:
             self._mic_live = False
             self._set_rec_light("off")
+            self._update_mic_meter()
         self._set_copy_attention(False)
         self._refresh_controls()
 
@@ -563,7 +584,23 @@ class MedTranscriptionWindow(TranscriptionWindow):
             self._poll_timer.stop()
             return
         self._audio_indicator.setVisible(t.audio_detected)
+        self._update_mic_meter(t.input_level)
         self._reposition_indicator()
+
+    def _update_mic_meter(self, level: Optional[InputLevel] = None) -> None:
+        value, kind = meter_display(level or InputLevel())
+        bar = self._mic_level
+        bar.setValue(value)
+        if bar.property("levelKind") != kind:
+            bar.setProperty("levelKind", kind)
+            bar.style().unpolish(bar)
+            bar.style().polish(bar)
+        description = ("Not recording" if level is None else
+                       "Too loud: lower the microphone level or move back" if kind == "clipping" else
+                       "Low input: move closer or check the microphone level" if kind == "low" else
+                       "Receiving microphone audio")
+        bar.setToolTip(description + ". This shows captured input; speech recognition may filter silence.")
+        bar.setAccessibleDescription(description)
 
     def _finalize(self, text: str, from_hotkey: bool) -> None:
         """Show final text, copy it (PHI-safe, verified), optionally auto-paste."""

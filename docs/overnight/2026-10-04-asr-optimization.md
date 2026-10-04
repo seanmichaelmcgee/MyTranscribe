@@ -6,13 +6,17 @@ Resumed after the earlier overnight comparison stopped too soon. Two agents
 implemented and reviewed independent formatting and Whisper-ablation work; the
 parent implemented and ran the official-LM decoder experiment locally.
 
-**Keep the working Whisper application.** Nine MedASR decoder configurations on
+**Whisper remains the working application, now using 30-second chunks.** Nine MedASR decoder configurations on
 the same 30 fictional real-voice recordings lowered overall word error from
-11.2% to 8.2%. Current Whisper reproduces 6.2%. The remaining gap is 11 word
-errors out of 536 scored reference words. This is progress, not parity.
+11.2% to 8.2%. The prior 20-second Whisper setting reproduces 6.2%; the new
+30-second setting scores 4.7% overall and 3.1% medical WER. MedASR trails that
+setting by 19 word errors out of 536 scored reference words. This is progress,
+not parity. The production follow-up is described below.
 
-All experiments are isolated from production. No `src` files or model weights
-were changed, no packages installed, and no audio/transcripts uploaded. Model
+The decoder and ablation experiments were isolated from production, with `src`
+frozen throughout measurement. The later product change adopts 30-second chunks
+and restores compact microphone feedback; it has a separate matched replay.
+No model weights were changed, no packages installed, and no audio/transcripts uploaded. Model
 data and detailed results remain local and ignored by Git. The earlier overnight
 automations remain paused; this is a new bounded, actively supervised iteration.
 
@@ -154,7 +158,7 @@ Model load/warmup are excluded from the warm finishing delays.
 The small letter sample's p95 is its maximum. MedASR has speed headroom even
 with this Python/SQLite decoder, but the measured common-word, numeric and
 clinical-identifier deficits still prevent a recommendation to replace Whisper.
-The 30-second Whisper follow-up is recorded below when completed.
+The completed 30-second Whisper follow-up is recorded below.
 
 ### Completed 30-second paced follow-up
 
@@ -176,8 +180,11 @@ clipboard. Short recordings flush on Stop rather than waiting for 30 seconds.
 The lower letter finishing delay in this particular run reflects how much
 background work was completed before Stop; longer chunks do not guarantee
 lower latency. Only three letters and one repeat were measured. Raw inference
-compute on those letters increased with longer chunks, so do not extrapolate
-these finishing-delay observations to every dictation length.
+passes for the larger individual chunks took longer, while total session compute
+did not increase here. In particular, the 24.8-second letter finished in 3.27 s
+instead of 2.07 s: all its audio now fits in the final chunk. The two approximately
+37-second letters benefited from smaller final remainders. Do not extrapolate
+the lower median to every dictation length.
 
 Artifacts: `whisper30_paced.json` and `paced_chunk_scores.json` in the ignored
 `results_medasr/optimization_20261004` directory. These measurements precede
@@ -201,9 +208,10 @@ microphone performance. Detailed profile/workflow breakdowns remain local.
 
 ## Verification and interpretation
 
-Full unit suite: **402 passed in 29.09 seconds**, using the headless Qt platform.
-No GUI or clipboard integration change was made; the earlier native clipboard
-restriction remains outside these accuracy experiments. Prefix beam tests compare
+Experiment source freeze: **402 tests passed in 29.09 seconds**, using the
+headless Qt platform. No GUI or clipboard integration change was made at that
+freeze; native clipboard integration remains outside these accuracy experiments.
+Prefix beam tests compare
 merged probabilities against exhaustive small CTC path enumeration, exercise
 blank-separated repetitions, and verify ARPA backoff/base-10 conversion.
 
@@ -217,3 +225,55 @@ accuracy. GPU capacity alone does not resolve the remaining recognition errors.
 Reproduction: [decoder experiment guide](../MEDASR_DECODER_EXPERIMENT.md),
 [Whisper audit/harness guide](2026-10-04-whisper-regression-audit.md).
 Primary decoder reference: [Google's official quickstart](https://github.com/Google-Health/medasr/blob/main/notebooks/quick_start_with_hugging_face.ipynb).
+
+## Production follow-up: one recording workflow and visible input level
+
+The application now defaults to 30-second chunks for short and long dictation.
+F9 remains hold-to-talk and the mouse forward button remains a recording toggle.
+No separate short/letter mode was introduced: releasing F9 or stopping the toggle
+flushes any short remainder immediately. The saved-voice calibration supports
+this simpler workflow without a short-snippet accuracy penalty. It does not
+prove that every new short utterance will meet the clinician's latency budget.
+
+A small logarithmic RMS level bar is always visible in the status row, including
+compact view. Its normalized RMS and peak are measured on the exact captured
+PCM scaling passed to the transcription buffer, before silence/VAD filtering.
+It clears when recording stops; a silent pause leaves the recording light green.
+Amber means low input and red indicates a peak near clipping. The application
+does not apply automatic gain. Microphone/Windows processing occurs upstream;
+neither the meter nor its threshold establishes successful speech recognition.
+
+Options labels no longer promise fixed model finishing times. Help is brief and
+scrolls on smaller screens while Save/Cancel stay accessible. Compact idle,
+recording, clipping, copied and expanded states and Options were rendered with
+Windows Segoe fonts and the actual theme; compact idle/recording/copied fit at
+420 by 105 pixels in the headless render. Images remain ignored under
+`results_medasr/ui_20261004`.
+
+Final product tests: **414 passed in 30.15 seconds**. Added checks verify exact
+PCM preservation, early Stop flush, RMS/peak scaling, clipping warnings, visible
+compact input feedback, silent-but-recording feedback, meter reset and small
+Options help/Save access. Native microphone, system clipboard and application
+focus behavior still require the user's interactive trial.
+
+After the final Options repair, fresh 20/30-second Whisper runs reproduced the
+same results. A MedASR balanced-LM replay of waveform/model/engine/runtime-verified
+cached acoustic logits also reproduced 8.2% WER. All three were accepted by the
+strict scorer under the same final source and real-corpus fingerprints:
+
+| Final-source configuration | Overall WER | Medical WER | Common WER | Format / numbering | Numeric / negation review flags |
+|---|---:|---:|---:|---|---|
+| Whisper large-v3, 30 s (application default) | 4.7% | 3.1% | 4.7% | 30/30 / 30/30 | 0 / 1 |
+| Whisper large-v3, 20 s (control) | 6.2% | 5.1% | 6.1% | 30/30 / 30/30 | 1 / 1 |
+| MedASR float32, beam 32, LM alpha 0.2 / beta 0.5 | 8.2% | 3.1% | 8.0% | 30/30 / 29/30 | 4 / 0 |
+
+Records are in ignored `results_medasr/product_final_20261004`; the aggregate is
+`matched_scores.json`. The final MedASR replay measures accuracy, not inference
+latency: the earlier fresh-GPU paced run supplies its finishing-delay observations.
+Do not use cached decode times as a clinician workflow timing estimate. Records
+before the Options repair are retained separately rather than mixed into this
+final scorecard. All owned trial processes exited successfully.
+
+New personal recordings, including actual whispered speech and microphone/gain
+comparisons, are specified in [the sample plan](../VOICE_SAMPLE_PLAN.md). Volume
+attenuation of normal speech is not a substitute for real whispered speech.

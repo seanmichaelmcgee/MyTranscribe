@@ -8,7 +8,7 @@ unchanged and still works; this one lives alongside it.
 |---|---|---|
 | Engine | openai-whisper + PyTorch | faster-whisper (CTranslate2), **no PyTorch** |
 | Default model on a 1060 | `large-v3` (does not fit in 6 GB) | `large-v3-turbo`, int8 weights (~1.6 GB VRAM) |
-| When is audio transcribed? | All at once when you press Stop (window freezes) | In ~20 s pieces **while you talk**; Stop only waits for the last piece |
+| When is audio transcribed? | All at once when you press Stop (window freezes) | In ~30 s pieces **while you talk**; Stop immediately sends any shorter remainder |
 | Audio written to disk? | Yes, temp WAV files (may be left behind on Windows) | **Never**: kept in memory only |
 | Transcript in the console log? | First 60 characters | **Never**: length only |
 | Windows clipboard history / cloud sync | Keeps a copy | Each copy is marked "don't keep, don't sync" |
@@ -60,6 +60,12 @@ first model download.
 The window starts small (compact view) and stays on top of other windows:
 
 - The **round light** at the top left is **green while recording, red when not**.
+- The **small microphone level bar** stays visible in compact view. It shows the
+  captured input, before speech filtering: amber means low input, red means nearly
+  clipped input. The recording light stays green even during a silent pause.
+  No automatic gain is applied; Windows or microphone hardware may apply their own
+  processing before audio reaches the app. Very quiet or whispered speech needs
+  testing with your own microphone.
 - **F9**: hold to talk; release to stop. **Mouse forward (thumb) button**: press to start,
   press again to stop. These presses are swallowed, so your EMR never sees them.
 - **Ctrl+Alt+Q** from any app, or **Space** with the window focused: start/stop.
@@ -71,7 +77,7 @@ The window starts small (compact view) and stays on top of other windows:
   They only count when you pause around them (Whisper then punctuates them), so
   "a new line of therapy" stays as text. Turn off in Options.
 - **Numbered items:** "new line, 1 period, dry eyes…" → a new line starting "1. Dry eyes…".
-- **Type as you dictate** (Options, off by default): each finished ~20 s piece is pasted
+- **Type as you dictate** (Options, off by default): each finished ~30 s piece is pasted
   at your cursor while you keep talking, only into the window you started in (never into
   MyTranscribe, held if you click elsewhere), and the full text is on the clipboard when
   you stop.
@@ -83,10 +89,12 @@ The window starts small (compact view) and stays on top of other windows:
 - **⚙ Options**: change the key, the mouse button, hold-to-talk vs toggle, accuracy
   (Best = large-v3, Fast = large-v3-turbo; applies next start) and the start-up view.
   Saved in `%APPDATA%\MyTranscribe\settings.json` (bindings and view only, never text).
-- One recording can run up to an hour. Text is transcribed in ~20 s pieces while you
-  talk; after Stop only the last piece is left. On a GTX 1660 Ti with the default
-  large-v3: short notes ~1 s after Stop, 20-60 s dictations ~1.3-2.5 s
-  ([day findings](docs/overnight/2026-10-03-day-findings.md)).
+- One recording can run up to an hour. Longer speech uses ~30 s pieces for context;
+  a short recording is sent immediately when you stop, without waiting for 30 s.
+  On this GTX 1660 Ti, large-v3 finishing delay in the paced saved-voice trial was
+  typically ~1.0–1.5 s for short workflows and ~2.6 s for the three letters.
+  These exclude GUI/clipboard time and are observations, not latency guarantees
+  ([matched accuracy and timing report](docs/overnight/2026-10-04-asr-optimization.md)).
 
 **Auto-paste mode** (`set MYTRANSCRIBE_AUTOPASTE=1` in `run_1060.bat`): click into your
 EMR/Word field, press Ctrl+Alt+Q, dictate, press Ctrl+Alt+Q again. When transcription
@@ -100,7 +108,7 @@ remote/Citrix EMRs block simulated keystrokes; if so, paste with Ctrl+V yourself
 ## Medical vocabulary
 
 Whisper can only take a short hint (~220 tokens, about 150 words) before each piece of
-audio. The app builds that hint fresh for every ~20 s chunk:
+audio. The app builds that hint fresh for every ~30 s chunk:
 
 1. **Your style**: `src/prompts/medical_prompt.txt`, a short letter opening in your voice.
 2. **Topic terms** from `src/vocab/primary_care.txt`: about 1,100 terms in 19 topics
@@ -198,7 +206,7 @@ check with whoever handles privacy compliance for your practice.
 | "Could not load the speech model" on first run | No internet for the one-time download, or `HF_HUB_OFFLINE=1` set too early |
 | "Transcription is falling behind" warnings | Set `MYTRANSCRIBE_BEAM_SIZE=1`, or `MYTRANSCRIBE_MODEL=distil-large-v3.5` / `small.en` |
 | Auto-paste does nothing in the EMR | Remote/Citrix session blocking simulated keys: use Ctrl+V |
-| Words wrong at a ~20 s boundary | Report it: cuts are made at the quietest moment, but a long run-on sentence can still be split |
+| Words wrong at a ~30 s boundary | Report it: cuts are made at the quietest moment, but a long run-on sentence can still be split |
 
 ## Running the tests (developers)
 

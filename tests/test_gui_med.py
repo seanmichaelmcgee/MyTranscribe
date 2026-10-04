@@ -56,6 +56,47 @@ def finish(w, qapp, timeout=10):
     return wait_for(lambda: not w._finishing, timeout=timeout, app=qapp)
 
 
+def test_compact_meter_shows_capture_and_resets_on_stop(qapp, make_window):
+    from settings import Settings
+    w = make_window(settings=Settings(start_compact=True), mic_warmup_s=0)
+    w.show()
+    qapp.processEvents()
+    assert not w._text_area.isVisible()
+    assert w._mic_level.isVisible() and w._mic_level.value() == 0
+    w._on_start_clicked()
+    assert wait_for(lambda: w._mic_level.value() > 0, app=qapp)
+    assert w._mic_level.property("levelKind") == "signal"
+    assert w._rec_light.toolTip() == "Recording"  # independent activation signal
+    w._on_stop_clicked()
+    assert w._mic_level.value() == 0
+    assert "Not recording" in w._mic_level.toolTip()
+    assert finish(w, qapp)
+
+
+def test_meter_empty_signal_does_not_mean_recording_is_off(qapp, make_window):
+    w = make_window(stream=EndlessStream(np.zeros(16000, dtype=np.int16), pace_s=0.002),
+                    mic_warmup_s=0)
+    w._on_start_clicked()
+    assert wait_for(lambda: w._transcriber.captured_s > 0.1, app=qapp)
+    w._poll_tick()
+    assert w._mic_level.value() == 0 and w._mic_level.property("levelKind") == "low"
+    assert w._rec_light.toolTip() == "Recording"
+    w._on_stop_clicked()
+    assert finish(w, qapp)
+
+
+@pytest.mark.parametrize("rms,peak,expected,kind", [
+    (0, 0, 0, "low"), (0.001, 0.001, 0, "low"),
+    (0.002, 0.003, 10, "low"), (0.01, 0.02, 33, "signal"),
+    (0.1, 0.2, 67, "signal"), (0.1, 1.0, 67, "clipping"),
+    (1.0, 1.0, 100, "clipping"),
+])
+def test_meter_log_scale_and_peak_warning(rms, peak, expected, kind):
+    from chunked_transcriber import InputLevel
+    from gui_med import meter_display
+    assert meter_display(InputLevel(rms, peak)) == (expected, kind)
+
+
 def record_and_stop(w, qapp, via_hotkey=False, seconds=0.2):
     (w.on_hotkey if via_hotkey else w._on_start_clicked)()
     wait_for(lambda: False, timeout=seconds, app=qapp)

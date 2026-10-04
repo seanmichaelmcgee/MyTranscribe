@@ -5,7 +5,7 @@ Replaces transcriber_v12.RealTimeTranscriber in the 1060 edition. Differences:
 
   * Audio stays in RAM (numpy), never written to a temp WAV (PHI on disk).
   * Two threads per session:
-      capture thread  reads the mic, cuts the audio into ~20 s chunks at the
+      capture thread  reads the mic, cuts the audio into ~30 s chunks at the
                       quietest moment near the target length (so words are
                       not split), and queues them;
       worker thread   transcribes queued chunks in order.
@@ -18,12 +18,13 @@ Replaces transcriber_v12.RealTimeTranscriber in the 1060 edition. Differences:
 
 Audio format (CLAUDE.md: document chunk size/format/rate):
   capture: 16 kHz, mono, int16 (paInt16), FRAMES_PER_BUFFER = 1024 samples (64 ms)
-  chunks : float32 in [-1, 1], target CHUNK_TARGET_S = 20 s, cut point chosen
+  chunks : float32 in [-1, 1], target CHUNK_TARGET_S = 30 s, cut point chosen
            as the lowest-energy 30 ms frame within the last CUT_SEARCH_S = 5 s
   memory : 32 KB/s while buffered -> 1 h session = ~115 MB worst case
 """
 
 import logging
+import math
 import queue
 import re
 import threading
@@ -38,16 +39,15 @@ logger = logging.getLogger("chunked_transcriber")
 SAMPLE_RATE = 16000
 FRAMES_PER_BUFFER = 1024          # 64 ms per read
 BYTES_PER_SAMPLE = 2              # int16
-# 20 s, not Whisper's full 30 s window: after Stop only the unfinished chunk is
-# left, so the worst-case wait scales with chunk length. GTX 1660 Ti, large-v3
-# greedy (2026-10-03): Stop->text for 20-60 s dictations ~1.3-2.5 s (30 s chunks:
-# up to ~3-4 s), and letter accuracy no worse (WER 4.5 vs 5.0 %). Below 15 s,
-# accuracy drops and compute rises (each chunk still costs a 30 s encoder pass).
-CHUNK_TARGET_S = 20.0
+# Matched large-v3 beam-5 trials on 30 real recordings (2026-10-04): 30 s
+# improved letter WER 7.2 -> 4.0%, with identical short transcripts. Stop flushes
+# any shorter remainder immediately; this is not a minimum recording length.
+# Longer unfinished chunks can require more compute. See the optimization report.
+CHUNK_TARGET_S = 30.0
 CUT_SEARCH_S = 5.0                # look this far back for a pause to cut at
 CUT_FRAME_MS = 30                 # energy window for finding the pause
 MAX_SESSION_S = 60 * 60           # hard cap: 1 hour per recording
-LEVEL_THRESHOLD_RMS = 80          # int16 RMS; same as transcriber_v12 (catches whispers)
+LEVEL_THRESHOLD_RMS = 80          # int16 RMS; whispered speech still needs validation
 INDICATOR_HOLD_READS = 10         # keep level indicator lit ~640 ms after speech
 PROMPT_TAIL_CHARS = 200           # previous-chunk text fed forward as context
 MAX_CONSECUTIVE_READ_ERRORS = 50  # ~ mic unplugged -> end the session cleanly
@@ -78,6 +78,30 @@ def rms_int16(data: bytes) -> float:
     if a.size == 0:
         return 0.0
     return float(np.sqrt(np.mean(np.square(a.astype(np.float32)))))
+
+
+@dataclass(frozen=True)
+class InputLevel:
+    """Latest captured frame's normalized RMS and peak, before speech filtering.
+
+    The capture PCM is converted with the same scaling used for inference.
+    No application gain is applied. If gain is added, measure its output here.
+    This immutable snapshot contains no audio and can be read by the GUI.
+    """
+    rms: float = 0.0
+    peak: float = 0.0
+
+    @property
+    def dbfs(self) -> float:
+        return 20 * math.log10(self.rms) if self.rms > 0 else -math.inf
+
+
+def input_level(data: bytes) -> InputLevel:
+    samples = int16_bytes_to_float32(data)
+    if not samples.size:
+        return InputLevel()
+    return InputLevel(float(np.sqrt(np.mean(np.square(samples)))),
+                      float(np.max(np.abs(samples))))
 
 
 def find_cut_index(samples: np.ndarray, sample_rate: int = SAMPLE_RATE,
@@ -208,6 +232,7 @@ class ChunkedTranscriber:
         self.transcriptions: List[str] = []
         self.chunk_stats: List[ChunkStat] = []
         self.audio_detected = False
+        self.input_level = InputLevel()
         self.auto_stopped = False        # True if max_session_s or mic failure ended capture
         self.capture_error: Optional[str] = None
         self.long_mode = False
@@ -259,6 +284,9 @@ class ChunkedTranscriber:
         self._buffer = bytearray()
         self._captured_samples = 0
         self._queue = queue.Queue()
+        self.input_level = InputLevel()
+        self.audio_detected = False
+        self._indicator_hold = 0
         self._stopped.clear()
 
         self._stream, self._stream_owner = self._stream_factory()
@@ -288,6 +316,7 @@ class ChunkedTranscriber:
             self._buffer = bytearray()
         self._queue.put(None)            # sentinel: worker exits after draining
         self.audio_detected = False
+        self.input_level = InputLevel()
         self._indicator_hold = 0
         self._stopped.set()
 
@@ -401,7 +430,9 @@ class ChunkedTranscriber:
 
     # ── Internals ────────────────────────────────────────────────────────────
     def _update_level(self, data: bytes) -> None:
-        if rms_int16(data) > self.level_threshold_rms:
+        level = input_level(data)
+        self.input_level = level
+        if level.rms * 32768.0 > self.level_threshold_rms:
             self.audio_detected = True
             self._indicator_hold = INDICATOR_HOLD_READS
         elif self._indicator_hold > 0:

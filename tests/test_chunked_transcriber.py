@@ -33,6 +33,38 @@ def test_rms():
     assert rms_int16(np.full(100, 300, dtype=np.int16).tobytes()) == pytest.approx(300)
 
 
+def test_input_level_matches_inference_scaling_without_changing_pcm():
+    pcm = np.array([0, 16384, -32768, 32767], dtype=np.int16).tobytes()
+    before = pcm
+    samples = int16_bytes_to_float32(pcm)
+    level = ct.input_level(pcm)
+    assert level.rms == pytest.approx(np.sqrt(np.mean(samples ** 2)))
+    assert level.peak == 1.0  # negative int16 limit must not overflow abs()
+    assert level.dbfs == pytest.approx(20 * np.log10(level.rms))
+    assert pcm == before
+    assert ct.input_level(b"") == ct.InputLevel()
+    assert ct.input_level(bytes(2048)).dbfs == -np.inf
+
+
+def test_default_30_second_window_flushes_short_recording_on_stop():
+    audio = speech_like(2)
+    received = []
+    engine = FakeEngine(text_fn=lambda i, a: received.append(a.copy()) or "Short snippet.")
+    t = ChunkedTranscriber(engine, stream_factory=factory_for(ArrayStream(audio)))
+    assert t.chunk_target_s == 30.0
+    t.start_recording()
+    assert wait_for(lambda: not t.recording, timeout=2)
+    assert engine.calls == []  # the short remainder has not filled the window
+    assert t.input_level.peak > 0
+    started = time.perf_counter()
+    t.stop_recording()
+    assert t.wait_until_idle(timeout=2)
+    assert time.perf_counter() - started < 2
+    assert t.text == "Short snippet."
+    np.testing.assert_array_equal(received[0], audio.astype(np.float32) / 32768)
+    assert t.input_level == ct.InputLevel()
+
+
 def test_find_cut_lands_in_the_pause():
     a = speech_like(30, gaps=[(27.0, 27.4)]).astype(np.float32)
     cut = find_cut_index(a, search_s=5)
