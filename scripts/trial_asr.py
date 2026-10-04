@@ -67,12 +67,15 @@ def main(argv=None):
     ap.add_argument("--only")
     ap.add_argument("--device", choices=("cuda", "cpu"), default="cuda")
     ap.add_argument("--precision", choices=("float32", "float16"), default="float32")
+    ap.add_argument("--medasr-format", choices=("none", "native-v1"), default="none")
     ap.add_argument("--model-path", type=Path, default=ROOT / "models_medasr" / MODEL_REVISION)
     ap.add_argument("--realtime", action="store_true")
     ap.add_argument("--repeats", type=int, default=1)
     args = ap.parse_args(argv)
     if args.repeats < 1 or args.repeats > 10:
         ap.error("--repeats must be 1..10")
+    if args.engine != "medasr" and args.medasr_format != "none":
+        ap.error("--medasr-format applies only to MedASR")
     out = local_result_path(args.out)
     entries, corpus_hash = load_corpus(args.manifest, args.only)
     os.environ["HF_HUB_OFFLINE"] = "1"
@@ -89,10 +92,15 @@ def main(argv=None):
         from medasr_engine import MedASREngine
         engine = MedASREngine(args.model_path, args.device, args.precision)
         config = dict(model="google/medasr", revision=MODEL_REVISION, precision=args.precision,
-                      device=args.device, decoding="greedy CTC", gpu=engine.gpu_name)
+                      device=args.device, decoding="greedy CTC", gpu=engine.gpu_name,
+                      format_mode=args.medasr_format)
         builder = None
         base_prompt = ""
         _, post = build_text_pipeline(style, env={}, correction_files=[BUNDLED_CORRECTIONS])
+        if args.medasr_format == "native-v1":
+            from medasr_native_format import postprocess_native
+            shared_post = post
+            post = lambda text: postprocess_native(text, shared_post)
     else:
         from fw_engine import FasterWhisperEngine, register_cuda_dll_dirs
         from hw_profile import EngineConfig

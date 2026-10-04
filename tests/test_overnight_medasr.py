@@ -364,6 +364,18 @@ def test_dry_run_no_files_models_or_subprocesses(tmp_path, monkeypatch, capsys):
     assert list(tmp_path.iterdir()) == []
 
 
+def test_native_format_matrix_is_separate_and_does_not_repeat_failed_float16(tmp_path):
+    runner, _ = setup_runner(tmp_path)
+    jobs = overnight.build_jobs(native_format=True)
+    assert len(jobs) == 14
+    assert not any(job.precision == 'float16' for job in jobs)
+    for job in jobs:
+        command = overnight.command_for(job, runner.config)
+        assert ('--medasr-format' in command) == (job.engine == 'medasr')
+        if job.engine == 'medasr':
+            assert command[command.index('--medasr-format') + 1] == 'native-v1'
+
+
 def test_output_validation_refuses_partial_or_wrong_configuration(tmp_path):
     job = overnight.build_jobs()[1]
     frozen = dict(source={"scripts/overnight_medasr.py": "runner", "trial": "hash"}, corpus={"real": "corpus"})

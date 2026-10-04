@@ -6,7 +6,7 @@ starting subprocesses. Results and logs stay in ignored results_medasr.
 from __future__ import annotations
 
 import argparse
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 import json
 import math
@@ -75,15 +75,16 @@ class Job:
     realtime: bool = False
     repeats: int = 1
     dependencies: tuple[str, ...] = ()
+    native_format: bool = False
 
     @property
     def gpu(self) -> bool:
         return self.engine is not None
 
 
-def build_jobs() -> list[Job]:
+def build_jobs(native_format: bool = False) -> list[Job]:
     """One finite pass, with each score immediately after its prerequisites."""
-    return [
+    jobs = [
         Job("whisper_real", "real", "real_offline", "whisper"),
         Job("medasr_real", "real", "real_offline", "medasr"),
         Job("paired_real_scores", "real", "real_scores",
@@ -107,6 +108,12 @@ def build_jobs() -> list[Job]:
         Job("stability_scores", "real", "stability_scores",
             dependencies=("medasr_real_stability5",)),
     ]
+    if native_format:
+        # Float16 has already failed numerically here. This experiment changes
+        # formatting only, with a fresh paired baseline under the new source.
+        jobs = [replace(job, native_format=job.engine == "medasr") for job in jobs
+                if job.phase not in ("precision", "precision_scores")]
+    return jobs
 
 
 @dataclass(frozen=True)
@@ -120,6 +127,7 @@ class Config:
     poll_seconds: float = 5.0
     thermal_seconds: float = 60.0
     gpu_monitor: bool = True
+    native_format: bool = False
 
     def python(self, medasr: bool = False) -> Path:
         return self.root / ("venvmedasr" if medasr else "venv1060") / "Scripts" / "python.exe"
@@ -135,6 +143,8 @@ def command_for(job: Job, config: Config) -> list[str]:
                     "--repeats", str(job.repeats)]
         if job.engine == "medasr":
             command += ["--model-path", str(config.model_path)]
+            if job.native_format:
+                command += ["--medasr-format", "native-v1"]
         if job.realtime:
             command.append("--realtime")
     else:
@@ -192,6 +202,8 @@ def validate_output(job: Job, path: Path, frozen: dict, entries: list[dict],
                         precision=job.precision, decoding="greedy CTC")
         if result.get("model_integrity") != model:
             raise ValueError("Model integrity provenance mismatch")
+        if actual_config.get("format_mode", "none") != ("native-v1" if job.native_format else "none"):
+            raise ValueError("Native-format configuration mismatch")
     else:
         expected = dict(model="large-v3", compute="int8_float32", beam=5, patience=2.0)
     if any(actual_config.get(k) != v for k, v in expected.items()):
@@ -338,7 +350,7 @@ class Runner:
                  validator: Callable = validate_output,
                  wall_clock: Callable[[], float] = time.time):
         self.config, self.resume, self.clock = config, resume, clock
-        self.jobs = build_jobs()
+        self.jobs = build_jobs(config.native_format)
         self.executor_factory, self.fingerprint_fn = executor_factory, fingerprint_fn
         self.verifier, self.validator = verifier, validator
         self.wall_clock = wall_clock
@@ -521,6 +533,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--thermal-seconds", type=float, default=60.0,
                         help="sustained temperature above 85 C stops new GPU jobs")
     parser.add_argument("--no-gpu-monitor", action="store_true")
+    parser.add_argument("--native-format", action="store_true",
+                        help="separate float32 native-marker matrix; excludes failed float16 precision")
     group = parser.add_mutually_exclusive_group()
     group.add_argument("--out", type=Path)
     group.add_argument("--resume", type=Path)
@@ -543,10 +557,10 @@ def main(argv: list[str] | None = None) -> int:
                     dict(real=args.real_manifest.resolve(), snippets=args.snippets_manifest.resolve(),
                          testdict=args.testdict_manifest.resolve()), args.model_path.resolve(),
                     args.hours, args.task_timeout, args.poll_seconds, args.thermal_seconds,
-                    not args.no_gpu_monitor)
+                    not args.no_gpu_monitor, args.native_format)
     if args.dry_run:
         print("Finite sequential matrix; real30, snippets60 and testdict40 remain separate.")
-        for job in build_jobs():
+        for job in build_jobs(config.native_format):
             print(f"{job.name}: dependencies={','.join(job.dependencies) or 'none'}")
             print(subprocess.list2cmdline(command_for(job, config)))
         return 0

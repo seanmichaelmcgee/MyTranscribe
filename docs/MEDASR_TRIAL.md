@@ -82,6 +82,23 @@ before adopting it. Float32 is the initial GPU trial; `--precision float16` is a
 optional paired rerun. CPU must be selected explicitly; GPU fallback cannot quietly
 produce mislabeled CUDA results.
 
+The observed float16 configuration on this GTX 1660 Ti produces nonfinite logits
+and blank text; retain float32. The adapter now validates generated logits and
+raises an explicit error rather than accepting NaN/Inf argmax output as a decode.
+
+An optional downstream formatting experiment uses `--medasr-format native-v1`.
+It interprets only the five exact initial markers: `{newline}`, `{new paragraph}`,
+`{open quote}`, `{close quote}` and `{period}`. Explicit number-plus-period commands
+at a native line boundary become numbered items. Unknown markers are preserved
+and protected from spelling guesses. Raw output remains unchanged in the record.
+This policy is opt-in, applies only to the isolated MedASR replay, and has its own
+source fingerprint. It does not infer layout where the model omitted a command.
+
+[Google's discussion of brace tokens](https://discuss.ai.google.dev/t/116107/4)
+describes them as explicitly spoken commands and documents varied training forms.
+Our five-marker policy is an application choice, not a complete or guaranteed
+supported-command list.
+
 ## Bounded overnight runner
 
 The [overnight plan](overnight/2026-10-03-medasr-overnight-plan.md) defines the
@@ -113,6 +130,18 @@ artifact checks. Changed source or stale artifacts require a fresh run directory
 do not delete the prior measurements. For tonight, no fresh run may extend beyond
 03:45 Halifax on 4 October. Use a shorter `--hours` budget if starting late.
 Keep the computer and Codex app running for the scheduled checks in this chat.
+
+After preserving the initial matrix, a separate fresh-source float32 matrix can
+test the formatter with paired Whisper, paced delay, synthetic and stability runs.
+It excludes the already-failed float16 experiment:
+
+```powershell
+.\venv1060\Scripts\python.exe scripts\overnight_medasr.py --native-format --hours 5.3 --out results_medasr\overnight_native_20261003
+```
+
+The 5.3-hour budget above applies to this night's approximately 22:20 start; shorten
+it for a later start to respect the 03:45 Halifax cutoff. Never resume the old
+unadapted matrix after source changes; its completed results remain archived.
 
 For synthetic cross-checks substitute `results_1060\snippets\manifest.json` or
 `results_1060\testdict\manifest.json`. Report each separately: synthetic snippets

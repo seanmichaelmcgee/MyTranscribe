@@ -11,6 +11,13 @@ from pathlib import Path
 import numpy as np
 
 
+def checked_ctc_sequences(output, isfinite):
+    """NaN/Inf logits can argmax to blanks; never report that as a successful decode."""
+    if not isfinite(output.logits).all():
+        raise RuntimeError("MedASR produced nonfinite logits; reject this precision/runtime configuration")
+    return output.sequences
+
+
 class MedASREngine:
     def __init__(self, model_path: Path, device: str = "cuda", precision: str = "float32"):
         if device not in ("cuda", "cpu") or precision not in ("float32", "float16"):
@@ -48,7 +55,8 @@ class MedASREngine:
         inputs = {k: v.to(device=self.device, dtype=self.model_dtype) if v.is_floating_point()
                   else v.to(self.device) for k, v in inputs.items()}
         with self.torch.inference_mode():
-            tokens = self.model.generate(**inputs)
+            output = self.model.generate(**inputs, return_dict_in_generate=True)
+            tokens = checked_ctc_sequences(output, self.torch.isfinite)
         return self.processor.batch_decode(tokens, skip_special_tokens=True)[0].strip()
 
     def synchronize(self):

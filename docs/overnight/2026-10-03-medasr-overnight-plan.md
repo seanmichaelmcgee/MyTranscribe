@@ -38,6 +38,18 @@ recovery checkpoint, `mytranscribe-five-hour-recovery`, is scheduled around 02:4
 Halifax to recover work after a Codex usage-window interruption. Inspect both
 automation states before creating more checks; pause them after all work is done.
 
+The initial 16-task matrix completed at 22:13 with no thermal stop. Its float16
+process completed, but scored 100% WER because of nonfinite logits; reject that
+configuration. The source has since changed for the explicit numerical guard and
+opt-in five-marker formatting bridge. Do not resume the archived initial run.
+The next active output directory is `results_medasr/overnight_native_20261003`,
+with launch information in `results_medasr/overnight_native_launch.json`. Use
+`--native-format --hours 5.3` when inspecting/resuming this new 14-task matrix;
+its original deadline must still be preserved. Read its status before launching
+anything else. When it completes, update the paired native-format report and
+recommend the working engine based on accuracy and speed, then pause the monitors
+if all scoped work is complete. This run excludes the failed float16 configuration.
+
 All measurements use the pinned official safetensors snapshot and verify its
 integrity before GPU work. Source and corpus fingerprints prevent stale runs from
 being resumed or scored as current. A timed-out child may be terminated with its
