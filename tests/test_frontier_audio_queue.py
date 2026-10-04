@@ -79,7 +79,10 @@ class DurableQueueTests(unittest.TestCase):
         with self.queue.db:
             self.queue.db.execute('UPDATE jobs SET model=? WHERE id=?',('different-model',row['id']))
         def forbidden(*args):raise AssertionError('Wrong configuration submitted')
-        self.assertEqual(self.queue.once(forbidden,{'OPENAI_API_KEY':'test-only'})['state'],'failed')
+        self.assertEqual(self.queue.once(forbidden,{'OPENAI_API_KEY':'test-only'})['state'],'idle')
+        with self.assertRaises(ValueError):
+            self.queue.once(forbidden,{'OPENAI_API_KEY':'test-only'},job_id=row['id'])
+        self.assertEqual(self.queue.statuses()[0]['state'],'queued')
 
     def test_upload_identity_mismatch_stays_uncertain(self):
         self.queue.enqueue(self.audio,True)
@@ -114,5 +117,30 @@ class DurableQueueTests(unittest.TestCase):
     def test_redirect_never_carries_auth_to_another_host(self):
         with self.assertRaises(module.urllib.error.URLError):
             module.NoRedirects().redirect_request(None,None,None,None,None,None)
+
+    def test_selected_headset_job_skips_older_audio_and_never_resubmits(self):
+        older=self.queue.enqueue(self.audio,True)
+        headset=self.root/'headset.wav'
+        with wave.open(str(headset),'wb') as w:
+            w.setnchannels(1);w.setsampwidth(2);w.setframerate(16000);w.writeframes(b'\x01\x00'*1600)
+        chosen=self.queue.enqueue(headset,True);calls=[]
+        def fake(path,*args):
+            calls.append(module.sha256(path))
+            return dict(response=dict(text='Independent headset transcript'))
+        self.assertEqual(self.queue.once(fake,{'OPENAI_API_KEY':'test-only'},job_id=chosen['id'])['state'],'complete')
+        self.assertEqual(self.queue.once(fake,{'OPENAI_API_KEY':'test-only'},job_id=chosen['id'])['state'],'complete')
+        self.assertEqual(calls,[chosen['audio_sha']])
+        historical=next(r for r in self.queue.statuses() if r['id']==older['id'])
+        self.assertEqual((historical['state'],historical['attempts']),('queued',0))
+
+    def test_selected_missing_auth_does_not_change_other_jobs(self):
+        first=self.queue.enqueue(self.audio,True)
+        other=self.root/'other.wav';other.write_bytes(self.audio.read_bytes()+b'\x00\x00')
+        second=self.queue.enqueue(other,True)
+        self.assertEqual(self.queue.once(env={},job_id=second['id'])['state'],'blocked_auth')
+        preserved=next(r for r in self.queue.statuses() if r['id']==first['id'])
+        self.assertEqual(preserved['state'],'queued')
+        with self.assertRaises(ValueError):self.queue.once(env={},job_id='invalid')
+        with self.assertRaises(ValueError):self.queue.once(env={},job_id='0'*64)
 
 if __name__=='__main__':unittest.main()

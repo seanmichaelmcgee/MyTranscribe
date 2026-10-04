@@ -87,3 +87,66 @@ The first curriculum contains the saved normal/whisper headset pair and the user
 accepted spelling. Its medication inventory and lesson packet are kept in the
 local folder, with unresolved names labeled pending clarification. This setup
 does not install a scheduler or background trainer.
+
+## Separating recognition errors from unclear recordings
+
+Keep a clear reading and an ordinary fast or mumbled reading of the same short
+fictional script, using the headset at the same position. Keep the original PCM.
+The operator confirms actual spoken wording and any skips; the displayed script
+is only intended wording until that confirmation. Record fast/mumbled delivery
+separately from whispered speech. All paired readings belong to the same split.
+
+Run the frozen local Whisper control before changing prompts, vocabulary or
+decoding. Preserve raw recognition against spoken wording and formatted output
+against the written reference. Review drug identity, dose, unit, frequency,
+negation and paragraph commands separately from aggregate word error rate.
+Level, clipping, silence and decoder confidence are diagnostic measurements;
+none alone measures intelligibility or certifies a correct word.
+
+An independent audio recognizer must hear the same original recording without
+the reference, local transcript or a request to repair those words. The existing
+`scripts/frontier_audio_queue.py` supports a blind OpenAI file-transcription
+comparison. Only explicitly identified fictional development audio is eligible.
+Use the existing queue and a selected job to skip historical phone audio:
+
+```text
+venv1060\Scripts\python.exe scripts\frontier_audio_queue.py --root <existing-queue> run --execute --id <saved-headset-job-id> --max-jobs 1
+```
+
+Missing authentication leaves the selected job waiting without uploading. A
+completed selected job is never submitted again. An uncertain paid request
+requires an explicit retry, and the original response remains immutable.
+
+The optional `scripts/openrouter_audio_queue.py` uses OpenRouter's dedicated
+audio transcription endpoint and a fixed `google/gemini-3.5-transcribe` model.
+It shares the existing durable queue, but distinguishes jobs by model/protocol,
+requires one selected identity, and uses only `OPENROUTER_API_KEY`. It does not
+send the expected script, local transcript, vocabulary hints or clinical values.
+The model is an independent comparator; its superiority on these recordings
+has not been established. The saved result retains its usage and audio identity.
+Protocol verified against [OpenRouter's transcription API](https://openrouter.ai/docs/api/api-reference/stt/create-transcription)
+and [model documentation](https://openrouter.ai/google/gemini-3.5-transcribe) on
+2026-10-04. The provider alias does not establish immutable model weights.
+
+On Windows, run `scripts/openrouter_secret.ps1` to enter a key in a hidden prompt.
+It saves a DPAPI-encrypted secret under the ignored personal curriculum folder,
+bound to the current Windows account. It never receives a key as an argument or
+prints it. `-Action Status` checks existence without revealing it. A later
+`-Action Run -JobId <saved-headset-job-id>` decrypts it only for the selected
+comparison process and restores the parent environment afterward. Saving the
+key makes no network request. Never paste a key into chat or commit it.
+
+If the independent recognizer recovers a confirmed word that local Whisper
+misses, the information was recoverable by at least one recognizer. If both miss
+it, the cause remains unresolved: it may be acoustic ambiguity, shared model
+limitations or a mismatch between intended and actually spoken words. Human
+listening adjudicates the disputed passage; record uncertain spans rather than
+turning a model consensus into training truth. An unclear fast passage that is
+recoverable in the matched clear reading suggests a delivery or capture issue,
+but does not prove which microphone or processing stage caused it.
+
+Use human-reviewed spoken references as ground truth. Treat stronger recognizers
+as comparators, not a guaranteed accuracy ceiling. Keep ambiguous passages out
+of adaptation targets until adjudicated, and preserve new recordings for held-out
+evaluation. Change one adaptation at a time and retain the baseline and older
+headset regression cases.

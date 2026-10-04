@@ -10,6 +10,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import sqlite3
 import ssl
@@ -68,7 +69,8 @@ def remote(file_path, key, ca_bundle=None):
            model_snapshot_known=False)
 
 class Queue:
-    def __init__(self,folder=DEFAULT_ROOT):
+    def __init__(self,folder=DEFAULT_ROOT,*,model=MODEL,protocol=PROTOCOL):
+        self.model,self.protocol=model,protocol
         self.folder=local_result_path(Path(folder));self.folder.mkdir(parents=True,exist_ok=True)
         self.db=sqlite3.connect(self.folder/'queue.sqlite',timeout=15)
         self.db.row_factory=sqlite3.Row
@@ -92,7 +94,7 @@ class Queue:
             raise ValueError('Supported local development audio required')
         if not 0<source.stat().st_size<=MAX_BYTES:raise ValueError('Audio size limit')
         digest=sha256(source)
-        identifier=hashlib.sha256((digest+'|'+MODEL+'|'+PROTOCOL).encode()).hexdigest()
+        identifier=hashlib.sha256((digest+'|'+self.model+'|'+self.protocol).encode()).hexdigest()
         existing=self.db.execute('SELECT * FROM jobs WHERE id=?',(identifier,)).fetchone()
         if existing:return dict(existing)
         copied=self.folder/'audio'/(identifier+source.suffix.lower());copied.parent.mkdir(exist_ok=True)
@@ -106,7 +108,7 @@ class Queue:
         stamp=utc()
         with self.db:
             self.db.execute('INSERT OR IGNORE INTO jobs(id,audio_sha,suffix,model,protocol,state,created,updated) VALUES(?,?,?,?,?,?,?,?)',
-                (identifier,digest,source.suffix.lower(),MODEL,PROTOCOL,'queued',stamp,stamp))
+                (identifier,digest,source.suffix.lower(),self.model,self.protocol,'queued',stamp,stamp))
         return dict(self.db.execute('SELECT * FROM jobs WHERE id=?',(identifier,)).fetchone())
 
     def statuses(self):
@@ -126,8 +128,14 @@ class Queue:
         text=payload.get('remote',{}).get('response',{}).get('text')
         if not isinstance(text,str) or not text.strip():raise ValueError('Invalid saved transcript')
 
-    def once(self,transport=remote,env=None,ca_bundle=None):
+    def once(self,transport=None,env=None,ca_bundle=None,job_id=None):
         env=os.environ if env is None else env
+        if transport is None:
+            if (self.model,self.protocol)!=(MODEL,PROTOCOL):
+                raise ValueError('A different provider requires its explicit transport')
+            transport=remote
+        if job_id is not None and not re.fullmatch(r'[0-9a-f]{64}',job_id):
+            raise ValueError('Invalid selected job identity')
         with RunLock(self.folder/'.worker.lock'):
             # A process crash can leave an uncertain paid request. Never silently
             # resubmit it. A saved response can safely finish local bookkeeping.
@@ -140,14 +148,25 @@ class Queue:
                         self._update(row['id'],'uncertain','saved response invalid; review required')
                     else:self._update(row['id'],'complete','recovered saved result',sha256(saved))
                 else:self._update(row['id'],'uncertain','interrupted request; explicit retry required')
-            row=self.db.execute("SELECT * FROM jobs WHERE state IN ('queued','blocked_auth') ORDER BY created,id LIMIT 1").fetchone()
+            if job_id is None:
+                row=self.db.execute("SELECT * FROM jobs WHERE state IN ('queued','blocked_auth') AND model=? AND protocol=? ORDER BY created,id LIMIT 1",(self.model,self.protocol)).fetchone()
+            else:
+                row=self.db.execute('SELECT * FROM jobs WHERE id=?',(job_id,)).fetchone()
+                if row is None:raise ValueError('Selected job does not exist')
+                if row['model']!=self.model or row['protocol']!=self.protocol:
+                    raise ValueError('Selected job belongs to another model/protocol; unchanged')
+                if row['state'] not in ('queued','blocked_auth'):
+                    return dict(id=row['id'],state=row['state'])
             if row is None:return dict(state='idle')
-            if row['model']!=MODEL or row['protocol']!=PROTOCOL:
+            if row['model']!=self.model or row['protocol']!=self.protocol:
+                if job_id is not None:
+                    raise ValueError('Selected job belongs to another model/protocol; unchanged')
                 self._update(row['id'],'failed','queued model/protocol differs from configured transport; review required')
                 return dict(id=row['id'],state='failed')
             key=env.get('OPENAI_API_KEY')
             if not key:
-                for pending in self.db.execute("SELECT id FROM jobs WHERE state IN ('queued','blocked_auth')").fetchall():
+                pending_rows=([row] if job_id is not None else self.db.execute("SELECT id FROM jobs WHERE state IN ('queued','blocked_auth') AND model=? AND protocol=?",(self.model,self.protocol)).fetchall())
+                for pending in pending_rows:
                     self._update(pending['id'],'blocked_auth','missing configured API key')
                 return dict(id=row['id'],state='blocked_auth')
             if row['attempts']>=3:
@@ -167,7 +186,7 @@ class Queue:
                     raise ValueError('Uploaded audio fingerprint differs from queued input')
                 saved=self.folder/'results'/(row['id']+'.json')
                 if saved.exists():raise ValueError('Refusing to overwrite result')
-                write_json(saved,dict(schema=PROTOCOL,audio_sha256=row['audio_sha'],requested_model=row['model'],
+                write_json(saved,dict(schema=row['protocol'],audio_sha256=row['audio_sha'],requested_model=row['model'],
                      returned_at_utc=utc(),prototype_sha256=sha256(Path(__file__)),remote=response,
                      note='Independent remote comparator, not human-certified ground truth. No expected wording was supplied.'))
                 self._update(row['id'],'complete',result_sha=sha256(saved))
@@ -195,6 +214,7 @@ def main():
     commands.add_parser('status')
     run=commands.add_parser('run');run.add_argument('--execute',action='store_true');run.add_argument('--ca-bundle',type=Path)
     run.add_argument('--max-jobs',type=int,default=1)
+    run.add_argument('--id',dest='job_id',help='Only this saved job; leave historical queued audio untouched')
     retry=commands.add_parser('retry');retry.add_argument('id');retry.add_argument('--accept-possible-duplicate',action='store_true')
     args=parser.parse_args();queue=Queue(args.root)
     try:
@@ -206,8 +226,9 @@ def main():
         else:
             if not args.execute:raise ValueError('Upload execution must be explicitly selected')
             if not 1<=args.max_jobs<=10:raise ValueError('Bounded 1..10 jobs per run required')
+            if args.job_id and args.max_jobs!=1:raise ValueError('A selected job requires --max-jobs 1')
             for _ in range(args.max_jobs):
-                status=queue.once(ca_bundle=args.ca_bundle);print(json.dumps(status))
+                status=queue.once(ca_bundle=args.ca_bundle,job_id=args.job_id);print(json.dumps(status))
                 if status['state']!='complete':break
     finally:queue.close()
 
