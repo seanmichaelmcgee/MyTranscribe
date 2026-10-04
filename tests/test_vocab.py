@@ -123,6 +123,31 @@ def test_tiny_budget_gives_no_vocabulary_but_valid_prompt():
     assert b("") == "Style text here."
 
 
+@pytest.mark.parametrize("context", ["", "metformin and sugar remain unchanged"])
+def test_long_personal_style_fits_budget_and_preserves_recent_context(context):
+    lex = parse_lexicon_text(SAMPLE)
+    style = "old style example " * 100 + "important clinical terms"
+    counter = words(1)
+    b = PromptBuilder(style, lex, count=counter, budget=18)
+    prompt = b(context)
+    assert counter(prompt) <= 18
+    assert "important clinical terms" in prompt
+    assert not context or prompt.endswith(context)
+
+
+def test_dense_single_word_style_does_not_split_a_medical_word():
+    b = PromptBuilder("dysdiadochokinesia", parse_lexicon_text(SAMPLE),
+                      count=lambda text: len(text), budget=10)
+    assert b("") == ""
+
+
+def test_overbudget_context_keeps_recent_whole_words():
+    b = PromptBuilder("Style example", parse_lexicon_text(SAMPLE), count=words(1), budget=4)
+    prompt = b("old context more words recent dictated clinical findings")
+    assert words(1)(prompt) <= 4
+    assert prompt.endswith("dictated clinical findings")
+
+
 def test_pipeline_switches():
     b, c = build_text_pipeline("Style.", env={"MYTRANSCRIBE_VOCAB": "off", "MYTRANSCRIBE_AUTOCORRECT": "off"})
     assert b is None and c is None

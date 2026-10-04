@@ -69,8 +69,20 @@ def test_output_capped_by_audio_length_and_window():
     assert eng.max_new_tokens(30.0, None) == 30 * 10 + 24
     long_prompt = "word " * 600                                             # ~215-token prompt or more
     cap = eng.max_new_tokens(30.0, long_prompt)
-    assert cap + eng.count_tokens(long_prompt) + 5 <= fw_engine.WHISPER_MAX_LENGTH or cap == fw_engine.MIN_NEW_TOKENS
+    retained = min(eng.count_tokens(long_prompt), fw_engine.WHISPER_PROMPT_TOKEN_LIMIT)
+    assert cap + retained + 5 <= fw_engine.WHISPER_MAX_LENGTH
+    assert cap > fw_engine.MIN_NEW_TOKENS  # discarded prompt must not starve letter output
     assert eng.max_new_tokens(0.2, None) == fw_engine.MIN_NEW_TOKENS + 2
+
+
+def test_long_prompt_cap_counts_only_the_tokens_whisper_retains():
+    eng = FasterWhisperEngine(CUDA_CFG, model_factory=FakeWhisperModel)
+    eng.count_tokens = lambda text: 490
+    eng.transcribe(np.zeros(30 * 16000, dtype=np.float32), prompt="Dense clinical style.")
+    kwargs = eng.model.calls[-1][1]
+    assert kwargs["max_new_tokens"] == 220
+    assert kwargs["max_new_tokens"] + 223 + 5 == fw_engine.WHISPER_MAX_LENGTH
+    assert kwargs["language"] == "en" and kwargs["initial_prompt"] == "Dense clinical style."
 
 
 def test_default_beam_search_with_patience():

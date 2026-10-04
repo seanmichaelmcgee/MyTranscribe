@@ -9,7 +9,7 @@ never fit. Instead, for every ~30 s chunk we build a fresh prompt:
 
 Topics come from vocab/primary_care.txt (plus any files you add via
 $MYTRANSCRIBE_VOCAB_FILES). A topic switches on when its trigger words or its
-terms appear in the recent transcript; "core" is always on. Terms already in
+terms appear in the recent transcript; core terms accompany a known topic. Terms already in
 the recent transcript are skipped (they're in the prompt anyway), and the
 selection rotates chunk to chunk so a long letter on one topic cycles through
 that topic's whole list.
@@ -21,6 +21,8 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, Dict, Iterable, List, Optional, Tuple
+
+from prompt_loader import fit_text_budget
 
 logger = logging.getLogger("vocab")
 
@@ -230,7 +232,13 @@ class PromptBuilder:
                 tail = tail[space + 1:]
         recent = context[-CONTEXT_SCAN_CHARS:].lower() if context else ""
 
-        fixed = " ".join(p for p in (self.style, tail) if p)
+        # A personal style example can be token-dense even within the loader's
+        # character limit. Preserve recent context first, then fit the style's
+        # suffix using the exact combined token count. Normal prompts stay intact.
+        tail = fit_text_budget(tail, self.count, self.budget)
+        combine = lambda style: " ".join(p for p in (style, tail) if p)
+        style = fit_text_budget(self.style, lambda value: self.count(combine(value)), self.budget)
+        fixed = combine(style)
         remaining = self.budget - self.count(fixed + " Vocabulary: .") - 2
         topics = self._pick_topics(context)
         self.last_topics = topics
@@ -257,7 +265,9 @@ class PromptBuilder:
                     continue
                 term = q.pop(0)
                 cost = self.count(", " + term.text)
-                if cost <= remaining:
+                proposed_vocab = "Vocabulary: " + ", ".join(chosen + [term.text]) + "."
+                proposed = " ".join(p for p in (style, proposed_vocab, tail) if p)
+                if cost <= remaining and self.count(proposed) <= self.budget:
                     chosen.append(term.text)
                     remaining -= cost
                     used[name] += 1
@@ -268,7 +278,7 @@ class PromptBuilder:
             self._rotation[name] = self._rotation.get(name, 0) + n
 
         vocab = ("Vocabulary: " + ", ".join(chosen) + ".") if chosen else ""
-        prompt = " ".join(p for p in (self.style, vocab, tail) if p)
+        prompt = " ".join(p for p in (style, vocab, tail) if p)
         return prompt
 
 

@@ -13,7 +13,7 @@ quality and finishing delay determine whether extra computation is worthwhile.
 | Medical vocabulary and ordinary words | Large-v3, 30-second chunks: 4.7% overall / 3.1% medical error on 30 saved fictional voice recordings. | New independent recordings; reused calibration scores do not prove general clinical accuracy. |
 | Numbers, negation, formatting | Current calibration: no numeric-token flags, one negation flag, 30/30 format and list-number checks. | Review clinical meaning on new examples; token/count checks are incomplete semantic evidence. |
 | Fast brief instructions | Short recordings flush immediately; paced replay medians approximately 1.0–1.5 seconds after Stop. | Measure interactive start/stop/copy/paste latency and test search settings without sacrificing critical words. |
-| Longer paragraph letters | Three recorded letters improved from 7.2% to 4.0% WER with 30-second cuts. | More 30–60-second paragraphs and individualized style examples, evaluated on held-out material. |
+| Longer paragraph letters | Three recorded letters improved from 7.2% to 4.0% WER with 30-second cuts. Dense personal prompts now respect the token budget and no longer count discarded prompt tokens against output. | More 30–60-second paragraphs and individualized style examples, evaluated on held-out material. |
 | Quiet and whispered speech | Compact meter reports captured RMS/peak; application gain is unchanged. | Paired real normal/whisper recordings, device comparisons and silence/VAD sensitivity tests before adding gain. |
 | Clear, simple controls | F9 hold, mouse forward toggle, visible recording light and compact level bar; UI tests and rendered checks. | User's interactive check with their microphone and target applications. |
 | Local, inspectable operation | Production launcher forces offline model access. Audio capture stays in memory; results/models/environments are ignored. Experimental decoders remain outside the app. | Retain these properties through future changes; full host security is not established by unit tests. |
@@ -48,3 +48,9 @@ Changing beam size can occur between recordings on the same loaded model.
 Changing precision is a model-load operation; automatic switching would incur
 loading latency or require separately resident models and a measured memory budget.
 No automatic precision switch has been added.
+
+The [personal prompt budget fix](overnight/2026-10-04-prompt-budget.md) closes a
+verified long-style output truncation bug. All 425 tests pass; a fresh changed-source
+replay preserves every raw/cleaned transcript and raw chunk across the 30 saved
+recordings. The current calibration remains 4.7% overall / 3.1% medical error.
+The dense-prompt diagnostic demonstrates the output limit, not clinical accuracy.

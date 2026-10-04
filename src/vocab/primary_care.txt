@@ -7,7 +7,7 @@
 # - A "(Brand)" after a term adds the brand name as its own term.
 # - Categories: drug, dx (diagnosis/finding), lab, test (imaging/procedure/screening),
 #   vax (vaccine), abbr (abbreviation), other.
-# - Topic "core" is always active. Other topics switch on when their trigger
+# - Core terms accompany a known topic. Other topics switch on when their trigger
 #   words (or any of their terms) appear in what you've just dictated.
 # - Spellings: US/Canadian. Both "albuterol" (US) and "salbutamol" (Canada/UK)
 #   are listed so either is recognised.

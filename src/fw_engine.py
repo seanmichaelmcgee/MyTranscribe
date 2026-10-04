@@ -47,6 +47,7 @@ DEFAULT_PATIENCE = 2.0
 MAX_TOKENS_PER_SECOND = 10
 MIN_NEW_TOKENS = 24
 WHISPER_MAX_LENGTH = 448          # decoder window: prompt + special tokens + output
+WHISPER_PROMPT_TOKEN_LIMIT = WHISPER_MAX_LENGTH // 2 - 1  # faster-whisper's retained suffix
 VAD_PARAMETERS = {
     # Dictation has short thinking pauses; keep them inside one segment.
     "min_silence_duration_ms": 700,
@@ -182,7 +183,10 @@ class FasterWhisperEngine:
 
     def max_new_tokens(self, audio_s: float, prompt: Optional[str]) -> int:
         """Output cap for one chunk: proportional to its length, within the decoder window."""
-        prompt_tokens = self.count_tokens(prompt) + 1 if prompt else 0      # + <|startofprev|>
+        # faster-whisper discards prompt tokens beyond its 223-token suffix.
+        # Counting the discarded text could wrongly shrink the output cap to 24
+        # and truncate a letter when a long personal style file is supplied.
+        prompt_tokens = min(self.count_tokens(prompt), WHISPER_PROMPT_TOKEN_LIMIT) + 1 if prompt else 0
         room = WHISPER_MAX_LENGTH - prompt_tokens - 4                       # sot, lang, task, notimestamps
         want = int(audio_s * MAX_TOKENS_PER_SECOND) + MIN_NEW_TOKENS
         return max(MIN_NEW_TOKENS, min(want, room))

@@ -118,6 +118,10 @@ audio. The app builds that hint fresh for every ~30 s chunk:
    through each topic's list.
 3. **Your last few sentences**, so names and terms carry over between chunks.
 
+The complete hint is measured against a 215-token budget. Recent context takes
+priority; an oversized style example keeps its whole-word ending. Keep examples
+brief and put the most important terms near the end.
+
 After each chunk, a **spelling corrector** fixes near-miss non-words to the right term
 ("licenopril" → lisinopril, "semiglutide" → semaglutide). It only touches words that are
 neither real English nor known terms, and leaves anything ambiguous alone, so a correctly
@@ -134,7 +138,8 @@ general medical list (see NOTICE.md).
   ## diabetes | diabetes
   drug: Ozempic, Rybelsus
   ```
-  Terms under `## core` are always eligible; other sections join the matching topic.
+  Terms under `## core` accompany a detected or configured topic; other sections
+  join the matching topic. With no known topic, the hint contains no term list.
 
 ## Settings (environment variables)
 
@@ -148,7 +153,7 @@ testing):
 | `MYTRANSCRIBE_MODEL` | `large-v3` (GPU ≥ 5 GB, Options → Best), else `large-v3-turbo`; `small.en` (CPU) | Any faster-whisper name (`large-v3-turbo`, `medium.en`…) or a local model folder |
 | `MYTRANSCRIBE_COMPUTE_TYPE` | auto (`int8_float32` on GTX 10xx/16xx, `int8_float16` on RTX) | CTranslate2 compute type |
 | `MYTRANSCRIBE_DEVICE` | auto | `cpu` forces CPU |
-| `MYTRANSCRIBE_BEAM_SIZE` | `1` (greedy) | `5` = beam search: ~30 % slower, no accuracy gain in our tests, and it sometimes drops spoken commands |
+| `MYTRANSCRIBE_BEAM_SIZE` | `5` | Beam search with patience 2; current real-voice calibration favors this for medical accuracy and formatting. `1` trades accuracy for speed. See [runtime results](docs/overnight/2026-10-04-whisper-runtime.md). |
 | `MYTRANSCRIBE_AUTOPASTE` | off | `1` = paste into the focused app after a hotkey stop |
 | `MYTRANSCRIBE_PROMPT_FILE` | bundled medical prompt | Your style example |
 | `MYTRANSCRIBE_VOCAB` | on | `off` = style example only, no topic terms |
