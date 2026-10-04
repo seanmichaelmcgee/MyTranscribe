@@ -117,6 +117,14 @@ Raw recognition was byte-for-byte unchanged for all 30 clips versus the original
 MedASR run, so this improvement comes from representation and downstream cleanup,
 not a new acoustic model. Medical alignment scores can also change after formatting.
 
+The new matrix's matched real scorecard confirms the same result against fresh
+Whisper: 6.2% overall / 5.1% medical error for Whisper versus 11.2% / 4.1% for
+native-format MedASR. Common-word error remains 6.1% versus 10.6%. Numeric-token
+review flags occur on one Whisper clip and five MedASR clips; negation flags occur
+on one and zero respectively. These are token-comparison alerts, including possible
+formatting/representation differences, not verified clinical error counts. The
+medical-score advantage alone does not justify changing the default engine.
+
 A fresh paired native-format matrix launched at 22:21:11 Halifax, regenerating
 Whisper under the same source fingerprint and repeating paced timing, synthetic
 and stability checks. Its 5.3-hour deadline is 03:39:11. Findings are pending.
