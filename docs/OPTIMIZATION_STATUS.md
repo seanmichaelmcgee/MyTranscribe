@@ -93,3 +93,19 @@ overall WER. A fresh paced inference run reproduces its output and finishes in
 0.06/0.22/0.34 seconds for result/exam/letter. It still misses HGB and replaces the
 letter age with a placeholder. Whisper remains the product, with no prompt,
 decoder, gain or spelling-rule change from this follow-up.
+
+## Structured accuracy program
+
+The user requested a new Sol 6.1/high coordinator and five focused agents with
+disk checkpoints. The [coordinator brief](optimization/2026-10-04-accuracy-program/ORCHESTRATOR.md)
+defines prompt/copying, regression, MedASR, capture and evaluation workstreams,
+acceptance criteria, a bounded initial matrix and recovery rules. All scratchpads,
+full supplied transcripts and detailed experiment state stay local and ignored.
+
+The user supplied separate Frontier AI transcriptions and then confirmed that the
+BP differences were speaking variations correctly transcribed. The 011 138/78
+versus intended 132/78 difference is not an ASR failure. Original intended-script
+scores remain historical comparisons; the new program adds external-reference
+agreement and human-adjudicated field checks. The exact 010 BP needs clarification
+because the supplied transcript says 132/78 and the follow-up message says 132/72.
+The remaining medical-word, negation and prompt-copying failures still need work.
