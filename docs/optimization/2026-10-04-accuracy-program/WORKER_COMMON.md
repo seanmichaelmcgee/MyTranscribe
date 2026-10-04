@@ -36,6 +36,12 @@ calibration material; crops/repeats are correlated. Reserved samples 09/12/13
 are unavailable for tuning. Never claim to have heard audio or obtained a remote
 transcription from a filename. Full transcripts belong only in local notes.
 
+Read `handoff_updates.jsonl` at the local root if present. The user specifically
+confirmed the external BP values as spoken: Voice 010 132/78, Voice 011 138/78.
+These fields are human-adjudicated even though the rest of the external transcript
+is an externally generated comparison source. The initial ambiguous feedback file
+is preserved history and is superseded for BP by that clarification.
+
 Current production: large-v3, CUDA int8_float32, beam 5, patience 2, two threads,
 30-second chunks. The current-state banner overrides historical handoff defaults.
 Earlier prompt removal and a <=5-second minimal-style policy had regressions.

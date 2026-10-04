@@ -106,6 +106,7 @@ The user supplied separate Frontier AI transcriptions and then confirmed that th
 BP differences were speaking variations correctly transcribed. The 011 138/78
 versus intended 132/78 difference is not an ASR failure. Original intended-script
 scores remain historical comparisons; the new program adds external-reference
-agreement and human-adjudicated field checks. The exact 010 BP needs clarification
-because the supplied transcript says 132/78 and the follow-up message says 132/72.
+agreement and human-adjudicated field checks. The user subsequently clarified
+that the Frontier values match what was spoken: 132/78 in 010 and 138/78 in 011.
+Both are human-adjudicated correct fields.
 The remaining medical-word, negation and prompt-copying failures still need work.

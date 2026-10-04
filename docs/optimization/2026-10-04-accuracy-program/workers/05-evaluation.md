@@ -13,11 +13,11 @@ formatted transcripts are not verbatim spoken/command references or certified
 truth. Voice 011 BP 138/78 and the files' exam/examination variants should no longer
 be treated as local-engine mistakes solely because the original script differed.
 
-Read user_feedback.json: the user confirms the BP differences were correctly
-transcribed speaking variations. Voice 010's exact BP has conflicting user
-statements (132/78 in the supplied transcript, 132/72 in the later message).
-Keep that one field unresolved for human-adjudicated counts until the pending
-question is answered. This does not block the other evaluation or planning work.
+Read user_feedback.json and handoff_updates.jsonl: the user confirms the BP
+differences were correctly transcribed speaking variations and clarifies that
+Frontier got both values right. Effective spoken values are 132/78 for 010 and
+138/78 for 011. Use these as human-adjudicated fields; the initial feedback's
+132/72 is superseded by that human clarification and remains history only.
 
 Define clinical-field equivalences before comparing outputs: BP slash/over,
 age, dose/unit/frequency, HGB/eGFR, explicit negation and change status. Preserve

@@ -47,14 +47,14 @@ additional external-reference agreement and clinical-field comparisons separatel
 Never rewrite an answer key from a local candidate's output or reuse the old
 corpus fingerprint for a changed reference. Recognition must not read these files.
 
-Read `references/user_feedback.json` too. The user subsequently confirmed that
-the BP differences were speaking variations and correctly transcribed. Do not
-present the 011 138-versus-script-132 difference as an ASR failure. The latest
-message names 132/72 for 010 while the pasted external transcript names 132/78;
-a concise clarification is pending in the original chat. Preserve both statements,
-continue independent work, and exclude that exact 010 field from definitive
-human-adjudicated error counts until clarified. Only a new human answer should
-resolve that conflict; do not infer it from the model outputs.
+Read `references/user_feedback.json` and the later `handoff_updates.jsonl` too.
+The user confirmed that the BP differences were speaking variations correctly
+transcribed, then clarified that Frontier got both spoken BP values right:
+**132/78 for Voice 010 and 138/78 for Voice 011**. Treat both correctly recognized
+values as correct; do not present the 011 138-versus-script-132 difference as an
+ASR failure. The earlier message naming 132/72 is preserved in feedback history
+but superseded for this field by the subsequent clarification. Other external
+transcript content still has external-model, not human-certified, provenance.
 
 Before finalizing reference decisions or starting each trial phase, read the local
 `handoff_updates.jsonl` if present. The original chat may append a later human
