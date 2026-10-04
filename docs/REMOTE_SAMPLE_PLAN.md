@@ -55,6 +55,10 @@ files to this computer. Preserve those as a separate phone capture condition.
 Phone keyboard dictation produces text before MyTranscribe receives it; that
 does not test either local recognition engine.
 
+For phone voice files without a remote microphone connection, follow the
+[phone-file guide](PHONE_FILE_PLAN.md). The local importer preserves the original
+and prepares matched audio for both engines, with separate phone-file conditions.
+
 ## Data and comparison
 
 Test artifacts stay under ignored `results_1060/personal_v1_capture`: PCM 16 kHz
