@@ -212,11 +212,13 @@ def main():
     mic = ReadyMic()
     try:
         with RunLock(ROOT / "results_medasr" / ".overnight.lock"):
-            mic.start()
             options = replace(settings.load(), start_compact=False, live_insert=False)
             window = window_class()(archive, mic, settings=options,
                                     include_combined=args.script.resolve() == default_script.resolve(),
                                     settings_path=archive.out / "test_ui_settings.json")
+            # Construct the chime's PortAudio owner before opening the microphone.
+            # Concurrent PyAudio initialization can crash natively on Windows.
+            mic.start()
             window.show()
             app.exec()
     except RuntimeError as exc:

@@ -56,6 +56,13 @@ A one-sample packet therefore provides one Start/Stop reading and one replayable
 WAV, while preserving the intended reference and each repeated attempt. The
 packet is capture/scoring data only and is not added to recognition prompts.
 
+The single-script follow-up also corrects a Windows startup failure in this test
+launcher: initializing the microphone and chime's PortAudio owners concurrently
+caused a native access violation. The window/chime is now constructed before
+opening ReadyMic, matching the ordinary app's order. Single-script archive/UI
+and startup-order checks pass with the full **472-test** suite. Recognition
+settings and the ordinary GUI are unchanged.
+
 If the remote connection does not deliver microphone audio to Windows, record
 the same examples in the phone's voice recorder and transfer the original audio
 files to this computer. Preserve those as a separate phone capture condition.

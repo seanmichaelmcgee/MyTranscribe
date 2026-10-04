@@ -123,3 +123,45 @@ def test_sample_gui_saves_recording_and_disables_selection_during_capture(qapp, 
         assert window.sample_select.isEnabled()
     finally:
         window.close()
+
+
+def test_launcher_constructs_chime_owner_before_starting_microphone(archive, monkeypatch):
+    from contextlib import nullcontext
+    import gui_med
+    import mic_ready
+    import overnight_medasr
+    import settings
+    from PyQt6 import QtWidgets
+    events = []
+
+    class Mic:
+        def start(self):
+            assert "window_constructed" in events
+            events.append("mic_started")
+        def stop(self):
+            events.append("mic_stopped")
+
+    class Window:
+        def __init__(self, *args, **kwargs):
+            assert "mic_started" not in events
+            assert kwargs["include_combined"] is False
+            events.append("window_constructed")
+        def show(self):
+            events.append("shown")
+
+    class App:
+        def setStyleSheet(self, style):
+            pass
+        def exec(self):
+            events.append("event_loop")
+
+    monkeypatch.setattr(capture, "Archive", lambda *args: archive)
+    monkeypatch.setattr(capture, "window_class", lambda: Window)
+    monkeypatch.setattr(mic_ready, "ReadyMic", Mic)
+    monkeypatch.setattr(gui_med, "register_cuda_dll_dirs", lambda: None)
+    monkeypatch.setattr(settings, "load", lambda: settings.Settings())
+    monkeypatch.setattr(overnight_medasr, "RunLock", lambda *args: nullcontext())
+    monkeypatch.setattr(QtWidgets, "QApplication", lambda *args: App())
+    monkeypatch.setattr(sys, "argv", ["capture", "--script", str(archive.out / "custom.json")])
+    capture.main()
+    assert events == ["window_constructed", "mic_started", "shown", "event_loop", "mic_stopped"]
