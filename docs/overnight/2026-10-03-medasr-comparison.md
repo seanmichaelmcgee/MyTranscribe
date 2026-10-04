@@ -2,7 +2,7 @@
 
 ## Outcome
 
-The isolated MedASR dependencies and CUDA audio/CTC API work on this machine. The trained model has **not been downloaded or evaluated**: browser sign-in does not authorize the local downloader, and the first CLI OAuth device code expired without authorization. No MedASR accuracy, latency, VRAM comparison or adoption recommendation is available yet.
+The isolated MedASR dependencies and CUDA audio/CTC API work on this machine. Local OAuth is authenticated as `smichaelmcgee`; model access now works. The official pinned snapshot was downloaded and checksum-verified at approximately 21:35 Halifax. Its first float32 GPU pass completed all 30 recordings and was accepted by the matched scorer. Accuracy is currently worse overall than Whisper. Repeated paced latency and the overnight matrix are still pending; this is not an adoption recommendation.
 
 The same 30 local fictional practice recordings reproduce the committed Whisper scorecard exactly. Production Whisper settings and GUI behavior have not changed.
 
@@ -24,6 +24,32 @@ Raw Whisper output scores 15.5% WER against spoken references, whereas cleaned o
 
 Newline/quote counts and numbered-item sequences are checks of structure, not proof that placement or clinical meaning is correct. Rare unmatched words are a frequency heuristic; medical/common error rates omit insertions. Review doses, units and negation separately.
 
+## First matched MedASR pass
+
+Official pinned weights, float32 CUDA, eager attention, greedy CTC; same app cuts
+and cleanup as the frozen Whisper run. The raw model text contains native brace
+markers that the current Whisper-oriented cleanup does not interpret correctly.
+No marker conversion was introduced into this first comparison.
+
+| Category | WER % | Medical error % | Common error % | Terms % | Newline/quote counts | Numbered sequence |
+| --- | ---: | ---: | ---: | ---: | --- | --- |
+| message | 22.8 | 6.7 | 9.8 | 90.0 | 3/8 | 8/8 |
+| result | 6.8 | 7.1 | 0.0 | 95.0 | 10/10 | 10/10 |
+| exam | 13.8 | 0.0 | 18.0 | 100.0 | 9/9 | 9/9 |
+| letter | 19.3 | 10.3 | 10.9 | 93.3 | 0/3 | 0/3 |
+| ALL | 18.3 | 6.1 | 10.8 | 94.7 | 22/30 | 27/30 |
+
+Raw WER against spoken references was 23.3%. Native marker counts were 12 newline,
+three open-quote, three close-quote, three new-paragraph and nine period markers.
+All 30 outputs were nonempty. Sum of chunk compute was 2.00 s for the corpus;
+peak PyTorch allocated memory was 440.6 MiB. These are fast-replay observations,
+not Stop-to-text latency or total system VRAM measurements.
+
+The matrix will preserve this unadapted baseline before a separately labeled,
+deterministic native-format experiment. The zero exam medical-error result is
+encouraging but covers only nine clips. It does not offset the higher message and
+letter error rates or establish clinical correctness.
+
 ## Runtime and isolation
 
 - NVIDIA GTX 1660 Ti, 6144 MiB VRAM, driver 610.60; PyTorch confirms CUDA availability.
@@ -35,14 +61,14 @@ Newline/quote counts and numbered-item sequences are checks of structure, not pr
 
 ## Verification and limitations
 
-- Full unit suite: **225 passed in 26.53 s** with `QT_QPA_PLATFORM=offscreen`.
+- Full unit suite including overnight orchestration: **267 passed in 28.37 s** with `QT_QPA_PLATFORM=offscreen`.
 - Native Windows Qt run: 224 passed, 1 clipboard roundtrip failure. A standalone plain Qt clipboard write also fails; Win32 `OpenClipboard` returns access denied (error 5) in the agent process. The same clipboard test passes with the headless Qt platform. No clipboard implementation or assertion was weakened; actual native clipboard integration remains unverified in this execution context.
 - Frozen Whisper baseline and paced replay both completed and were accepted by the matching scorer.
 - Corpus/source changes, incomplete runs, duplicate clips/repeats and missing transcripts are rejected by the new scorer.
 
 ## Resume the trained-model comparison
 
-See [the local trial guide](../MEDASR_TRIAL.md). Finish CLI OAuth authorization and ensure the signed-in account has accepted MedASR access conditions. Then download and verify the pinned snapshot, replay the same 30 clips with MedASR, and score the paired runs. Follow with 3 warm paced repeats and separately labeled synthetic cross-checks. Inspect raw output for native punctuation/format tokens before adding any conversion; do not guess replacements that could alter dictated medical content.
+See [the local trial guide](../MEDASR_TRIAL.md) and [the six-hour overnight plan](2026-10-03-medasr-overnight-plan.md). Ensure the signed-in account has accepted MedASR access conditions; repeating login will not fix denied model access. Then download and verify the pinned snapshot, replay the same 30 clips with MedASR, and score the paired runs. Follow with 3 warm paced repeats and separately labeled synthetic cross-checks. Inspect raw output for native punctuation/format tokens before adding any conversion; do not guess replacements that could alter dictated medical content.
 
 The primary replay uses the current app’s 20 s non-overlapping pause cuts. Google’s 20 s/2 s-overlap sliding example is a separate candidate configuration. Greedy CTC can make substitutions and insertions; it does not guarantee absence of hallucination.
 

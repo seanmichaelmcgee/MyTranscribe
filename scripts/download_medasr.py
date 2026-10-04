@@ -19,7 +19,7 @@ def main():
         os.environ["REQUESTS_CA_BUNDLE"] = os.environ["SSL_CERT_FILE"]
     os.environ["HF_HUB_DISABLE_TELEMETRY"] = "1"
     os.environ["HF_HUB_DISABLE_XET"] = "1"  # use TLS/CA-verified standard HTTP download
-    from huggingface_hub import HfApi, hf_hub_download
+    from huggingface_hub import HfApi, get_token, hf_hub_download
     from huggingface_hub.errors import GatedRepoError
     try:
         # This also verifies access before creating a partial model directory.
@@ -40,8 +40,13 @@ def main():
         print("Official snapshot verified. Inference is offline.")
         return 0
     except GatedRepoError:
-        print("Model access required: accept terms at https://huggingface.co/google/medasr,")
-        print("then run venvmedasr\\Scripts\\hf.exe auth login locally. Do not paste tokens into chat.")
+        if get_token():
+            print("A local credential is present, but Google has denied this model download.")
+            print("Review/accept access conditions at https://huggingface.co/google/medasr using the same account.")
+            print("If access is already granted, check that this credential permits gated-model downloads.")
+        else:
+            print("Model access required: review conditions at https://huggingface.co/google/medasr,")
+            print("then run venvmedasr\\Scripts\\hf.exe auth login locally. Do not paste tokens into chat.")
         return 2
 
 

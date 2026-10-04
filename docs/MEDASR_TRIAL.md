@@ -82,6 +82,38 @@ before adopting it. Float32 is the initial GPU trial; `--precision float16` is a
 optional paired rerun. CPU must be selected explicitly; GPU fallback cannot quietly
 produce mislabeled CUDA results.
 
+## Bounded overnight runner
+
+The [overnight plan](overnight/2026-10-03-medasr-overnight-plan.md) defines the
+finite accuracy, precision, paced-latency, synthetic and stability matrix. Review
+its commands without loading a model or starting GPU work:
+
+```powershell
+.\venv1060\Scripts\python.exe scripts\overnight_medasr.py --dry-run
+```
+
+After downloading and verifying the official snapshot, start a fresh local run:
+
+```powershell
+.\venv1060\Scripts\python.exe scripts\overnight_medasr.py --hours 6 --out results_medasr\overnight_20261003
+```
+
+The runner writes `status.json`, task logs and JSON scorecards in that ignored
+directory. It blocks before GPU work if model integrity is unavailable, serializes
+jobs with an OS-held lock, enforces subprocess and overall deadlines, and samples
+GPU health. It finishes early when its matrix is complete. A resume must use the
+same configuration and preserves the original deadline:
+
+```powershell
+.\venv1060\Scripts\python.exe scripts\overnight_medasr.py --hours 6 --resume results_medasr\overnight_20261003
+```
+
+Successful outputs are reused only after source, corpus, model, configuration and
+artifact checks. Changed source or stale artifacts require a fresh run directory;
+do not delete the prior measurements. For tonight, no fresh run may extend beyond
+03:45 Halifax on 4 October. Use a shorter `--hours` budget if starting late.
+Keep the computer and Codex app running for the scheduled checks in this chat.
+
 For synthetic cross-checks substitute `results_1060\snippets\manifest.json` or
 `results_1060\testdict\manifest.json`. Report each separately: synthetic snippets
 reuse the real test texts, and the longer dictations repeat texts across microphone
