@@ -8,6 +8,12 @@ Samples 09, 12 and 13 are reserved for validation after changes chosen using the
 
 ## Record on this computer
 
+For the familiar app controls, close ordinary MyTranscribe and double-click
+`run_samples.bat`. Its clearly marked fictional-test window displays these
+samples and saves the actual captured audio. Select **Phone normal** or
+**Phone whisper**, then Start/Stop each sample. See the
+[remote-session plan](../REMOTE_SAMPLE_PLAN.md) for setup and combined recordings.
+
 The recorder can run independently of the coding agent. From the MyTranscribe
 folder in PowerShell, use:
 

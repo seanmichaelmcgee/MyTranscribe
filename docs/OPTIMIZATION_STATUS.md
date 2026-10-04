@@ -54,3 +54,14 @@ verified long-style output truncation bug. All 425 tests pass; a fresh changed-s
 replay preserves every raw/cleaned transcript and raw chunk across the 30 saved
 recordings. The current calibration remains 4.7% overall / 3.1% medical error.
 The dense-prompt diagnostic demonstrates the output limit, not clinical accuracy.
+
+## Personal capture follow-up
+
+The user's first new combined test worked in the app, with a moving meter and a
+successful copy logged, but the ordinary launcher retained no replay audio.
+No new ASR score is available from that session. The
+[remote sample plan](REMOTE_SAMPLE_PLAN.md) provides a dedicated fictional-test
+launcher that retains only started dictations, with normal/whisper and local/phone
+labels, a combined option and the comparison runner's GPU lock. The ordinary
+application still keeps clinical audio in memory. The archive and chime shutdown
+change pass all 444 tests; fresh saved recordings are the next accuracy evidence.

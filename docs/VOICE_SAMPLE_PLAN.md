@@ -11,6 +11,10 @@ samples and separate normal/whisper capture commands. The recorder accepts its
 JSON sample file and resumes completed clips without opening a model. Phone audio
 through a remote session is labeled separately from a local microphone.
 
+The [remote sample plan](REMOTE_SAMPLE_PLAN.md) adds `run_samples.bat`, an explicit
+fictional-test GUI that reuses the everyday controls while retaining started
+recordings. Ordinary MyTranscribe still stores no clinical replay audio.
+
 ## Collect matched examples
 
 Use fictional cases and the same microphone position for a paired normal-voice

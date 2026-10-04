@@ -1,10 +1,12 @@
 """Capture preparation and resume behavior without opening a microphone."""
 import json
+from pathlib import Path
 import sys
 from types import SimpleNamespace
 
 import pytest
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 import asr_trial_common
 import record_snippets
 from record_snippets import ROOT, SNIPPETS, load_samples, select_samples
