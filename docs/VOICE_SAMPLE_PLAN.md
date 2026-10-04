@@ -5,6 +5,12 @@ letters. Short recordings flush when stopped, regardless of that maximum cut
 window. Test new independent examples before treating a calibration gain as a
 general accuracy guarantee. Keep one simple recording workflow initially.
 
+The [first personal read-aloud packet](samples/personal_v1_read_aloud.md) is ready:
+14 new fictional examples with frozen written references, three reserved validation
+samples and separate normal/whisper capture commands. The recorder accepts its
+JSON sample file and resumes completed clips without opening a model. Phone audio
+through a remote session is labeled separately from a local microphone.
+
 ## Collect matched examples
 
 Use fictional cases and the same microphone position for a paired normal-voice
