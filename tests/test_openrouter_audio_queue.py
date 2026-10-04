@@ -73,3 +73,39 @@ class OpenRouterAudioTests(unittest.TestCase):
         self.assertEqual(self.queue.once(forbidden,{'OPENAI_API_KEY':'wrong'},job_id=selected['id'])['state'],'blocked_auth')
         with self.assertRaises(ValueError):self.queue.once(forbidden,env={})
         with self.assertRaises(ValueError):module.shared.Queue.once(self.queue,env={},job_id=selected['id'])
+
+    def test_openai_selection_preserves_gemini_job_and_binds_request_model(self):
+        gemini = self.queue.enqueue(self.audio,True)
+        openai = module.Queue(self.folder/'data',model='openai/gpt-transcribe')
+        try:
+            selected = openai.enqueue(self.audio,True)
+            self.assertNotEqual(selected['id'],gemini['id'])
+            calls=[]
+            def fake(path,key,ca,*,model):
+                calls.append(model);return dict(response=dict(text='Independent OpenAI transcript'))
+            with patch.object(module,'remote',side_effect=fake):
+                self.assertEqual(openai.once(env={'OPENROUTER_API_KEY':'test'},job_id=selected['id'])['state'],'complete')
+            self.assertEqual(calls,['openai/gpt-transcribe'])
+            with self.assertRaises(ValueError):openai.once(env={},job_id=gemini['id'])
+            preserved=next(r for r in self.queue.statuses() if r['id']==gemini['id'])
+            self.assertEqual((preserved['state'],preserved['attempts']),('queued',0))
+        finally:
+            openai.close()
+        with self.assertRaises(ValueError):module.Queue(self.folder/'data',model='unapproved/model')
+
+    def test_openai_payload_uses_selected_model_with_same_blind_audio(self):
+        class Response:
+            headers={}
+            def __enter__(self):return self
+            def __exit__(self,*args):pass
+            def read(self,limit):return b'{"text":"OpenAI test transcript"}'
+        captured=[]
+        class Opener:
+            def open(self,request,timeout):captured.append(request);return Response()
+        with patch.object(module.urllib.request,'build_opener',return_value=Opener()):
+            saved=module.remote(self.audio,'test-only',model='openai/gpt-transcribe')
+        payload=json.loads(captured[0].data)
+        self.assertEqual(payload['model'],'openai/gpt-transcribe')
+        self.assertEqual(set(payload),{'model','input_audio'})
+        self.assertEqual(base64.b64decode(payload['input_audio']['data']),self.audio.read_bytes())
+        self.assertEqual(saved['requested_model'],'openai/gpt-transcribe')

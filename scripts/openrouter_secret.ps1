@@ -1,6 +1,8 @@
 param(
     [ValidateSet('Set', 'Status', 'Run')][string]$Action = 'Set',
-    [string]$JobId
+    [string]$JobId,
+    [ValidateSet('google/gemini-3.5-transcribe', 'openai/gpt-transcribe', 'openai/gpt-4o-transcribe')]
+    [string]$Model = 'google/gemini-3.5-transcribe'
 )
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
@@ -40,7 +42,7 @@ try {
     $secretPointer = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secretValue)
     $env:OPENROUTER_API_KEY = [System.Runtime.InteropServices.Marshal]::PtrToStringBSTR($secretPointer)
     $queueRoot = Join-Path $projectRoot 'results_1060\accuracy_program_20261004\frontier_bridge\data'
-    & (Join-Path $projectRoot 'venv1060\Scripts\python.exe') (Join-Path $PSScriptRoot 'openrouter_audio_queue.py') --root $queueRoot run --execute --id $JobId
+    & (Join-Path $projectRoot 'venv1060\Scripts\python.exe') (Join-Path $PSScriptRoot 'openrouter_audio_queue.py') --root $queueRoot --model $Model run --execute --id $JobId
     if ($LASTEXITCODE -ne 0) { throw 'Comparison stopped. Review its saved status before trying again.' }
 } finally {
     $env:OPENROUTER_API_KEY = $previousValue

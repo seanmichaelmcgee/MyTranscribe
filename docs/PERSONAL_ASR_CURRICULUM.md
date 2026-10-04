@@ -119,6 +119,12 @@ requires an explicit retry, and the original response remains immutable.
 
 The optional `scripts/openrouter_audio_queue.py` uses OpenRouter's dedicated
 audio transcription endpoint and a fixed `google/gemini-3.5-transcribe` model.
+An explicit `--model openai/gpt-transcribe` or `--model openai/gpt-4o-transcribe`
+selects an OpenAI comparator through the same OpenRouter endpoint; the default
+remains Gemini. These are separate jobs and cannot reuse one another's result.
+OpenRouter model availability was verified on 2026-10-04:
+[GPT Transcribe](https://openrouter.ai/openai/gpt-transcribe) and
+[GPT-4o Transcribe](https://openrouter.ai/openai/gpt-4o-transcribe).
 It shares the existing durable queue, but distinguishes jobs by model/protocol,
 requires one selected identity, and uses only `OPENROUTER_API_KEY`. It does not
 send the expected script, local transcript, vocabulary hints or clinical values.
@@ -133,7 +139,9 @@ It saves a DPAPI-encrypted secret under the ignored personal curriculum folder,
 bound to the current Windows account. It never receives a key as an argument or
 prints it. `-Action Status` checks existence without revealing it. A later
 `-Action Run -JobId <saved-headset-job-id>` decrypts it only for the selected
-comparison process and restores the parent environment afterward. Saving the
+comparison process and restores the parent environment afterward. `-Model`
+selects the same explicitly named comparator and must match the saved job.
+Saving the
 key makes no network request. Never paste a key into chat or commit it.
 
 If the independent recognizer recovers a confirmed word that local Whisper
