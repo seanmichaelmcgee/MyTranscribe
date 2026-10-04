@@ -125,3 +125,10 @@ include independent capture and a persistent external comparator queue.
 Tracked opt-in queue/worker tools pass the full 470-test suite; the existing two
 fictional-audio jobs await provider selection and secure authentication in the
 original chat, with zero new uploads and no background worker started.
+
+The [first saved headset iteration](overnight/2026-10-04-headset-001.md) now retains
+a complete 49.984-second normal-voice combined reading, confirmed as read as
+written. Exact-PCM Whisper replay reproduces the live transcript. Three fixed
+controls expose remaining eGFR/exam/drug errors in Whisper and HGB/age failures
+in MedASR; the working default remains unchanged. The same saved WAV and frozen
+script support subsequent paired readings and separately bounded comparisons.
