@@ -6,3 +6,8 @@ venv1060/
 results_1060/
 testdict/
 results_overnight/
+
+# Isolated MedASR experiments; never commit environments or model weights.
+venvmedasr/
+models_medasr/
+results_medasr/

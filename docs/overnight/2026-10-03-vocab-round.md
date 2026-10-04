@@ -28,6 +28,12 @@ Synthetic check (100 files): 3.5 % WER, 8.3 % medical, formatting 99/100 — no 
 boosting, transducer = can't free-write words). 3. More real recordings (paragraph letters).
 
 ## MedASR trial plan (brief)
+
+> MedASR update: the trial tooling and reproduced Whisper baseline are recorded in
+> [2026-10-03-medasr-comparison.md](2026-10-03-medasr-comparison.md).
+> The predictions below about CTC preventing inventions and sub-0.5-second latency
+> are unverified expectations, not guarantees or results. Use the new report for current status.
+
 - **What:** Google `medasr`, 105M-param CTC model trained on ~5,000 h of physician dictation;
   reported 6.0 % vs 12.5 % (large-v3) on Eye Gaze dictation. CTC cannot invent fluent words;
   weak on general speech (≈18 % LibriSpeech) → staff messages may suffer.
