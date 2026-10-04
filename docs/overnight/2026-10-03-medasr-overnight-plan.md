@@ -30,6 +30,14 @@ the local runner continues independently during a Codex usage-window pause.
 The monitoring cutoff is 04 October 2026 at 03:45 Halifax (06:45 UTC). Any runner
 started later gets only the time remaining to that cutoff, not another six hours.
 
+The actual matrix launched at 21:40:37 Halifax with a runner deadline of 03:40:37.
+Progress is in ignored `results_medasr/overnight_20261003/status.json`; the outer
+launch PID is recorded in `results_medasr/overnight_launch.json` (initial PID 4668).
+The main chat monitor is `mytranscribe-overnight-medasr`. A separate five-hour
+recovery checkpoint, `mytranscribe-five-hour-recovery`, is scheduled around 02:40
+Halifax to recover work after a Codex usage-window interruption. Inspect both
+automation states before creating more checks; pause them after all work is done.
+
 All measurements use the pinned official safetensors snapshot and verify its
 integrity before GPU work. Source and corpus fingerprints prevent stale runs from
 being resumed or scored as current. A timed-out child may be terminated with its

@@ -6,6 +6,12 @@ The isolated MedASR dependencies and CUDA audio/CTC API work on this machine. Lo
 
 The same 30 local fictional practice recordings reproduce the committed Whisper scorecard exactly. Production Whisper settings and GUI behavior have not changed.
 
+The tested overnight matrix started at 21:40:37 Halifax in a hidden local process,
+with a six-hour deadline at 03:40:37. Its first Whisper GPU job and progress
+heartbeat are confirmed. Scheduled chat checks run every 30 minutes, with a
+separate recovery checkpoint around 02:40 after five hours. Full matrix and
+native-format experiment findings will be appended when they exist.
+
 ## Reproduced Whisper baseline
 
 large-v3, CUDA int8_float32, beam 5, patience 2; topic prompts, committed correction rules and final voice commands. Names ignored by the existing scorer. Audio and reference fingerprints are stored only in ignored local results.
