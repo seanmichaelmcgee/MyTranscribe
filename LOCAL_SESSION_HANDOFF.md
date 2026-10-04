@@ -9,6 +9,14 @@ This file has three parts:
 
 Branch: `claude/festive-einstein-lb2tk9` (PR #4).
 
+> **Current state, 4 October 2026:** this machine is a **GTX 1660 Ti, 6 GB**.
+> The working application uses **large-v3 / CUDA / int8_float32 / beam 5 /
+> patience 2 / 30-second chunks**, with two CPU threads by default. Earlier
+> alternating measurements favored int8_float32 over int8_float16 on this card.
+> The first-night setup and unverified-item lists below are historical. Start with
+> [current optimization status](docs/OPTIMIZATION_STATUS.md) and the linked reports
+> before choosing new experiments; do not restart old overnight jobs automatically.
+
 > **Hardware correction:** the machine actually has a **GTX 1660** (6 GB, Turing,
 > compute capability 7.5), not a GTX 1060. Names below still say "1060 edition", but
 > the expected auto config is **`large-v3-turbo` / `cuda` / `int8_float16`**: Turing has

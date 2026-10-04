@@ -54,12 +54,19 @@ about MedASR accuracy or performance.
 ## Paired replay and scoring
 
 Run only one GPU replay at a time. These commands use the same 16 kHz mono int16
-practice audio and the same current 20 s pause-cut capture pipeline, silence
+practice audio and the same frozen 20 s pause-cut comparison pipeline, silence
 threshold, per-chunk phantom filter, spelling correction, bundled text fixes and
 final voice-command formatter. Personal correction files and environment overrides
 are excluded so the comparison can be reproduced. Whisper uses large-v3,
 int8_float32, beam 5, patience 2, with its current topic/recent-text prompts.
 MedASR uses greedy CTC with no prompt or external language model.
+
+The production Whisper application now uses 30-second chunks. The commands below
+retain the original 20-second comparison baseline; use `trial_chunk_window.py
+--chunk-seconds 30` for the current window. See the
+[current comparison](overnight/2026-10-04-asr-optimization.md) and
+[optional official-LM decoder experiment](MEDASR_DECODER_EXPERIMENT.md) for the
+later controlled trials. Do not mix their cached-decoder timings with live latency.
 
 ```powershell
 .\venv1060\Scripts\python.exe scripts\trial_asr.py --engine whisper --manifest results_1060\real_headset\manifest.json --out results_medasr\whisper_real.json
