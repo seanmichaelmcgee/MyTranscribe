@@ -1,5 +1,11 @@
 # Common worker contract
 
+Mandatory onboarding for every worker: read [root AGENTS.md](../../../AGENTS.md),
+[project SOP](../../PROJECT_SOP.md), and the current
+[optimization instructions](../instructions.md) / [plan index](../readme.md) first.
+The contract below records this dated assignment; current human instructions and
+the assigned live checkpoint determine whether its scope remains active.
+
 The user asked for five agents to investigate and specify improvements to local
 clinical dictation. Your coordinator is gpt-6.1-sol/high. Read ORCHESTRATOR.md,
 ACCEPTANCE.md, CHECKPOINTS.md and your assigned role. Do not spawn descendants.

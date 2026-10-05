@@ -1,5 +1,10 @@
 # MyTranscribe accuracy coordinator: instructions and resumable program
 
+Start with [root onboarding](../../../AGENTS.md), [project SOP](../../PROJECT_SOP.md),
+and [optimization instructions](../instructions.md) / [plan index](../readme.md).
+Hand these paths to every agent. This is a dated program contract; it does not
+replace current human authorization or the live assigned checkpoint.
+
 ## Assignment
 
 The user explicitly requested a new Sol 6.1 or Astra coordinating chat, four or

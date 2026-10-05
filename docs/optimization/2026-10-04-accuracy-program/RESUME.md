@@ -1,5 +1,11 @@
 # Resume this accuracy program
 
+Every resuming agent first reads [root AGENTS.md](../../../AGENTS.md),
+[project SOP](../../PROJECT_SOP.md), and
+[optimization instructions](../instructions.md) / [plan index](../readme.md).
+Verify that the human currently authorizes this dated program before its launch
+steps; do not resurrect historical controllers from this document alone.
+
 Run locally in `C:\Users\smich\Documents\Transcription Trials\MyTranscribe` on
 `claude/festive-einstein-lb2tk9`. Read ORCHESTRATOR.md and CHECKPOINTS.md here,
 then `results_1060/accuracy_program_20261004/state.json`, coordinator scratchpad,
