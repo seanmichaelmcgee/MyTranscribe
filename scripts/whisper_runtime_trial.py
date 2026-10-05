@@ -4,6 +4,7 @@ One process, one local model, one bounded corpus. Use an external owned-process
 timeout for unattended work. No microphone, clipboard, downloads or new packages.
 """
 import argparse
+from contextlib import ExitStack
 from dataclasses import replace
 import inspect
 import json
@@ -18,14 +19,16 @@ import trial_chunk_window
 sys.path.insert(0, str(ROOT / "src"))
 import fw_engine
 from whisper_decoder_trace import DecoderTrace, numeric_fields, OPTION_FIELDS, MAX_SEGMENTS, MAX_CALLS
+from whisper_native_trace import NativeAttemptTrace, NativeTraceRecorder
 
 
 def adapter_sources():
     return {p.name: sha256(p) for p in (Path(__file__), Path(trial_chunk_window.__file__),
-                                      Path(__file__).with_name("whisper_decoder_trace.py"))}
+                                      Path(__file__).with_name("whisper_decoder_trace.py"),
+                                      Path(__file__).with_name("whisper_native_trace.py"))}
 
 
-def configure_decoder(engine, patience, temperature, *, trace=None):
+def configure_decoder(engine, patience, temperature, *, trace=None, native_trace=None):
     """Change only selected search controls; preserve all app audio/text handling."""
     original = engine.model.transcribe
     defaults = inspect.signature(original).parameters
@@ -43,7 +46,12 @@ def configure_decoder(engine, patience, temperature, *, trace=None):
         if trace is None or len(traces) < MAX_CALLS:
             traces.append(trace_record)
         try:
-            segments, info = original(audio, **kwargs)
+            if native_trace:
+                with native_trace.in_call(observed["call_index"] if observed else None):
+                    segments, info = original(audio, **kwargs)
+                segments = native_trace.iter_in_call(segments, observed["call_index"] if observed else None)
+            else:
+                segments, info = original(audio, **kwargs)
         except BaseException as error:
             if trace:
                 trace.safe("call_error_sink", lambda: trace.end(observed, "recognition_error", error))
@@ -94,9 +102,12 @@ def main(argv=None):
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--trace-decoder", action="store_true", help="Bounded public-call trace in the chosen ignored result")
     parser.add_argument("--trace-prompt-text", action="store_true", help="Retain actual prompt text locally; requires --trace-decoder")
+    parser.add_argument("--trace-native-attempts", action="store_true", help="Observe native attempts locally; requires --trace-decoder")
     args, replay = parser.parse_known_args(argv)
     if args.trace_prompt_text and not args.trace_decoder:
         parser.error("--trace-prompt-text requires --trace-decoder")
+    if args.trace_native_attempts and not args.trace_decoder:
+        parser.error("--trace-native-attempts requires --trace-decoder")
     if "--engine" in replay or "--device" in replay or "--model-path" in replay:
         parser.error("This adapter only runs the specified local Whisper model on CUDA")
     out = local_result_path(args.out)
@@ -109,6 +120,8 @@ def main(argv=None):
     original_write = trial_chunk_window.trial_asr.write_json
     evidence = {}
     decoder_trace = DecoderTrace(args.trace_prompt_text) if args.trace_decoder else None
+    native_recorder = NativeTraceRecorder() if args.trace_native_attempts else None
+    native_owners = ExitStack()
 
     def engine_factory(config, **kwargs):
         from faster_whisper import WhisperModel
@@ -120,7 +133,9 @@ def main(argv=None):
         actual = engine.model.model
         if engine.config.device != "cuda" or actual.device != "cuda" or actual.compute_type != args.compute:
             raise ValueError("Device/precision fallback; refusing a mislabeled run")
-        traces, temperatures = configure_decoder(engine, args.patience, args.temperature, trace=decoder_trace)
+        native_trace = native_owners.enter_context(NativeAttemptTrace(engine.model, native_recorder)) if native_recorder else None
+        traces, temperatures = configure_decoder(engine, args.patience, args.temperature,
+                                                trace=decoder_trace, native_trace=native_trace)
         evidence.update(traces=traces, temperature=temperatures)
         return engine
 
@@ -132,6 +147,9 @@ def main(argv=None):
                 raise ValueError("Model changed during runtime experiment")
             if not evidence.get("traces") or any(not t.get("completed") for t in evidence["traces"]):
                 raise ValueError("Incomplete decoder trace")
+            # No further model calls follow successful completion. Publish any
+            # cleanup failures in the final snapshot rather than hiding them.
+            native_owners.close()
         record["runtime_adapter_sha256"] = adapters
         record["model_integrity"] = model
         record["config"].update(model_snapshot=model["path"], compute=args.compute,
@@ -144,6 +162,12 @@ def main(argv=None):
             record["decoder_trace"] = snapshot if snapshot is not None else dict(
                 schema="whisper-public-decoder-trace-v1", enabled=True, complete=False,
                 failures=list(decoder_trace.failures))
+        if native_recorder:
+            snapshot = native_recorder.safe("snapshot_sink", lambda: native_recorder.snapshot(
+                public_complete=record.get("decoder_trace", {}).get("complete", False)))
+            record["native_decoder_trace"] = snapshot if snapshot is not None else dict(
+                schema="whisper-native-attempt-trace-v1", enabled=True, complete=False,
+                failures=list(native_recorder.failures))
         original_write(path, record)
 
     fw_engine.FasterWhisperEngine = engine_factory
@@ -152,8 +176,11 @@ def main(argv=None):
         return trial_chunk_window.main(["--chunk-seconds", str(args.chunk_seconds),
             "--engine", "whisper", "--out", str(out), *replay])
     finally:
-        fw_engine.FasterWhisperEngine = original_engine
-        trial_chunk_window.trial_asr.write_json = original_write
+        try:
+            native_owners.close()
+        finally:
+            fw_engine.FasterWhisperEngine = original_engine
+            trial_chunk_window.trial_asr.write_json = original_write
 
 
 if __name__ == "__main__":

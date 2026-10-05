@@ -44,3 +44,44 @@ does not prove cap truncation. This first layer cannot establish the cause of
 a missing dose or paragraph, adjudicate actual speech, or certify clinical
 fidelity. A future already-declared frozen trial may enable it; no new model
 inference was used to implement or test it.
+
+## Optional native attempts
+
+`--trace-native-attempts` requires `--trace-decoder` and is also off by default.
+The trial owns instance wrappers for `get_prompt`, `generate_with_fallback`,
+and an attribute-delegating native-model facade intercepting only `generate`.
+Original arguments, result lists, fallback tuples and yielded segment objects
+remain unchanged. No fallback loop is copied. Concurrent owners of the same
+model are rejected. Every installed binding, including the outer adapter's
+`transcribe`, is restored when the owner closes. The final successful checkpoint
+closes owners before publishing metadata; cleanup failures mark the native
+trace incomplete and do not replace recognition exceptions.
+
+The separate `native_decoder_trace` records ordinal public-call, prompt,
+fallback-window and native-attempt identities; exact native/previous-token and
+generated-sequence count/hash; actual numeric/boolean generation kwargs;
+suppressed-token count/hash; and exposed numeric scores/no-speech probability.
+Positive temperature comes from actual `sampling_temperature`; the zero branch
+is labelled from the inspected beam/patience path. Selected native-result
+identity is matched only within its fallback call, independently of reported
+final temperature. An absent or ambiguous result identity remains unknown and
+makes the trace incomplete. Object IDs, token IDs and decoded token text are
+never stored. Inspected Python implementation source hashes are retained.
+
+Bounds are 256 fallback windows, 512 prompt events, 1536 native attempts,
+16 results/sequences/scores per attempt and 4096 tokens per hash. Original
+iterators are never consumed to obtain metadata. Limits, metadata failures,
+missing public/prompt/window bindings and failed restoration prevent native
+`complete=true`; in the saved result it also requires public-layer completion.
+Completeness applies only to these observed native windows. The public-layer
+`unobserved` list still describes that layer's scope; the separate native section
+supplies its additional observations. Native generation can precede discarded
+or un-emitted tokens; generated totals remain distinct from emitted totals.
+
+Fallback rejection causes, internal reset events and native stopping reasons
+remain unknown/null. No stop reason is exposed in the inspected installed
+result path; token length does not establish truncation. Whole-audio/clip/
+repeat/chunk, skipped-chunk and warmup bindings, VAD-to-original-audio mapping,
+builder calls, context rotation and recording resets are deferred. Neither
+layer certifies causal attribution or clinical fidelity. The tests use CPU
+fakes only; no new model inference accompanies this implementation.
