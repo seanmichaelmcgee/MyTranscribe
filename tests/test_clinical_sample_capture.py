@@ -83,7 +83,7 @@ def test_changed_source_refuses_new_capture_without_publishing_audio(archive, mo
     assert not list(archive.out.glob("*.wav*"))
 
 
-@pytest.mark.parametrize("single_script", [False, True])
+@pytest.mark.parametrize("single_script", [False, True, "fast"])
 def test_sample_gui_saves_recording_and_disables_selection_during_capture(qapp, archive, monkeypatch, single_script):
     import gui_qt
     from hw_profile import EngineConfig
@@ -99,6 +99,9 @@ def test_sample_gui_saves_recording_and_disables_selection_during_capture(qapp, 
     mic = type("Mic", (), {"session": lambda self: (stream, None)})()
     if single_script:
         archive.rows = archive.rows[:1]
+    if single_script == "fast":
+        archive.rows[0] = dict(archive.rows[0], label="Read at usual fast pace",
+                               intended_delivery="fast_mumbled", pair_id="fictional_pair")
     window = capture.window_class()(archive, mic, engine_factory=lambda: engine,
         include_combined=not single_script,
         base_prompt="Vocab.", text_pipeline=(None, None), install_hooks=False,
@@ -110,13 +113,20 @@ def test_sample_gui_saves_recording_and_disables_selection_during_capture(qapp, 
         assert wait_for(lambda: window.ready, app=qapp)
         assert window.sample_select.count() == (1 if single_script else 15)
         window.sample_select.setCurrentIndex(0 if single_script else 1)  # individual 00
-        window.profile_select.setCurrentIndex(2)  # phone normal
+        if single_script == "fast":
+            assert window.profile_select.currentData() == "local_fast"
+            assert "usual fast pace" in window.sample_select.currentText()
+        else:
+            window.profile_select.setCurrentIndex(2)  # phone normal
         assert "H G B" in window.read_aloud.toPlainText()
         window._on_start_clicked()
         window._refresh_controls()
         assert not window.sample_select.isEnabled() and not window.profile_select.isEnabled()
         assert wait_for(lambda: archive.manifest.exists(), app=qapp)
-        assert archive.entries()[0]["profile"] == "phone_remote_normal"
+        assert archive.entries()[0]["profile"] == ("local_fast" if single_script == "fast" else "phone_remote_normal")
+        if single_script == "fast":
+            assert archive.entries()[0]["intended_delivery"] == "fast_mumbled"
+            assert archive.entries()[0]["pair_id"] == "fictional_pair"
         assert archive.entries()[0]["scenario"] == "pc_v1_00"
         assert "saved locally" in window._status_text.text()
         window._refresh_controls()

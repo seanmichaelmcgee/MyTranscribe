@@ -143,4 +143,13 @@ class DurableQueueTests(unittest.TestCase):
         with self.assertRaises(ValueError):self.queue.once(env={},job_id='invalid')
         with self.assertRaises(ValueError):self.queue.once(env={},job_id='0'*64)
 
+    def test_selected_job_does_not_recover_an_unrelated_inflight_request(self):
+        older=self.queue.enqueue(self.audio,True)
+        self.queue._update(older['id'],'in_flight')
+        second_file=self.root/'second.wav';second_file.write_bytes(self.audio.read_bytes()+b'\x01\x00')
+        chosen=self.queue.enqueue(second_file,True)
+        self.assertEqual(self.queue.once(env={},job_id=chosen['id'])['state'],'blocked_auth')
+        preserved=next(r for r in self.queue.statuses() if r['id']==older['id'])
+        self.assertEqual(preserved['state'],'in_flight')
+
 if __name__=='__main__':unittest.main()

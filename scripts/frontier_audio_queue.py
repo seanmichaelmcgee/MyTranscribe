@@ -139,7 +139,11 @@ class Queue:
         with RunLock(self.folder/'.worker.lock'):
             # A process crash can leave an uncertain paid request. Never silently
             # resubmit it. A saved response can safely finish local bookkeeping.
-            for row in self.db.execute("SELECT * FROM jobs WHERE state='in_flight'").fetchall():
+            if job_id is None:
+                recovery=self.db.execute("SELECT * FROM jobs WHERE state='in_flight' AND model=? AND protocol=?",(self.model,self.protocol)).fetchall()
+            else:
+                recovery=self.db.execute("SELECT * FROM jobs WHERE state='in_flight' AND id=? AND model=? AND protocol=?",(job_id,self.model,self.protocol)).fetchall()
+            for row in recovery:
                 saved=self.folder/'results'/(row['id']+'.json')
                 if saved.exists():
                     try:

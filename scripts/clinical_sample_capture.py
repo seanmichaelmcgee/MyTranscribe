@@ -141,11 +141,12 @@ def window_class():
             if include_combined:
                 self.sample_select.addItem("Combined starters — read New paragraph between examples")
             for i, row in enumerate(archive.rows):
-                self.sample_select.addItem(f"{i:02d} — {row['category']}")
+                self.sample_select.addItem(f"{i:02d} — {row.get('label', row['category'])}")
             layout.insertWidget(1, self.sample_select)
             self.profile_select = QComboBox()
             for label, value in (("Local normal", "local_normal"), ("Local whisper", "local_whisper"),
-                                 ("Phone normal", "phone_remote_normal"), ("Phone whisper", "phone_remote_whisper")):
+                                 ("Phone normal", "phone_remote_normal"), ("Phone whisper", "phone_remote_whisper"),
+                                 ("Local fast / mumbled", "local_fast")):
                 self.profile_select.addItem(label, value)
             layout.insertWidget(2, self.profile_select)
             self.read_aloud = QTextEdit()
@@ -159,7 +160,12 @@ def window_class():
             self.resize(580, 570)
 
         def _show_sample(self, *args):
-            self.read_aloud.setPlainText(self.samples[self.sample_select.currentIndex()]["spoken"])
+            sample = self.samples[self.sample_select.currentIndex()]
+            self.read_aloud.setPlainText(sample["spoken"])
+            hint = {"clear": "local_normal", "normal": "local_normal",
+                    "fast_mumbled": "local_fast"}.get(sample.get("intended_delivery"))
+            if hint:
+                self.profile_select.setCurrentIndex(self.profile_select.findData(hint))
 
         def _test_stream(self):
             sample = self.samples[self.sample_select.currentIndex()]
