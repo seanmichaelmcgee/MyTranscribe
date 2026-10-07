@@ -32,8 +32,8 @@ from PyQt6.QtCore import (
 )
 from PyQt6.QtGui import QKeyEvent, QShortcut, QKeySequence
 
-import torch
-import whisper
+# torch / whisper are imported lazily (inside the methods that use them) so that
+# gui_med.py can subclass TranscriptionWindow without pulling in PyTorch.
 
 # pynput is imported for the Phase 4 HotkeyBridge stub; harmless to import now.
 from pynput import keyboard as pynput_keyboard
@@ -42,7 +42,7 @@ from pynput import keyboard as pynput_keyboard
 # Resolve via __file__ so the import works regardless of cwd (Risk R15).
 _SRC_DIR = Path(__file__).parent
 sys.path.insert(0, str(_SRC_DIR))
-from transcriber_v12 import RealTimeTranscriber   # noqa: E402
+# transcriber_v12 (imports torch/whisper) is imported in _ensure_model_loaded().
 from sound_utils import ChimePlayer               # noqa: E402
 
 # ── Logging ──────────────────────────────────────────────────────────────────
@@ -297,6 +297,10 @@ class TranscriptionWindow(QMainWindow):
         """
         if self._transcriber is not None:
             return
+        import torch
+        import whisper
+        from transcriber_v12 import RealTimeTranscriber
+
         model_name = os.environ.get("MYTRANSCRIBE_MODEL", WHISPER_MODEL)
         logger.info("Loading Whisper model '%s' ...", model_name)
         self._device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -578,6 +582,7 @@ class TranscriptionWindow(QMainWindow):
 
         # 5. Release GPU memory (Risk R30)
         try:
+            import torch
             torch.cuda.empty_cache()
         except Exception:
             pass
@@ -611,6 +616,7 @@ def main() -> None:
     # via $MYTRANSCRIBE_MODEL. Current release (20240930) includes `turbo` —
     # a distilled large-v3 that's ~8x faster with minor accuracy cost.
     try:
+        import whisper
         active_model = os.environ.get("MYTRANSCRIBE_MODEL", WHISPER_MODEL)
         logger.info(
             "Whisper %s — available models: %s | active: %s",

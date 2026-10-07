@@ -1,0 +1,86 @@
+[
+  {
+    "scenario": "pc_v1_00", "category": "result", "split": "calibration",
+    "spoken": "H G B normal, e G F R similar to prior.",
+    "reference": "HGB normal, eGFR similar to prior.",
+    "terms": ["HGB", "eGFR"], "names": []
+  },
+  {
+    "scenario": "pc_v1_01", "category": "result", "split": "calibration",
+    "spoken": "Creatinine eighty six, potassium four point six. No change in renal function.",
+    "reference": "Creatinine 86, potassium 4.6. No change in renal function.",
+    "terms": ["creatinine", "potassium", "renal function"], "names": []
+  },
+  {
+    "scenario": "pc_v1_02", "category": "result", "split": "calibration",
+    "spoken": "T S H normal. Hemoglobin A one C six point eight, unchanged.",
+    "reference": "TSH normal. Hemoglobin A1c 6.8, unchanged.",
+    "terms": ["TSH", "hemoglobin A1c"], "names": []
+  },
+  {
+    "scenario": "pc_v1_03", "category": "message", "split": "calibration",
+    "spoken": "Please call to tell him the chest X ray was normal. An appointment can be booked at my next available. New line. Open quotes. Recheck C X R, prior smoking, consider C T if still coughing. Close quotes.",
+    "reference": "Please call to tell him the chest X-ray was normal. An appointment can be booked at my next available.\n\"Recheck CXR, prior smoking, consider CT if still coughing\".",
+    "terms": ["chest X-ray", "CXR", "CT"], "names": []
+  },
+  {
+    "scenario": "pc_v1_04", "category": "message", "split": "calibration",
+    "spoken": "One period. Repeat C B C and ferritin in six weeks. New line. Two period. Book review after the results, any available spot.",
+    "reference": "1. Repeat CBC and ferritin in 6 weeks.\n2. Book review after the results, any available spot.",
+    "terms": ["CBC", "ferritin"], "names": []
+  },
+  {
+    "scenario": "pc_v1_05", "category": "message", "split": "calibration",
+    "spoken": "Please tell her no pneumonia was seen. New line. Open quotes. Persistent cough, review if not settling. Close quotes.",
+    "reference": "Please tell her no pneumonia was seen.\n\"Persistent cough, review if not settling\".",
+    "terms": ["pneumonia", "persistent cough"], "names": []
+  },
+  {
+    "scenario": "pc_v1_06", "category": "exam", "split": "calibration",
+    "spoken": "Cerebellar examination significant for dysdiadochokinesia, changed from the prior examination. Romberg unchanged. No nystagmus.",
+    "reference": "Cerebellar examination significant for dysdiadochokinesia, changed from the prior examination. Romberg unchanged. No nystagmus.",
+    "terms": ["cerebellar", "dysdiadochokinesia", "Romberg", "nystagmus"], "names": []
+  },
+  {
+    "scenario": "pc_v1_07", "category": "exam", "split": "calibration",
+    "spoken": "Two period. Xerostomia. Continue water based lubricants applied to the mucosa and the other strategies in the prior documentation. No oral candidiasis.",
+    "reference": "2. Xerostomia. Continue water-based lubricants applied to the mucosa and the other strategies in the prior documentation. No oral candidiasis.",
+    "terms": ["xerostomia", "mucosa", "oral candidiasis"], "names": []
+  },
+  {
+    "scenario": "pc_v1_08", "category": "exam", "split": "calibration",
+    "spoken": "Well appearing. Abdomen S N T. No C V A tenderness. No guarding or rebound.",
+    "reference": "Well appearing. Abdomen SNT. No CVA tenderness. No guarding or rebound.",
+    "terms": ["SNT", "CVA tenderness", "guarding", "rebound"], "names": []
+  },
+  {
+    "scenario": "pc_v1_09", "category": "exam", "split": "holdout",
+    "spoken": "Reduced pinprick sensation over the lateral calf. Ankle dorsiflexion four out of five on the right and five out of five on the left. No foot drop at rest.",
+    "reference": "Reduced pinprick sensation over the lateral calf. Ankle dorsiflexion 4 out of 5 on the right and 5 out of 5 on the left. No foot drop at rest.",
+    "terms": ["pinprick", "dorsiflexion", "foot drop"], "names": []
+  },
+  {
+    "scenario": "pc_v1_10", "category": "letter", "split": "calibration",
+    "spoken": "Thank you for seeing this pleasant seventy two year old for assessment of exertional chest discomfort. Symptoms began while moving house last week and recur when walking uphill. They settle within five minutes of rest. There has been no pain at rest, syncope, or associated palpitations. New paragraph. Relevant history includes hypertension and dyslipidemia. Current medications include ramipril five milligrams daily and atorvastatin twenty milligrams nightly. Blood pressure today was one hundred and thirty two over seventy eight. The resting E C G showed sinus rhythm without acute ischemic changes. New paragraph. I would appreciate your assessment of possible angina and advice regarding further investigation.",
+    "reference": "Thank you for seeing this pleasant 72-year-old for assessment of exertional chest discomfort. Symptoms began while moving house last week and recur when walking uphill. They settle within 5 minutes of rest. There has been no pain at rest, syncope, or associated palpitations.\n\nRelevant history includes hypertension and dyslipidemia. Current medications include ramipril 5 mg daily and atorvastatin 20 mg nightly. Blood pressure today was 132 over 78. The resting ECG showed sinus rhythm without acute ischemic changes.\n\nI would appreciate your assessment of possible angina and advice regarding further investigation.",
+    "terms": ["exertional", "syncope", "palpitations", "hypertension", "dyslipidemia", "ramipril", "atorvastatin", "ECG", "sinus rhythm", "ischemic", "angina"], "names": []
+  },
+  {
+    "scenario": "pc_v1_11", "category": "letter", "split": "calibration",
+    "spoken": "Thank you for assessing this fifty eight year old with a symptomatic right inguinal hernia. He first noticed the swelling three months ago. It becomes more prominent with lifting and prolonged standing and reduces when lying down. There has been no vomiting, abdominal distension, or change in bowel habit. New paragraph. Examination today showed a reducible right inguinal hernia with a cough impulse. The abdomen was soft and nontender. There was no overlying erythema and no clinical evidence of incarceration. He takes apixaban five milligrams twice daily for atrial fibrillation. New paragraph. I would appreciate your opinion regarding elective repair and the perioperative management of his anticoagulation.",
+    "reference": "Thank you for assessing this 58-year-old with a symptomatic right inguinal hernia. He first noticed the swelling 3 months ago. It becomes more prominent with lifting and prolonged standing and reduces when lying down. There has been no vomiting, abdominal distension, or change in bowel habit.\n\nExamination today showed a reducible right inguinal hernia with a cough impulse. The abdomen was soft and nontender. There was no overlying erythema and no clinical evidence of incarceration. He takes apixaban 5 mg twice daily for atrial fibrillation.\n\nI would appreciate your opinion regarding elective repair and the perioperative management of his anticoagulation.",
+    "terms": ["inguinal hernia", "distension", "reducible", "erythema", "incarceration", "apixaban", "atrial fibrillation", "perioperative", "anticoagulation"], "names": []
+  },
+  {
+    "scenario": "pc_v1_12", "category": "result", "split": "holdout",
+    "spoken": "Platelets stable at one hundred and forty eight. No anemia.",
+    "reference": "Platelets stable at 148. No anemia.",
+    "terms": ["platelets", "anemia"], "names": []
+  },
+  {
+    "scenario": "pc_v1_13", "category": "letter", "split": "holdout",
+    "spoken": "Thank you for reviewing this sixty six year old with persistent paresthesia in both feet. Symptoms have progressed gradually over six months, without weakness or a change in bladder function. She has not noticed symptoms in her hands. New paragraph. Examination demonstrated reduced vibration at the great toes and absent ankle reflexes bilaterally. Power was preserved. Her hemoglobin A one C was six point two, vitamin B twelve was two hundred and eighty, and thyroid function was normal. She takes levothyroxine seventy five micrograms daily for hypothyroidism. New paragraph. I would appreciate your assessment for possible peripheral neuropathy and advice on further investigation.",
+    "reference": "Thank you for reviewing this 66-year-old with persistent paresthesia in both feet. Symptoms have progressed gradually over 6 months, without weakness or a change in bladder function. She has not noticed symptoms in her hands.\n\nExamination demonstrated reduced vibration at the great toes and absent ankle reflexes bilaterally. Power was preserved. Her hemoglobin A1c was 6.2, vitamin B12 was 280, and thyroid function was normal. She takes levothyroxine 75 micrograms daily for hypothyroidism.\n\nI would appreciate your assessment for possible peripheral neuropathy and advice on further investigation.",
+    "terms": ["paresthesia", "vibration", "ankle reflexes", "bilaterally", "hemoglobin A1c", "vitamin B12", "levothyroxine", "hypothyroidism", "peripheral neuropathy"], "names": []
+  }
+]

@@ -1,5 +1,10 @@
 # MyTranscribe Development Guide
 
+> **Medical / GTX 1060 edition (`src/gui_med.py`):** if you are a local Claude session
+> on the user's Windows GPU machine, start with `LOCAL_SESSION_HANDOFF.md` (Part 3).
+> Setup: `scripts\setup_1060.bat`. Tests: `venv1060\Scripts\python.exe -m pytest -q tests`.
+> User guide: `README_1060.md`. Test plan and VM results: `docs/STRESS_TEST_PLAN_1060.md`.
+
 ## Usage Commands
 - Run application: `python gui-v0.8.py`
 - Setup virtual environment: `python3 -m venv venv && source venv/bin/activate`

@@ -1,0 +1,17 @@
+# corrections.txt — "heard => correct" rules applied to every transcribed chunk.
+#
+# Like Dragon's vocabulary editor: when Whisper keeps writing the same wrong
+# thing for something you say, add a line. Whole words/phrases only,
+# case-insensitive; hyphens and spaces in the "heard" side are interchangeable.
+# Keep rules specific: a rule fires everywhere, so never map a real everyday
+# word or phrase to something else.
+#
+# Your own rules go in %APPDATA%\MyTranscribe\corrections.txt (same format);
+# they are kept when the app is updated and win over this file.
+
+anti-Rho => anti-Ro
+anti Rho antibodies => anti-Ro antibodies
+
+# Fictional personal sample, read as written: this recurring non-word has one
+# explicitly confirmed intended spelling. Do not generalize to real abbreviations.
+dysthyatokinesia => dysdiadochokinesia

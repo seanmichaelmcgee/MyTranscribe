@@ -27,6 +27,11 @@ Linux (GTK3) and Windows (PyQt6) are both first-class targets sharing the same
 transcription engine (`src/transcriber_v12.py`). Built primarily through iterative
 work with consumer-level LLMs: OpenAI o3-mini-high, GPT-4o, and Claude 3.7 Thinking.
 
+> **New: Medical / GTX 1060 edition.** For long dictation (letters) on older NVIDIA
+> cards, with background transcription, no temp files, a medical vocabulary prompt and
+> optional auto-paste, see **[README_1060.md](README_1060.md)** (`run_1060.bat`,
+> `src/gui_med.py`). The app described below is unchanged.
+
 ---
 
 ## Features
@@ -424,9 +429,20 @@ MyTranscribe/
 │   ├── gui-v0.8.py              # Linux entry point (GTK3 / PyGObject)
 │   ├── gui_qt.py                # Windows entry point (PyQt6)
 │   ├── transcriber_v12.py       # Shared audio capture + Whisper backend
-│   └── sound_utils.py           # Chime generator and player
+│   ├── sound_utils.py           # Chime generator and player
+│   ├── gui_med.py               # Medical / GTX 1060 edition entry point (README_1060.md)
+│   ├── chunked_transcriber.py   #   background in-memory chunked transcription
+│   ├── fw_engine.py             #   faster-whisper wrapper
+│   ├── hw_profile.py            #   GPU detection + model/compute-type choice
+│   ├── phi_clipboard.py         #   clipboard privacy flags + auto-paste
+│   ├── prompt_loader.py         #   vocabulary prompt loader
+│   └── prompts/medical_prompt.txt
 ├── scripts/
-│   └── audit.py                 # Windows environment verification (11 checks)
+│   ├── audit.py                 # Windows environment verification (11 checks)
+│   ├── bench_engine.py          # 1060 edition: speed / memory / WER benchmark
+│   ├── stress_pipeline.py       # 1060 edition: stress scenarios
+│   └── make_random_whisper.py   # random-weight test model (sandbox stress tests)
+├── tests/                       # pytest suite for the 1060 edition
 ├── docs/
 │   └── port-plan/               # Windows port design, risk register, verification docs
 │       ├── 01-architecture.md
@@ -435,7 +451,9 @@ MyTranscribe/
 │       └── 07-human-verification.md
 ├── requirements.txt             # Linux Python dependencies
 ├── requirements-windows.txt     # Windows Python dependencies
+├── requirements-1060.txt        # Medical / 1060 edition dependencies (no PyTorch)
 ├── run.bat                      # Windows double-click launcher
+├── run_1060.bat                 # Medical / 1060 edition launcher
 ├── System_dependencies.md       # Linux system packages + ALSA/JACK guidance
 └── WINDOWS_PORT_PLAN_DETAILED.md
 ```

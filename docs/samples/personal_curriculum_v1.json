@@ -1,0 +1,35 @@
+{
+  "schema": "personal-curriculum-v1",
+  "version": 1,
+  "primary_capture": "headset",
+  "phonations": ["normal", "whisper"],
+  "phone_scope": "Historical optional transfer check; excluded from new curriculum selection",
+  "accepted_spellings": [
+    {
+      "canonical": "dysdiadochokinesia",
+      "accepted": ["dysdiadochokinesia", "dysdiadokinesia"],
+      "authority": "Direct user clarification, 2026-10-04"
+    }
+  ],
+  "seed_terms": [
+    {"term": "HGB", "category": "abbr", "topic": "results"},
+    {"term": "eGFR", "category": "abbr", "topic": "results"},
+    {"term": "dysdiadochokinesia", "category": "dx", "topic": "neuro"},
+    {"term": "dysdiadokinesia", "category": "dx", "topic": "neuro"},
+    {"term": "Romberg", "category": "test", "topic": "neuro"},
+    {"term": "nystagmus", "category": "dx", "topic": "neuro"},
+    {"term": "ramipril", "category": "drug", "topic": "medications"},
+    {"term": "atorvastatin", "category": "drug", "topic": "medications"}
+  ],
+  "seed_authority": "Terms in current fictional recordings; personal frequency list awaiting user input",
+  "style_preferences": [],
+  "style_status": "Awaiting user preferences; existing paragraph/unit conventions remain comparison examples",
+  "priority_failures": [
+    "Lab identity and comparison modifier",
+    "Medication identity, dose, unit and frequency as a tuple",
+    "Negation and assertion scope",
+    "Accepted spelling versus an unaccepted malformed term",
+    "Paragraph and quotation intent"
+  ],
+  "adaptation_status": "Candidate vocabulary export only; no automatic activation or model-weight update"
+}
