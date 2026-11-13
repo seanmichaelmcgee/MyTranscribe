@@ -8,11 +8,12 @@ saves and applies it. New options belong here, not on the main window.
 """
 
 from dataclasses import replace
+import os
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QApplication, QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFormLayout, QFrame,
-    QLabel, QScrollArea, QVBoxLayout, QWidget,
+    QLabel, QScrollArea, QVBoxLayout, QWidget, QSlider, QHBoxLayout,
 )
 
 from settings import Settings
@@ -37,7 +38,16 @@ HOW_TO = (
 )
 
 STYLE = """
-QDialog { background: #F5F4ED; }
+QDialog, QScrollArea, QScrollArea > QWidget > QWidget { background: #F5F4ED; }
+QLabel, QCheckBox { color: #1F1E1D; background: transparent; }
+QComboBox, QComboBox QAbstractItemView { color: #1F1E1D; background: #FFFFFF; selection-background-color: #F0D9CD; selection-color: #1F1E1D; }
+QPushButton { background: #FFFFFF; color: #1F1E1D; border: 1px solid #DAD8CD; border-radius: 6px; padding: 6px 12px; }
+QPushButton:hover { background: #ECEADF; }
+QCheckBox::indicator { width: 14px; height: 14px; background: #FFFFFF; border: 1px solid #77756D; border-radius: 3px; }
+QCheckBox::indicator:checked { background: #C96442; border: 3px solid #F0D9CD; }
+QSlider::groove:horizontal { background: #DAD8CD; height: 5px; }
+QSlider::sub-page:horizontal { background: #C96442; }
+QSlider::handle:horizontal { background: #C96442; width: 16px; margin: -5px 0; border-radius: 8px; }
 QLabel#sectionTitle { font-weight: 600; color: #3D3C38; margin-top: 4px; }
 QLabel#fixedBinding { color: #5E5D59; }
 QLabel#howTo { color: #3D3C38; background: #FFFFFF; border: 1px solid #E3E1D7; border-radius: 8px; padding: 10px; }
@@ -82,6 +92,21 @@ class OptionsDialog(QDialog):
         self.mouse.currentIndexChanged.connect(self._sync_enabled)
         self._sync_enabled()
 
+        layout.addWidget(self._title("Start / stop sounds"))
+        sound_row = QHBoxLayout()
+        self.chime_volume = QSlider(Qt.Orientation.Horizontal)
+        self.chime_volume.setRange(0, 100)
+        self.chime_volume.setValue(settings.chime_volume)
+        self.chime_volume.setAccessibleName("Start and stop sound volume")
+        volume_label = QLabel()
+        def show_volume(value):
+            volume_label.setText("Muted" if value == 0 else f"{value}%")
+        self.chime_volume.valueChanged.connect(show_volume)
+        show_volume(settings.chime_volume)
+        sound_row.addWidget(self.chime_volume)
+        sound_row.addWidget(volume_label)
+        layout.addLayout(sound_row)
+
         layout.addWidget(self._title("Speech model"))
         acc_form = QFormLayout()
         acc_form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
@@ -100,6 +125,13 @@ class OptionsDialog(QDialog):
         layout.addWidget(self.keep_mic_ready)
 
         layout.addWidget(self._title("Text"))
+        self.autopaste = QCheckBox("Paste automatically after stopping dictation")
+        self.autopaste.setToolTip("Stop with a hotkey to paste into the focused field. The on-screen Stop button only copies.")
+        self.autopaste.setChecked(settings.autopaste)
+        if "MYTRANSCRIBE_AUTOPASTE" in os.environ:
+            self.autopaste.setEnabled(False)
+            self.autopaste.setToolTip("MYTRANSCRIBE_AUTOPASTE currently overrides this setting. Remove that environment variable to use this option.")
+        layout.addWidget(self.autopaste)
         self.voice_commands = QCheckBox("Spoken formatting: new line, paragraph, quotes")
         self.voice_commands.setToolTip("Say “new line”, “new paragraph” or “open quote … close quote”.")
         self.voice_commands.setChecked(settings.voice_commands)
@@ -161,4 +193,5 @@ class OptionsDialog(QDialog):
                        start_compact=self.start_compact.isChecked(), accuracy=self.accuracy.currentData(),
                        voice_commands=self.voice_commands.isChecked(),
                        keep_mic_ready=self.keep_mic_ready.isChecked(),
-                       live_insert=self.live_insert.isChecked())
+                       live_insert=self.live_insert.isChecked(),
+                       chime_volume=self.chime_volume.value(), autopaste=self.autopaste.isChecked())

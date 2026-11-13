@@ -37,7 +37,7 @@ def test_settings_file_never_holds_text(tmp_path):
     st.save(st.Settings(), p)
     assert set(json.loads(p.read_text(encoding="utf-8"))) == {"key", "key_mode", "mouse", "mouse_mode",
                                                               "start_compact", "accuracy", "voice_commands",
-                                                              "keep_mic_ready", "live_insert"}
+                                                              "keep_mic_ready", "live_insert", "chime_volume", "autopaste"}
 
 
 def test_accuracy_default_and_validation(tmp_path):
@@ -81,3 +81,15 @@ def test_small_options_window_keeps_help_and_save_accessible(qapp):
         assert save.isVisible() and d.rect().contains(save.mapTo(d, save.rect().center()))
     finally:
         d.close()
+
+
+def test_chime_volume_and_autopaste_round_trip(tmp_path):
+    from settings import Settings, save, load
+    path = tmp_path / "settings.json"
+    save(Settings(chime_volume=25, autopaste=True), path)
+    restored = load(path, env={})
+    assert restored.chime_volume == 25
+    assert restored.autopaste is True
+    assert Settings(chime_volume=-10).clean().chime_volume == 0
+    assert Settings(chime_volume=200).clean().chime_volume == 100
+    assert Settings(chime_volume=None).clean().chime_volume == 100

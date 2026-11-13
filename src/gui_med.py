@@ -76,7 +76,7 @@ LIVE_INSERT_GAP_MS = 300        # let the target app read the clipboard before t
 LOADING_TEXT = "Loading speech model… (first run downloads ~1.6 GB)"
 TRANSCRIBING_SUFFIX = "\n\n[Finishing transcription…]"
 NORMAL_SIZE = (560, 300)
-COMPACT_WIDTH = 380
+COMPACT_WIDTH = 300
 
 # Recording light: always visible, green = recording, red = not recording.
 REC_ON_COLOUR = "#2E9E4F"
@@ -100,7 +100,7 @@ QLabel#statusText { font-weight: 600; }
 QLabel#recLight { border-radius: 9px; border: 1px solid rgba(0, 0, 0, 0.15); }
 QPushButton { border-radius: 8px; padding: 6px 12px; }
 QPushButton#toggleButton {
-    background: #C96442; color: #FFFFFF; border: none; font-size: 11pt; font-weight: 600; min-height: 34px;
+    background: #C96442; color: #FFFFFF; border: none; font-size: 11pt; font-weight: 600; min-height: 22px;
 }
 QPushButton#toggleButton:hover { background: #B5583A; }
 QPushButton#toggleButton:pressed { background: #A14E33; }
@@ -202,10 +202,11 @@ class MedTranscriptionWindow(TranscriptionWindow):
         self._ready_mic = None
         self._mic_warmup_override = mic_warmup_s
         self._mic_live = False
-        self._autopaste = env_flag("MYTRANSCRIBE_AUTOPASTE") if autopaste is None else autopaste
+        self._autopaste_override = autopaste
         self._base_prompt = load_prompt() if base_prompt is None else base_prompt
         self._settings_path = settings_path
         self._settings = settings if settings is not None else settings_store.load(settings_path)
+        self._sync_autopaste()
         accurate = self._settings.accuracy == "best"
         self._engine_factory = engine_factory or (lambda: build_default_engine(accurate))
         self._install_hooks = install_hooks
@@ -236,6 +237,7 @@ class MedTranscriptionWindow(TranscriptionWindow):
         self.check_words: list = []       # non-words to check in the last transcript
 
         super().__init__()
+        self._chime.volume = self._settings.chime_volume / 100
         self._chime = _StartChimeGate(self._chime)
         self._apply_mic_mode()
         self.setWindowTitle(WINDOW_TITLE_MED + (" [auto-paste]" if self._autopaste else ""))
@@ -321,8 +323,8 @@ class MedTranscriptionWindow(TranscriptionWindow):
         root.setObjectName("medRoot")
         self.setCentralWidget(root)
         layout = QVBoxLayout(root)
-        layout.setContentsMargins(12, 10, 12, 10)
-        layout.setSpacing(8)
+        layout.setContentsMargins(8, 5, 8, 5)
+        layout.setSpacing(4)
 
         # Status row: (light) Ready ..................... [Copy] [⚙] [–]
         top = QHBoxLayout()
@@ -332,6 +334,7 @@ class MedTranscriptionWindow(TranscriptionWindow):
         self._rec_light.setFixedSize(18, 18)
         self._status_text = QLabel("Loading…")
         self._status_text.setObjectName("statusText")
+        self._status_text.setWordWrap(True)
         top.addWidget(self._rec_light)
         top.addSpacing(2)
         top.addWidget(self._status_text)
@@ -508,7 +511,7 @@ class MedTranscriptionWindow(TranscriptionWindow):
             return
         self.centralWidget().layout().invalidate()
         self.centralWidget().layout().activate()
-        self.resize(max(COMPACT_WIDTH, min(self.width(), 420)), self.minimumSizeHint().height())
+        self.resize(COMPACT_WIDTH, self.minimumSizeHint().height())
 
     # ── Start / stop ──────────────────────────────────────────────────────────
     def _can_start(self) -> bool:
@@ -876,9 +879,20 @@ class MedTranscriptionWindow(TranscriptionWindow):
         if dlg.exec():
             self.apply_settings(dlg.result_settings())
 
+    def _sync_autopaste(self):
+        if self._autopaste_override is not None:
+            self._autopaste = self._autopaste_override
+        elif "MYTRANSCRIBE_AUTOPASTE" in os.environ:
+            self._autopaste = env_flag("MYTRANSCRIBE_AUTOPASTE")
+        else:
+            self._autopaste = self._settings.autopaste
+
     def apply_settings(self, new: "settings_store.Settings") -> None:
         """Save and apply edited options (start_compact only affects the next start)."""
         self._settings = new.clean()
+        self._sync_autopaste()
+        self._chime._inner.volume = self._settings.chime_volume / 100
+        self.setWindowTitle(WINDOW_TITLE_MED + (" [auto-paste]" if self._autopaste else ""))
         settings_store.save(self._settings, self._settings_path)
         self._apply_triggers()
         self._apply_mic_mode()

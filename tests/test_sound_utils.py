@@ -94,3 +94,30 @@ def test_failed_output_still_closes_stream_before_termination(player):
     chime._play_sound_thread(chime.start_chime_path)
     chime.cleanup()
     assert events == ["open", "stop", "close", "terminate"]
+
+
+def test_muted_chime_does_not_open_audio_device(player):
+    chime, _, _, events = player
+    chime.volume = 0
+    chime._play_sound_thread(chime.start_chime_path)
+    assert events == []
+
+
+def test_volume_scales_pcm(player):
+    import numpy as np
+    chime, _, _, _ = player
+    written = []
+    with wave.open(chime.start_chime_path, "wb") as wav:
+        wav.setnchannels(1)
+        wav.setsampwidth(2)
+        wav.setframerate(16000)
+        wav.writeframes(np.array([1000, -1000], dtype=np.int16).tobytes())
+    original_open = chime.p.open
+    def capture(**kwargs):
+        stream = original_open(**kwargs)
+        stream.write = lambda data: written.extend(np.frombuffer(data, dtype=np.int16))
+        return stream
+    chime.p.open = capture
+    chime.volume = 0.25
+    chime._play_sound_thread(chime.start_chime_path)
+    assert written == [250, -250]
