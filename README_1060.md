@@ -55,6 +55,18 @@ store, append it to a copy of pip's `cacert.pem`, and point `venv1060\pip.ini`
 (`[global] cert = ...`) and `REQUESTS_CA_BUNDLE` at that file for the install and the
 first model download.
 
+## Window and sound options
+
+The Options gear includes a start/stop sound volume slider (0% mutes both sounds)
+and “Paste automatically after stopping dictation”. Save applies these immediately
+and remembers them for the next launch. Auto-paste requires stopping with a hotkey;
+the on-screen Stop button copies only. An explicit MYTRANSCRIBE_AUTOPASTE environment
+variable overrides the saved choice; remove it to control auto-paste in Options.
+
+Compact view now targets 300 logical pixels wide with tighter spacing. The light,
+input meter, Copy, Options, expand control and Start/Stop remain available. Options
+uses explicit light colours for readability even when Windows uses dark mode.
+
 ## Use
 
 The window starts small (compact view) and stays on top of other windows:

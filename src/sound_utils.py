@@ -104,6 +104,7 @@ class ChimePlayer:
         self.start_chime_path = generate_start_chime_file()
         self.end_chime_path = generate_end_chime_file()
         self.p = pyaudio.PyAudio()
+        self.volume = 1.0
         self.is_playing = False
         self._lock = threading.Lock()
         self._playback_lock = threading.Lock()  # stream lifetime must finish before device termination
@@ -139,6 +140,9 @@ class ChimePlayer:
             self._playback_lock.release()
 
     def _play_sound_locked(self, sound_path):
+        volume = self.volume
+        if volume <= 0:
+            return
         with self._lock:
             if self.is_playing:
                 return
@@ -156,7 +160,8 @@ class ChimePlayer:
                 
                 data = wf.readframes(1024)
                 while data:
-                    stream.write(data)
+                    samples = np.frombuffer(data, dtype=np.int16)
+                    stream.write((samples * volume).astype(np.int16).tobytes())
                     data = wf.readframes(1024)
                 
         except Exception as e:

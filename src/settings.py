@@ -42,6 +42,9 @@ class Settings:
     keep_mic_ready: bool = True        # mic open between dictations + 0.5 s pre-roll (like Dragon)
     live_insert: bool = False          # paste each ~30 s piece at the cursor while dictating
 
+    chime_volume: int = 100           # percent of the original chime level; zero mutes
+    autopaste: bool = False
+
     def triggers(self) -> TriggerConfig:
         return TriggerConfig(
             key=self.key if self.key in KEY_CHOICES else None, key_hold=self.key_mode == "hold",
@@ -51,6 +54,11 @@ class Settings:
     def clean(self) -> "Settings":
         """Replace anything invalid (hand-edited file) with the default."""
         d = Settings()
+        try:
+            self.chime_volume = max(0, min(100, int(self.chime_volume)))
+        except (ValueError, TypeError, OverflowError):
+            self.chime_volume = d.chime_volume
+        self.autopaste = bool(self.autopaste)
         if self.key not in KEY_CHOICES and self.key != "none":
             self.key = d.key
         if self.mouse not in MOUSE_CHOICES and self.mouse != "none":
