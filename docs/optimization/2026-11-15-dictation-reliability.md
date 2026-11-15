@@ -54,6 +54,26 @@ Compute for the as-recorded set: 46.9 s → 46.6 s. (One development recording o
 
 Variants tried on top of the candidate and not adopted (development split): VAD padding 150 ms and 100 ms, and VAD off. None improved breaks without costing accuracy or commands; VAD off was worse on every pause measure.
 
+## Dragon Medical One on the same audio (held-out split)
+
+`scripts/dragon_replay.py` plays each held-out recording, and the same derived conditions, through a virtual audio cable (VB-CABLE) into Dragon Medical One 26.3 dictating into Notepad, one play per cell (98 cells, 62 minutes of audio). Dragon recognises in the cloud; only the owner's fictional recordings were sent. Scoring is the same code as above.
+
+| Condition | WER % base / cand / Dragon | Commands found | Format ok | Last words ok |
+|---|---|---|---|---|
+| as recorded | 4.52 / 4.45 / 5.73 | 54/56, 56/56, 56/56 | 11/12, 12/12, 12/12 | 21/23, 21/23, 20/23 |
+| 1.5 s pauses | 5.81 / 5.39 / 8.50 | 48/52, 52/52, 52/52 (+1 extra) | 8/10, 10/10, 9/10 | 9/10, 9/10, 9/10 |
+| 4 s pauses | 5.81 / 6.06 / 8.50 | 52/52, 48/52, 52/52 (+1 extra) | 10/10, 9/10, 9/10 | 9/10, 9/10, 9/10 |
+| pauses around commands | 5.56 / 4.74 / 7.11 | 49/56 (+2), 56/56, 52/56 (+3) | 7/12, 12/12, 7/12 | 11/12, 11/12, 11/12 |
+| pause before last words | 4.56 / 4.48 / 6.69 | 54/56, 56/56, 56/56 | 11/12, 12/12, 12/12 | 18/20, 18/20, 15/20 |
+| Stop 0.15 s early | 6.48 / 4.82 / 7.46 | 53/56, 56/56, 55/56 | 10/12, 12/12, 11/12 | 2/23, 18/23, 1/23 |
+
+How to read it:
+
+- Dragon writes sentence punctuation only when it is dictated. Against the script it leaves out about 130 sentence ends in every condition and adds none, so it never produces a spurious sentence break at a pause; that measure is not comparable and is left out of the table. WER ignores punctuation.
+- Part of Dragon's WER rise under spliced pauses is an artefact of the splice: several pause sites fall inside a word ("recorded" split in two), which Dragon transcribes as two words and Whisper mostly repairs. The 1.5 s and 4 s results are nearly the same errors. Treat the pause rows as a stress test, not as how Dragon handles a natural pause.
+- For Dragon, "Stop 0.15 s early" means the audio ends there and the microphone is switched off at once; the cable adds latency, so the timing is approximate.
+- One play per cell, no repeat; a virtual cable, not a live microphone; script-relative scoring with no listen-back.
+
 ## Limitations
 
 - **Known regression:** with 4 s pauses one held-out letter lost four list commands that the classic pipeline kept (48/52 vs 52/52), and WER in that condition rose 5.81 → 6.06. Commands inside a numbered list ("new line, 2 period") are the weak spot.

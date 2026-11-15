@@ -336,6 +336,67 @@ def tail_ok(reference: str, hyp: str) -> bool:
     return bool(ref) and all(w in h[-8:] for w in ref[-3:])
 
 
+def score_row(e, cond, text, base_text, audio_s, sites=0, rescued=0, elapsed_s=0.0, pieces=()):
+    """One result row: `text` for recording `e` under `cond`; base_text is the same system's `orig` text."""
+    paused = base_text is not None and cond != "orig"
+    missing, extra = sentence_end_errors(e["reference"], text)
+    return {
+        "id": e["id"], "split": e["split"], "category": e["category"], "condition": cond,
+        "audio_s": round(audio_s, 2), "sites": sites, "ref_words": len(normalize_words(e["reference"])),
+        "errors": word_edits(e["reference"], text),
+        "drift": word_edits(base_text, text) if paused else 0,
+        "breaks": added_breaks(base_text, text) if paused else 0,
+        "sent_missing": missing, "sent_extra": extra, "rescued": rescued,
+        "commands": command_hits(e["reference"], text),
+        "uses_format": bool(structure(e["reference"])),
+        "format_ok": format_ok(e["reference"], text),
+        "tail_ok": tail_ok(e["reference"], text),
+        "elapsed_s": round(elapsed_s, 2), "text": text, "pieces": list(pieces),
+    }
+
+
+def summarise(rows, conditions):
+    summary = {}
+    for cond in conditions:
+        r = [x for x in rows if x["condition"] == cond]
+        if not r:
+            continue
+        fmt = [x for x in r if x["uses_format"]]
+        summary[cond] = {
+            "recordings": len(r), "sites": sum(x["sites"] for x in r),
+            "wer": round(100 * sum(x["errors"] for x in r) / max(1, sum(x["ref_words"] for x in r)), 2),
+            "breaks": sum(x["breaks"] for x in r), "drift": sum(x["drift"] for x in r),
+            "sent_missing": sum(x["sent_missing"] for x in r), "sent_extra": sum(x["sent_extra"] for x in r),
+            "rescued": sum(x["rescued"] for x in r), "elapsed_s": round(sum(x["elapsed_s"] for x in r), 1),
+            "format": f"{sum(x['format_ok'] for x in fmt)}/{len(fmt)}",
+            "commands": f"{sum(x['commands'][1] for x in r)}/{sum(x['commands'][0] for x in r)}"
+                        f"+{sum(x['commands'][2] for x in r)}",
+            "tail": f"{sum(x['tail_ok'] for x in r)}/{len(r)}",
+        }
+    return summary
+
+
+def print_summary(summary):
+    print(f"{'condition':10s} {'n':>3s} {'sites':>5s} {'WER %':>6s} {'breaks':>6s} {'drift':>5s} {'format':>7s} "
+          f"{'tail':>6s} {'s-miss':>6s} {'s-extra':>7s} {'commands':>9s} {'rescued':>7s} {'secs':>6s}")
+    for cond, s in summary.items():
+        print(f"{cond:10s} {s['recordings']:3d} {s['sites']:5d} {s['wer']:6.2f} {s['breaks']:6d} "
+              f"{s['drift']:5d} {s['format']:>7s} {s['tail']:>6s} {s['sent_missing']:6d} {s['sent_extra']:7d} "
+              f"{s['commands']:>9s} {s['rescued']:7d} {s['elapsed_s']:6.1f}")
+
+
+def cached_word_times(cache_dir: Path, audio: np.ndarray, engine=None):
+    """Word timings for a recording from the cache; computed with `engine` when missing."""
+    cache = cache_dir / f"{hashlib.sha256(audio.tobytes()).hexdigest()[:16]}.json"
+    if cache.is_file():
+        return [tuple(w) for w in json.loads(cache.read_text(encoding="utf-8"))]
+    if engine is None:
+        raise SystemExit(f"no cached word timings ({cache.name}); run dictation_reliability.py on this split first")
+    words = word_times(engine, audio)
+    cache.write_text(json.dumps(words), encoding="utf-8")
+    return words
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--corpus-root", required=True, type=Path)
@@ -371,13 +432,7 @@ def main(argv=None):
     rows, t_start = [], time.perf_counter()
     for e in entries:
         audio = load_wav(e["wav"])
-        digest = hashlib.sha256(audio.tobytes()).hexdigest()[:16]
-        cache = cache_dir / f"{digest}.json"
-        if cache.is_file():
-            words = [tuple(w) for w in json.loads(cache.read_text(encoding="utf-8"))]
-        else:
-            words = word_times(engine, audio)
-            cache.write_text(json.dumps(words), encoding="utf-8")
+        words = cached_word_times(cache_dir, audio, engine)
         base_text = None
         for cond in args.conditions.split(","):
             built = build_condition(cond, audio, words)
@@ -387,41 +442,11 @@ def main(argv=None):
             text, pieces, elapsed, rescued = run_pipeline(engine, cond_audio, stop_at, style, builder, post, profile)
             if cond == "orig":
                 base_text = text
-            ref_n = len(normalize_words(e["reference"]))
-            rows.append({
-                "id": e["id"], "split": e["split"], "category": e["category"], "condition": cond,
-                "audio_s": round(len(cond_audio) / SR, 2), "sites": sites, "ref_words": ref_n,
-                "errors": word_edits(e["reference"], text),
-                "drift": word_edits(base_text, text) if base_text is not None and cond != "orig" else 0,
-                "breaks": added_breaks(base_text, text) if base_text is not None and cond != "orig" else 0,
-                "sent_missing": sentence_end_errors(e["reference"], text)[0],
-                "sent_extra": sentence_end_errors(e["reference"], text)[1],
-                "rescued": rescued,
-                "commands": command_hits(e["reference"], text),
-                "uses_format": bool(structure(e["reference"])),
-                "format_ok": format_ok(e["reference"], text),
-                "tail_ok": tail_ok(e["reference"], text),
-                "elapsed_s": round(elapsed, 2), "text": text, "pieces": pieces,
-            })
+            rows.append(score_row(e, cond, text, base_text, audio_s=len(cond_audio) / SR, sites=sites,
+                                  rescued=rescued, elapsed_s=elapsed, pieces=pieces))
         print(f"{e['id'][:40]:40s} done ({time.perf_counter() - t_start:.0f}s)", flush=True)
 
-    summary = {}
-    for cond in args.conditions.split(","):
-        r = [x for x in rows if x["condition"] == cond]
-        if not r:
-            continue
-        fmt = [x for x in r if x["uses_format"]]
-        summary[cond] = {
-            "recordings": len(r), "sites": sum(x["sites"] for x in r),
-            "wer": round(100 * sum(x["errors"] for x in r) / max(1, sum(x["ref_words"] for x in r)), 2),
-            "breaks": sum(x["breaks"] for x in r), "drift": sum(x["drift"] for x in r),
-            "sent_missing": sum(x["sent_missing"] for x in r), "sent_extra": sum(x["sent_extra"] for x in r),
-            "rescued": sum(x["rescued"] for x in r), "elapsed_s": round(sum(x["elapsed_s"] for x in r), 1),
-            "format": f"{sum(x['format_ok'] for x in fmt)}/{len(fmt)}",
-            "commands": f"{sum(x['commands'][1] for x in r)}/{sum(x['commands'][0] for x in r)}"
-                        f"+{sum(x['commands'][2] for x in r)}",
-            "tail": f"{sum(x['tail_ok'] for x in r)}/{len(r)}",
-        }
+    summary = summarise(rows, args.conditions.split(","))
     result = {"profile": args.profile, "settings": profile, "split": args.split,
               "model": cfg.model, "compute_type": engine.config.compute_type, "device": engine.config.device,
               "summary": summary, "rows": rows}
@@ -430,12 +455,7 @@ def main(argv=None):
 
     print(f"\nprofile={args.profile} split={args.split} model={Path(str(cfg.model)).name} "
           f"{engine.config.device}/{engine.config.compute_type}")
-    print(f"{'condition':10s} {'n':>3s} {'sites':>5s} {'WER %':>6s} {'breaks':>6s} {'drift':>5s} {'format':>7s} "
-          f"{'tail':>6s} {'s-miss':>6s} {'s-extra':>7s} {'commands':>9s} {'rescued':>7s} {'secs':>6s}")
-    for cond, s in summary.items():
-        print(f"{cond:10s} {s['recordings']:3d} {s['sites']:5d} {s['wer']:6.2f} {s['breaks']:6d} "
-              f"{s['drift']:5d} {s['format']:>7s} {s['tail']:>6s} {s['sent_missing']:6d} {s['sent_extra']:7d} "
-              f"{s['commands']:>9s} {s['rescued']:7d} {s['elapsed_s']:6.1f}")
+    print_summary(summary)
 
 
 if __name__ == "__main__":
