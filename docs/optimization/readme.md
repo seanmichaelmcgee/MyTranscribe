@@ -17,6 +17,7 @@ Read [instructions.md](instructions.md) after [project onboarding](../../AGENTS.
 | [PROJECT_SOP.md](../PROJECT_SOP.md) | Mandatory project-wide procedure |
 | [PERSONAL_ASR_CURRICULUM.md](../PERSONAL_ASR_CURRICULUM.md) | Headset curriculum and blind comparator workflow |
 | [Public/native trace how-to](whisper-public-trace.md) | Implemented experimental trace interface and limitations |
+| [Pause-aware dictation](2026-11-15-dictation-reliability.md) | Off-by-default candidate for thinking pauses, dropped spoken commands and cut-off last words; method, results, limits |
 | [Private results readme](../../results_1060/personal_curriculum/readme.md) | Current local plans, evidence and resume navigation |
 | [Ongoing accuracy plan](../../results_1060/personal_curriculum/plans/ACCURACY_CONTINUATION_SPEC.md) | Current personal program bounds and clinical priorities |
 | [Trace replay proposal](../../results_1060/personal_curriculum/continuation/TRACE_ONLY_CAMPAIGN_SPEC_v1.md) | Proposed fixed observation replay; not an executable freeze |

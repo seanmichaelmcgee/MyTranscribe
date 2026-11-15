@@ -10,6 +10,7 @@ Follow [instructions.md](instructions.md) and [project SOP](../docs/PROJECT_SOP.
 | `personal_audio_trial.py` | Opt-in verified original-PCM replay and isolated prompt candidates |
 | `trial_asr.py` | Shared offline raw/filtered/cleaned replay harness; historical PCM route differs from exact replay |
 | `whisper_runtime_trial.py` | Fixed local Whisper runtime trial and opt-in trace adapter |
+| `dictation_reliability.py` | Thinking pauses, spoken commands and early Stop on the headset corpus, classic vs pause-aware pipeline; [results note](../docs/optimization/2026-11-15-dictation-reliability.md) |
 | `whisper_decoder_trace.py`, `whisper_native_trace.py` | Experimental observation helpers; [trace interface](../docs/optimization/whisper-public-trace.md) |
 | `frontier_audio_queue.py`, `openrouter_audio_queue.py` | Authorized blind remote comparisons with durable selected-job state |
 

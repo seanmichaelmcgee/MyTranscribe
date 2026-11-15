@@ -8,6 +8,7 @@ Holds only key bindings, view and accuracy preferences: never transcript text.
 Environment variables still override the file (handy for testing):
   MYTRANSCRIBE_KEY / MYTRANSCRIBE_KEY_MODE      e.g. f9 / hold|toggle, or none
   MYTRANSCRIBE_MOUSE / MYTRANSCRIBE_MOUSE_MODE  x2|x1|middle|none / hold|toggle
+  MYTRANSCRIBE_PAUSE_AWARE                      1|0: pause-aware dictation on/off
 """
 
 import json
@@ -44,6 +45,7 @@ class Settings:
 
     chime_volume: int = 100           # percent of the original chime level; zero mutes
     autopaste: bool = False
+    pause_aware: bool = False          # pause-aware dictation (see pause_flow.py); off = classic pipeline
 
     def triggers(self) -> TriggerConfig:
         return TriggerConfig(
@@ -59,6 +61,7 @@ class Settings:
         except (ValueError, TypeError, OverflowError):
             self.chime_volume = d.chime_volume
         self.autopaste = bool(self.autopaste)
+        self.pause_aware = bool(self.pause_aware)
         if self.key not in KEY_CHOICES and self.key != "none":
             self.key = d.key
         if self.mouse not in MOUSE_CHOICES and self.mouse != "none":
@@ -93,6 +96,9 @@ def load(path: Optional[Path] = None, env: Optional[dict] = None) -> Settings:
         value = env.get(var, "").strip().lower()
         if value:
             setattr(s, attr, value)
+    forced = env.get("MYTRANSCRIBE_PAUSE_AWARE", "").strip().lower()
+    if forced:
+        s.pause_aware = forced in ("1", "true", "yes", "on")
     return s.clean()
 
 

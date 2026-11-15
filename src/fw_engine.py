@@ -48,6 +48,10 @@ MAX_TOKENS_PER_SECOND = 10
 MIN_NEW_TOKENS = 24
 WHISPER_MAX_LENGTH = 448          # decoder window: prompt + special tokens + output
 WHISPER_PROMPT_TOKEN_LIMIT = WHISPER_MAX_LENGTH // 2 - 1  # faster-whisper's retained suffix
+FRAMES_PER_SECOND = 100           # Whisper feature frames; Segment.seek is in these
+WINDOW_FRAMES = 3000              # one 30 s decoding window
+WINDOW_SECONDS = 30.0
+TAIL_REDECODE_MIN_S = 2.0         # transcribe_words: undecoded audio worth a second look
 VAD_PARAMETERS = {
     # Dictation has short thinking pauses; keep them inside one segment.
     "min_silence_duration_ms": 700,
@@ -110,6 +114,10 @@ class FasterWhisperEngine:
     def __init__(self, config: EngineConfig, model_factory: Optional[Callable] = None,
                  beam_size: Optional[int] = None) -> None:
         self.config = config
+        # Extra keyword arguments for model.transcribe (they win over the defaults
+        # below). Empty in the classic pipeline; the dictation candidate and the
+        # trial scripts set it, e.g. {"vad_parameters": {...}} or {"vad_filter": False}.
+        self.decode_overrides: dict = {}
         if beam_size is None:
             try:
                 beam_size = int(os.environ.get("MYTRANSCRIBE_BEAM_SIZE", DEFAULT_BEAM_SIZE))
@@ -163,10 +171,53 @@ class FasterWhisperEngine:
         mis-heard sentence bias the next one (the original app's anti-
         hallucination setting). Cross-chunk context comes from `prompt`.
         """
+        segments, _info = self._decode(audio, prompt, {})
+        # segments is a lazy generator: decoding happens while we iterate.
+        return " ".join(s.text.strip() for s in segments if s.text.strip())
+
+    def transcribe_words(self, audio: np.ndarray, prompt: Optional[str] = None,
+                         quick: bool = False) -> list:
+        """
+        Like transcribe(), but returns [(word, start_s, end_s)] timed against
+        `audio` (VAD-removed silence is mapped back by faster-whisper).
+
+        quick=True decodes greedily (no beam search): several times faster, for
+        a second listen to a second or two of audio where only a spoken command
+        is of interest, not for dictation text. Quick words carry a fourth
+        value, the model's probability for the word (0..1).
+        """
+        extra = {"word_timestamps": True}
+        if quick:
+            extra.update(beam_size=1, patience=1.0, temperature=0.0)   # one pass, no fallback retries
+        audio_s = len(audio) / SAMPLE_RATE
+        segments, info = self._decode(audio, prompt, extra)
+        heard_s = float(getattr(info, "duration_after_vad", audio_s))
+        words, window = [], None
+        for s in segments:
+            seek = getattr(s, "seek", 0)
+            if window is not None and seek != window:
+                # With word timings faster-whisper decodes again from the last word's
+                # end. After a full 30 s window that is the next window. Otherwise it
+                # is the few tenths of a second left over, which only ever yields
+                # "Thank you." or a repeat of the last word: stop there, unless enough
+                # audio is left that the model plainly stopped early.
+                full_window = seek - window >= WINDOW_FRAMES - 10
+                if not full_window and heard_s - seek / FRAMES_PER_SECOND < TAIL_REDECODE_MIN_S:
+                    break
+            window = seek
+            if quick:
+                words += [(w.word, float(w.start), float(w.end), float(getattr(w, "probability", 1.0)))
+                          for w in (s.words or [])]
+            else:
+                words += [(w.word, float(w.start), float(w.end)) for w in (s.words or [])]
+            if audio_s <= WINDOW_SECONDS and words and audio_s - words[-1][2] < TAIL_REDECODE_MIN_S:
+                break                     # nothing left worth decoding: don't even ask
+        return words
+
+    def _decode(self, audio: np.ndarray, prompt: Optional[str], extra: dict):
         if audio.dtype != np.float32:
             audio = audio.astype(np.float32)
-        segments, _info = self.model.transcribe(
-            audio,
+        kwargs = dict(
             language="en",
             task="transcribe",
             beam_size=self.beam_size,
@@ -178,8 +229,9 @@ class FasterWhisperEngine:
             without_timestamps=True,
             max_new_tokens=self.max_new_tokens(len(audio) / SAMPLE_RATE, prompt),
         )
-        # segments is a lazy generator: decoding happens while we iterate.
-        return " ".join(s.text.strip() for s in segments if s.text.strip())
+        kwargs.update(self.decode_overrides)
+        kwargs.update(extra)
+        return self.model.transcribe(audio, **kwargs)
 
     def max_new_tokens(self, audio_s: float, prompt: Optional[str]) -> int:
         """Output cap for one chunk: proportional to its length, within the decoder window."""

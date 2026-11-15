@@ -534,3 +534,21 @@ def test_options_change_applies_and_saves(qapp, make_window, tmp_path):
     w._triggers.handle("key", "down")
     assert wait_for(lambda: w._state.name == "IDLE", app=qapp)
     assert finish(w, qapp)
+
+
+def test_pause_aware_is_off_by_default_and_follows_options(qapp, make_window):
+    from dataclasses import replace
+    from chunked_transcriber import POST_ROLL_S
+    from settings import Settings
+    w = make_window()
+    assert not w._settings.pause_aware
+    assert not w._transcriber.pause_aware and w._transcriber.post_roll_s == 0   # classic pipeline
+    w.apply_settings(replace(w._settings, pause_aware=True))
+    # FakeEngine has no word timings: the sentence logic stays classic, post-roll still applies.
+    assert w._transcriber.post_roll_s == POST_ROLL_S
+    record_and_stop(w, qapp)
+    assert w.clip.text() == "chunk0" and w.copy_ok
+    w.apply_settings(replace(w._settings, pause_aware=False))
+    assert w._transcriber.post_roll_s == 0
+    w2 = make_window(settings=Settings(start_compact=False, pause_aware=True))
+    assert w2._transcriber.post_roll_s == POST_ROLL_S

@@ -52,7 +52,9 @@ sys.path.insert(0, str(_SRC_DIR))
 
 from fw_engine import register_cuda_dll_dirs                 # noqa: E402
 from hw_profile import choose_config, detect_hardware        # noqa: E402
-from chunked_transcriber import ERROR_PREFIX, LEVEL_THRESHOLD_RMS, ChunkedTranscriber, InputLevel  # noqa: E402
+from chunked_transcriber import (                            # noqa: E402
+    ERROR_PREFIX, LEVEL_THRESHOLD_RMS, POST_ROLL_S, ChunkedTranscriber, InputLevel,
+)
 from prompt_loader import load_prompt                        # noqa: E402
 from vocab import build_text_pipeline                        # noqa: E402
 import phi_clipboard                                         # noqa: E402
@@ -289,6 +291,7 @@ class MedTranscriptionWindow(TranscriptionWindow):
             self._engine, self._base_prompt, stream_factory=self._stream_factory,
             prompt_builder=builder, postprocess=corrector,
         )
+        self._apply_pause_mode()
         logger.info("Topic prompts %s, spelling correction %s",
                     "on" if builder else "off", "on" if corrector else "off")
         self._device = getattr(getattr(self._engine, "config", None), "device", None)
@@ -296,6 +299,12 @@ class MedTranscriptionWindow(TranscriptionWindow):
         self._set_buttons_enabled(True)
         self._set_status("Ready", "idle")
         logger.info("Ready")
+
+    def _apply_pause_mode(self) -> None:
+        """Classic or pause-aware pipeline (Options); takes effect from the next recording."""
+        if self._transcriber is not None:
+            on = self._settings.pause_aware
+            self._transcriber.set_pause_aware(on, POST_ROLL_S if on else 0.0)
 
     @property
     def ready(self) -> bool:
@@ -677,7 +686,7 @@ class MedTranscriptionWindow(TranscriptionWindow):
         for p in new:
             if not p or p.startswith(ERROR_PREFIX):
                 continue
-            self._insert_queue.append(voice_commands.apply(p) if self._settings.voice_commands else p)
+            self._insert_queue.append(self._format(p))
         self._pump_insert()
 
     def _insert_target_ok(self) -> bool:
@@ -754,8 +763,13 @@ class MedTranscriptionWindow(TranscriptionWindow):
 
     def _display_text(self) -> str:
         """Transcript so far, with spoken formatting commands applied if enabled."""
-        text = self._transcriber.text
-        return voice_commands.apply(text) if self._settings.voice_commands else text
+        return self._format(self._transcriber.text)
+
+    def _format(self, text: str) -> str:
+        """Spoken commands -> formatting, if enabled (lenient in the pause-aware pipeline)."""
+        if not self._settings.voice_commands:
+            return text
+        return voice_commands.apply(text, lenient=self._settings.pause_aware)
 
     # ── Clipboard: verified copy, then (maybe) paste ──────────────────────────
     def _clipboard(self):
@@ -896,6 +910,7 @@ class MedTranscriptionWindow(TranscriptionWindow):
         settings_store.save(self._settings, self._settings_path)
         self._apply_triggers()
         self._apply_mic_mode()
+        self._apply_pause_mode()
 
     def closeEvent(self, event) -> None:
         if self._triggers is not None:

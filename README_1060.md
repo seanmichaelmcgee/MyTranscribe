@@ -67,6 +67,23 @@ Compact view now targets 300 logical pixels wide with tighter spacing. The light
 input meter, Copy, Options, expand control and Start/Stop remain available. Options
 uses explicit light colours for readability even when Windows uses dark mode.
 
+## Pause-aware dictation (optional, off by default)
+
+Options → Text → “Pause-aware dictation”. Try it if pausing to think puts full stops
+in the middle of your sentences, if “new paragraph” / “new line” are sometimes ignored,
+or if the last word goes missing when you release the key. With it on:
+
+- a sentence you paused in is kept together across the app's internal ~30 second pieces;
+- a spoken “new paragraph” or “new line” that the speech model skipped is put back, and
+  one it wrote without punctuation still counts;
+- the microphone keeps listening for 0.3 seconds after Stop, so the last word is not cut.
+
+Untick it to return to the original behaviour at once (from the next recording). It
+was measured on fictional practice recordings with artificial pauses, not yet in daily
+use: results and known limits are in
+[docs/optimization/2026-11-15-dictation-reliability.md](docs/optimization/2026-11-15-dictation-reliability.md).
+`MYTRANSCRIBE_PAUSE_AWARE=1` (or `0`) overrides the saved choice.
+
 ## Use
 
 The window starts small (compact view) and stays on top of other windows:

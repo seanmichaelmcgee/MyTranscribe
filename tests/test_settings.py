@@ -37,7 +37,8 @@ def test_settings_file_never_holds_text(tmp_path):
     st.save(st.Settings(), p)
     assert set(json.loads(p.read_text(encoding="utf-8"))) == {"key", "key_mode", "mouse", "mouse_mode",
                                                               "start_compact", "accuracy", "voice_commands",
-                                                              "keep_mic_ready", "live_insert", "chime_volume", "autopaste"}
+                                                              "keep_mic_ready", "live_insert", "chime_volume", "autopaste",
+                                                              "pause_aware"}
 
 
 def test_accuracy_default_and_validation(tmp_path):
@@ -93,3 +94,17 @@ def test_chime_volume_and_autopaste_round_trip(tmp_path):
     assert Settings(chime_volume=-10).clean().chime_volume == 0
     assert Settings(chime_volume=200).clean().chime_volume == 100
     assert Settings(chime_volume=None).clean().chime_volume == 100
+
+
+def test_pause_aware_default_file_env_and_dialog(qapp, tmp_path):
+    from options_dialog import OptionsDialog
+    assert st.Settings().pause_aware is False                 # existing behaviour unless chosen
+    p = tmp_path / "settings.json"
+    st.save(st.Settings(pause_aware=True), p)
+    assert st.load(p, env={}).pause_aware is True
+    assert st.load(p, env={"MYTRANSCRIBE_PAUSE_AWARE": "0"}).pause_aware is False
+    assert st.load(tmp_path / "none.json", env={"MYTRANSCRIBE_PAUSE_AWARE": "1"}).pause_aware is True
+    d = OptionsDialog(st.Settings())
+    assert not d.pause_aware.isChecked()
+    d.pause_aware.setChecked(True)
+    assert d.result_settings().pause_aware is True

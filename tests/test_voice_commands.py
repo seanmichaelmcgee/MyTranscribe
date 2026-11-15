@@ -58,3 +58,33 @@ def test_ordinary_text_untouched(text):
 def test_idempotent():
     once = apply("Review in 2 weeks. New line, open quotes, CBC, close quotes.")
     assert apply(once) == once
+
+
+@pytest.mark.parametrize("raw, want", [
+    # The model lost its punctuation for a stretch (seen with long thinking pauses).
+    ("chest is clear new paragraph the abdomen is soft",
+     "chest is clear.\n\nThe abdomen is soft"),
+    ("no new rash new paragraph Continue iron 300 mg daily", "no new rash.\n\nContinue iron 300 mg daily"),
+    ("Renal normal hemoglobin similar new line repeat in 3 months",
+     "Renal normal hemoglobin similar\nRepeat in 3 months"),
+    ("Plan as above. New paragraph. Thank you for seeing her.", "Plan as above.\n\nThank you for seeing her."),
+])
+def test_lenient_accepts_unpunctuated_breaks(raw, want):
+    assert apply(raw, lenient=True) == want
+
+
+@pytest.mark.parametrize("text", [
+    "We will start a new line of therapy if this fails.",
+    "There is a new line on the chest film that was not there before.",
+    "the new line was placed in the right internal jugular",
+    "consider second line or new line of treatment",
+    "Her last period was 2 weeks ago.",
+    "Patient is quite open to the plan.",
+])
+def test_lenient_still_leaves_ordinary_text(text):
+    assert apply(text, lenient=True) == text
+
+
+def test_default_is_not_lenient():
+    raw = "chest is clear new paragraph the abdomen is soft"
+    assert apply(raw) == raw

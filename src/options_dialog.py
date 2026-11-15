@@ -136,6 +136,12 @@ class OptionsDialog(QDialog):
         self.voice_commands.setToolTip("Say “new line”, “new paragraph” or “open quote … close quote”.")
         self.voice_commands.setChecked(settings.voice_commands)
         layout.addWidget(self.voice_commands)
+        self.pause_aware = QCheckBox("Pause-aware dictation (new: try it, switch off to go back)")
+        self.pause_aware.setToolTip("Keeps a sentence together when you pause to think, puts back a spoken "
+                                   "“new paragraph” the model skipped, and keeps listening for a moment "
+                                   "after Stop so the last word is not cut off. Slightly more computing.")
+        self.pause_aware.setChecked(settings.pause_aware)
+        layout.addWidget(self.pause_aware)
         self.live_insert = QCheckBox("Insert finished pieces at cursor (about 30 seconds)")
         self.live_insert.setToolTip("Each finished piece is inserted while you dictate. "
                                    "The full text is also copied when you stop.")
@@ -194,4 +200,5 @@ class OptionsDialog(QDialog):
                        voice_commands=self.voice_commands.isChecked(),
                        keep_mic_ready=self.keep_mic_ready.isChecked(),
                        live_insert=self.live_insert.isChecked(),
+                       pause_aware=self.pause_aware.isChecked(),
                        chime_volume=self.chime_volume.value(), autopaste=self.autopaste.isChecked())

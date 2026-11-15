@@ -16,6 +16,21 @@ Replaces transcriber_v12.RealTimeTranscriber in the 1060 edition. Differences:
     phantom phrase, so a letter that genuinely starts "Thank you for seeing..."
     is kept (transcriber_v12 stripped the leading "Thank you").
 
+Pause-aware mode (pause_aware=True, off by default; see pause_flow.py) changes
+what the worker does with each chunk, not how audio is captured:
+  * the unfinished last sentence of a chunk is not committed; its audio (at
+    most CARRY_MAX_S) is decoded again at the start of the next chunk, so a
+    cut in a thinking pause no longer puts a full stop mid-sentence. To keep
+    every decode within the model's 30 s window the capture target shrinks to
+    chunk_target_s - CARRY_MAX_S (24 s);
+  * holes in the word timings that contain sound get a quick second listen,
+    to recover a spoken command ("new paragraph") that the model left out;
+  * a failed decode is retried once before an error marker replaces the text;
+  * a chunk is skipped as silent only if no 0.3 s stretch of it is above the
+    level threshold (a long pause no longer hides a few quiet words).
+post_roll_s (0 by default) keeps capturing briefly after Stop, so a last word
+that is still being spoken when the key is released is not cut off.
+
 Audio format (CLAUDE.md: document chunk size/format/rate):
   capture: 16 kHz, mono, int16 (paInt16), FRAMES_PER_BUFFER = 1024 samples (64 ms)
   chunks : float32 in [-1, 1], target CHUNK_TARGET_S = 30 s, cut point chosen
@@ -52,6 +67,10 @@ INDICATOR_HOLD_READS = 10         # keep level indicator lit ~640 ms after speec
 PROMPT_TAIL_CHARS = 200           # previous-chunk text fed forward as context
 MAX_CONSECUTIVE_READ_ERRORS = 50  # ~ mic unplugged -> end the session cleanly
 ERROR_PREFIX = "[Transcription Error:"
+CARRY_MAX_S = 6.0                 # pause-aware: longest unfinished sentence handed to the next chunk
+POST_ROLL_S = 0.3                 # suggested post_roll_s for hold-to-talk (the default is 0: off)
+SILENCE_WINDOW_S = 0.3            # pause-aware: a chunk is silent only if every window this long is
+MAX_RESCUES_PER_CHUNK = 8         # pause-aware: commands put back per chunk, at most
 
 # A chunk whose whole text is one of these is a Whisper phantom, not dictation.
 _PHANTOM_CHUNKS = {
@@ -136,6 +155,50 @@ def chunk_is_silent(samples: np.ndarray, threshold_rms: float = LEVEL_THRESHOLD_
     return rms < threshold_rms
 
 
+def chunk_has_no_speech_level(samples: np.ndarray, threshold_rms: float = LEVEL_THRESHOLD_RMS,
+                              window_s: float = SILENCE_WINDOW_S, sample_rate: int = SAMPLE_RATE) -> bool:
+    """
+    True if no window_s stretch of a float32 chunk reaches the threshold (int16 RMS units).
+    Unlike chunk_is_silent, a short phrase after a long pause is not averaged away.
+    """
+    win = max(1, int(window_s * sample_rate))
+    if samples.size < win:
+        return chunk_is_silent(samples, threshold_rms)
+    usable = (samples.size // win) * win
+    frames = samples[:usable].astype(np.float32).reshape(-1, win)
+    loudest = float(np.sqrt(np.max(np.mean(np.square(frames), axis=1)))) * 32768.0
+    return loudest < threshold_rms and chunk_is_silent(samples[usable:], threshold_rms)
+
+
+def sound_seconds(samples: np.ndarray, threshold_rms: float = LEVEL_THRESHOLD_RMS,
+                  window_s: float = 0.05, sample_rate: int = SAMPLE_RATE) -> float:
+    """Seconds of a float32 chunk whose window_s frames reach the threshold (int16 RMS units)."""
+    win = max(1, int(window_s * sample_rate))
+    usable = (samples.size // win) * win
+    if usable == 0:
+        return 0.0
+    frames = samples[:usable].astype(np.float32).reshape(-1, win)
+    rms = np.sqrt(np.mean(np.square(frames), axis=1)) * 32768.0
+    return float(np.count_nonzero(rms >= threshold_rms)) * window_s
+
+
+def speech_level(samples: np.ndarray, threshold_rms: float = LEVEL_THRESHOLD_RMS,
+                 window_s: float = 0.05, sample_rate: int = SAMPLE_RATE) -> float:
+    """
+    The level (int16 RMS units) above which a 50 ms frame of this chunk counts
+    as speech rather than room noise: 12 dB over the chunk's own noise floor
+    (its quietest tenth of frames), and never below the fixed threshold. A
+    noisy room or a hissy headset then does not make every pause look like speech.
+    """
+    win = max(1, int(window_s * sample_rate))
+    usable = (samples.size // win) * win
+    if usable == 0:
+        return threshold_rms
+    frames = samples[:usable].astype(np.float32).reshape(-1, win)
+    rms = np.sqrt(np.mean(np.square(frames), axis=1)) * 32768.0
+    return max(threshold_rms, 4.0 * float(np.percentile(rms, 10)))
+
+
 def filter_phantoms(text: str) -> str:
     """Drop chunks that are entirely a phantom phrase; trim trailing YouTube-isms."""
     if not text:
@@ -218,7 +281,10 @@ class ChunkedTranscriber:
                  max_session_s: float = MAX_SESSION_S,
                  level_threshold_rms: float = LEVEL_THRESHOLD_RMS,
                  prompt_builder: Optional[Callable[[str], str]] = None,
-                 postprocess: Optional[Callable[[str], str]] = None) -> None:
+                 postprocess: Optional[Callable[[str], str]] = None,
+                 pause_aware: bool = False,
+                 carry_max_s: float = CARRY_MAX_S,
+                 post_roll_s: float = 0.0) -> None:
         self.engine = engine
         self.base_prompt = base_prompt
         self.prompt_builder = prompt_builder      # context -> prompt (vocab.PromptBuilder)
@@ -228,6 +294,11 @@ class ChunkedTranscriber:
         self.cut_search_s = min(cut_search_s, chunk_target_s / 2)
         self.max_session_s = max_session_s
         self.level_threshold_rms = level_threshold_rms
+        self._carry_limit_s = max(0.0, min(carry_max_s, chunk_target_s / 2))
+        self.pause_aware = False
+        self.carry_max_s = 0.0
+        self.post_roll_s = 0.0
+        self.rescued_commands = 0       # commands put back by pause-aware decoding (diagnostics)
 
         self.transcriptions: List[str] = []
         self.chunk_stats: List[ChunkStat] = []
@@ -247,6 +318,9 @@ class ChunkedTranscriber:
         self._capture_thread: Optional[threading.Thread] = None
         self._worker_thread: Optional[threading.Thread] = None
         self._stopped = threading.Event()   # stop_recording finished (remainder queued)
+        self._stop_at_samples: Optional[int] = None   # post-roll: capture ends at this sample count
+        self._closing = False               # the last audio of the session has been queued
+        self.set_pause_aware(pause_aware, post_roll_s)
 
     # ── Public API ───────────────────────────────────────────────────────────
     @property
@@ -272,6 +346,18 @@ class ChunkedTranscriber:
         """Seconds of audio read from the microphone in this session."""
         return self._captured_samples / SAMPLE_RATE
 
+    def set_pause_aware(self, pause_aware: bool, post_roll_s: float = 0.0) -> None:
+        """
+        Choose the classic or the pause-aware pipeline for the NEXT recording
+        (ignored while one is running). Pause-aware decoding needs word timings,
+        so an engine without transcribe_words() keeps the classic path.
+        """
+        if self._running or self.busy:
+            return
+        self.pause_aware = bool(pause_aware) and hasattr(self.engine, "transcribe_words")
+        self.carry_max_s = self._carry_limit_s if self.pause_aware else 0.0
+        self.post_roll_s = max(0.0, post_roll_s)
+
     def start_recording(self, mode: str = "normal") -> None:
         """Open the mic and start the capture + worker threads for a new session."""
         if self._running or self.busy:
@@ -281,6 +367,9 @@ class ChunkedTranscriber:
         self.chunk_stats = []
         self.auto_stopped = False
         self.capture_error = None
+        self.rescued_commands = 0
+        self._stop_at_samples = None
+        self._closing = False
         self._buffer = bytearray()
         self._captured_samples = 0
         self._queue = queue.Queue()
@@ -304,6 +393,12 @@ class ChunkedTranscriber:
         """
         if self._stopped.is_set():
             return
+        thread = self._capture_thread
+        if (self.post_roll_s > 0 and self._running and thread is not None
+                and thread is not threading.current_thread() and thread.is_alive()):
+            # Post-roll: let the capture thread read a little more before it stops.
+            self._stop_at_samples = self._captured_samples + int(self.post_roll_s * SAMPLE_RATE)
+            thread.join(timeout=self.post_roll_s + 1.0)
         self._running = False
         if self._capture_thread is not None and self._capture_thread is not threading.current_thread():
             self._capture_thread.join(timeout=2.0)
@@ -314,6 +409,7 @@ class ChunkedTranscriber:
         if self._buffer:
             self._enqueue(bytes(self._buffer))
             self._buffer = bytearray()
+        self._closing = True             # anything still queued is the end of the recording
         self._queue.put(None)            # sentinel: worker exits after draining
         self.audio_detected = False
         self.input_level = InputLevel()
@@ -337,7 +433,8 @@ class ChunkedTranscriber:
 
     # ── Threads ──────────────────────────────────────────────────────────────
     def _capture_loop(self) -> None:
-        target_bytes = int(self.chunk_target_s * SAMPLE_RATE) * BYTES_PER_SAMPLE
+        # Pause-aware: leave room for the carried sentence inside the model's window.
+        target_bytes = int((self.chunk_target_s - self.carry_max_s) * SAMPLE_RATE) * BYTES_PER_SAMPLE
         max_samples = int(self.max_session_s * SAMPLE_RATE)
         errors = 0
         while self._running:
@@ -362,6 +459,9 @@ class ChunkedTranscriber:
             self._update_level(data)
             self._buffer.extend(data)
             self._captured_samples += len(data) // BYTES_PER_SAMPLE
+            if self._stop_at_samples is not None and self._captured_samples >= self._stop_at_samples:
+                self._running = False        # post-roll complete; stop_recording queues the rest
+                break
             if len(self._buffer) >= target_bytes:
                 self._cut_and_enqueue()
             if self._captured_samples >= max_samples:
@@ -386,27 +486,103 @@ class ChunkedTranscriber:
             logger.warning("Transcription is falling behind: %d chunks queued", depth)
 
     def _worker_loop(self) -> None:
+        carry = None                      # pause-aware: audio of the unfinished last sentence
         while True:
             chunk = self._queue.get()
             if chunk is None:
+                if carry is not None:
+                    self._transcribe_pause_aware(carry, final=True)
                 return
-            self._transcribe_chunk(chunk)
+            if not self.pause_aware:
+                self._transcribe_chunk(chunk)
+                continue
+            if carry is not None:
+                chunk = np.concatenate([carry, chunk])
+            with self._queue.mutex:
+                final = self._closing and all(item is None for item in self._queue.queue)
+            carry = self._transcribe_pause_aware(chunk, final)
+
+    def _prompt_for_next_chunk(self) -> str:
+        # Context = previous good text only; never prime Whisper with error markers.
+        context = " ".join(t for t in self.transcriptions if not t.startswith(ERROR_PREFIX))
+        if self.prompt_builder is not None:
+            try:
+                return self.prompt_builder(context)
+            except Exception:
+                logger.error("Prompt builder failed; using static prompt", exc_info=True)
+        return build_prompt(self.base_prompt, context)
+
+    def _transcribe_pause_aware(self, chunk: np.ndarray, final: bool) -> Optional[np.ndarray]:
+        """
+        Decode a chunk with word timings; commit its complete sentences (all of
+        it when `final`). Returns the audio to decode again with the next chunk.
+        """
+        import pause_flow
+        audio_s = len(chunk) / SAMPLE_RATE
+        if chunk_has_no_speech_level(chunk, self.level_threshold_rms):
+            logger.info("Skipping silent chunk (%.1fs)", audio_s)
+            return None
+        prompt = self._prompt_for_next_chunk()
+        t0 = time.perf_counter()
+        words = error = None
+        for attempt in (1, 2):
+            try:
+                words = self.engine.transcribe_words(chunk, prompt)
+                break
+            except Exception as exc:
+                logger.error("Transcription error on %.1fs chunk (attempt %d)", audio_s, attempt, exc_info=True)
+                error = exc
+        if words is None:
+            self.transcriptions.append(f"{ERROR_PREFIX} {error}]")
+            return None
+        try:
+            words = self._rescue_commands(chunk, words, audio_s)
+        except Exception:
+            logger.error("Command recovery failed; keeping the decoded text", exc_info=True)
+        carry = None
+        if not final:
+            words, carry_from = pause_flow.split_for_carry(words, audio_s, self.carry_max_s)
+            if carry_from is not None:
+                carry = chunk[int(carry_from * SAMPLE_RATE):]
+        self._commit(pause_flow.words_text(words), audio_s, time.perf_counter() - t0)
+        return carry
+
+    def _rescue_commands(self, chunk: np.ndarray, words: list, audio_s: float) -> list:
+        """
+        Listen again (a quick decode each) to the holes in the word timings
+        that could hold a spoken command, and put back a command found in one.
+        Most holes are pauses and cost nothing: they must contain enough sound
+        to be speech and must not sit next to a command that is already there.
+        """
+        import pause_flow
+        found = []
+        level = None
+        for index, a, b, start, end in pause_flow.rescue_holes(words, audio_s):
+            if len(found) >= MAX_RESCUES_PER_CHUNK or pause_flow.command_near(words, index):
+                continue
+            if level is None:
+                level = speech_level(chunk, self.level_threshold_rms)
+            core = chunk[int(a * SAMPLE_RATE):int(b * SAMPLE_RATE)]
+            if sound_seconds(core, level) < pause_flow.RESCUE_MIN_SOUND_S:
+                continue
+            lo = int(start * SAMPLE_RATE)
+            heard = self.engine.transcribe_words(chunk[lo:int(end * SAMPLE_RATE)],
+                                                 pause_flow.LISTEN_PROMPT, quick=True)
+            hit = pause_flow.command_in_hole(heard, words, index)
+            if hit is not None:
+                command, c0, c1 = hit
+                found.append((index, max(a, start + c0), min(b, start + c1), command))
+        if found:
+            self.rescued_commands += len(found)
+            logger.info("Recovered %d spoken command(s) the model left out", len(found))
+        return pause_flow.insert_commands(words, found)
 
     def _transcribe_chunk(self, chunk: np.ndarray) -> None:
         audio_s = len(chunk) / SAMPLE_RATE
         if chunk_is_silent(chunk, self.level_threshold_rms):
             logger.info("Skipping silent chunk (%.1fs)", audio_s)
             return
-        # Context = previous good text only; never prime Whisper with error markers.
-        context = " ".join(t for t in self.transcriptions if not t.startswith(ERROR_PREFIX))
-        if self.prompt_builder is not None:
-            try:
-                prompt = self.prompt_builder(context)
-            except Exception:
-                logger.error("Prompt builder failed; using static prompt", exc_info=True)
-                prompt = build_prompt(self.base_prompt, context)
-        else:
-            prompt = build_prompt(self.base_prompt, context)
+        prompt = self._prompt_for_next_chunk()
         t0 = time.perf_counter()
         try:
             raw = self.engine.transcribe(chunk, prompt)
@@ -414,7 +590,10 @@ class ChunkedTranscriber:
             logger.error("Transcription error on %.1fs chunk", audio_s, exc_info=True)
             self.transcriptions.append(f"{ERROR_PREFIX} {exc}]")
             return
-        elapsed = time.perf_counter() - t0
+        self._commit(raw, audio_s, time.perf_counter() - t0)
+
+    def _commit(self, raw: str, audio_s: float, elapsed: float) -> None:
+        """Phantom filter, post-processing, stats; append the text if any is left."""
         text = filter_phantoms(raw)
         if text and self.postprocess is not None:
             try:
