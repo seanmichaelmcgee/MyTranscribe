@@ -85,6 +85,37 @@ def apply_corrections(text: str, rules: List[Tuple[re.Pattern, str]]) -> str:
     return text
 
 
+# -- Readings: "138 over 78" -> 138/78, "g per litre" -> g/L, "degrees Celsius" -> °C --
+_UNIT = {"g": "g", "gram": "g", "grams": "g", "mg": "mg", "milligram": "mg", "milligrams": "mg",
+         "mcg": "mcg", "microgram": "mcg", "micrograms": "mcg", "µg": "µg", "μg": "µg",
+         "kg": "kg", "kilogram": "kg", "kilograms": "kg",
+         "mmol": "mmol", "millimole": "mmol", "millimoles": "mmol",
+         "µmol": "µmol", "μmol": "µmol", "micromole": "µmol", "micromoles": "µmol",
+         "nmol": "nmol", "pmol": "pmol", "ml": "mL", "millilitre": "mL", "millilitres": "mL",
+         "milliliter": "mL", "milliliters": "mL", "iu": "IU", "units": "units", "unit": "units",
+         "meq": "mEq", "ng": "ng", "pg": "pg"}
+_PER = {"l": "L", "litre": "L", "liter": "L", "dl": "dL", "decilitre": "dL", "deciliter": "dL",
+        "ml": "mL", "millilitre": "mL", "milliliter": "mL", "kg": "kg", "kilogram": "kg",
+        "hour": "h", "day": "day", "minute": "min", "min": "min"}
+_NUMBER = r"\d+(?:\.\d+)?"
+_UNIT_PER = re.compile(r"(?<![\w/])(" + _NUMBER + r")\s?(" + "|".join(sorted(_UNIT, key=len, reverse=True))
+                       + r")\s+per\s+(" + "|".join(sorted(_PER, key=len, reverse=True)) + r")(?![\w/])", re.I)
+_OVER = re.compile(r"(?<![\w./])(\d{2,3})\s+over\s+(\d{2,3})(?![\w./]|\s+(?:the|a|an)\b)", re.I)
+_DEGREES = re.compile(r"(?<![\w.])(" + _NUMBER + r")\s*(?:degrees?|°)\s*(celsius|centigrade|fahrenheit|c|f)(?!\w)", re.I)
+
+
+def format_readings(text: str) -> str:
+    """
+    Readings as they are written in a chart: "138 over 78" -> "138/78" (two 2-3
+    digit numbers), "124 g per litre" -> "124 g/L", "37.2 degrees Celsius" ->
+    "37.2 °C". Only a number followed by a known unit is touched; "5 mg per day"
+    becomes "5 mg/day", "3 times per day" and "2 over the counter" are left alone.
+    """
+    text = _OVER.sub(r"\1/\2", text)
+    text = _UNIT_PER.sub(lambda m: f"{m.group(1)} {_UNIT[m.group(2).lower()]}/{_PER[m.group(3).lower()]}", text)
+    return _DEGREES.sub(lambda m: f"{m.group(1)} °{m.group(2)[0].upper()}", text)
+
+
 def make_text_fixes(known_abbreviations: Set[str],
                     correction_files: Optional[Iterable[Path]] = None) -> Callable[[str], str]:
     """Chunk post-processor: spelled-letter joining, then personal corrections."""

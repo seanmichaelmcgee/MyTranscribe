@@ -61,6 +61,7 @@ import phi_clipboard                                         # noqa: E402
 from gui_qt import AppState, TranscriptionWindow             # noqa: E402
 from triggers import InputTriggers                           # noqa: E402
 import settings as settings_store                            # noqa: E402
+import text_fixes                                            # noqa: E402
 import voice_commands                                        # noqa: E402
 from mic_ready import ReadyMic                               # noqa: E402
 from options_dialog import OptionsDialog                     # noqa: E402
@@ -305,6 +306,9 @@ class MedTranscriptionWindow(TranscriptionWindow):
         if self._transcriber is not None:
             on = self._settings.pause_aware
             self._transcriber.set_pause_aware(on, POST_ROLL_S if on else 0.0)
+            corrector = getattr(self._transcriber.postprocess, "corrector", None)
+            if corrector is not None:
+                corrector.same_sound = self._settings.extra_fixes
 
     @property
     def ready(self) -> bool:
@@ -767,6 +771,8 @@ class MedTranscriptionWindow(TranscriptionWindow):
 
     def _format(self, text: str) -> str:
         """Spoken commands -> formatting, if enabled (lenient in the pause-aware pipeline)."""
+        if self._settings.extra_fixes:
+            text = text_fixes.format_readings(text)
         if not self._settings.voice_commands:
             return text
         return voice_commands.apply(text, lenient=self._settings.pause_aware,

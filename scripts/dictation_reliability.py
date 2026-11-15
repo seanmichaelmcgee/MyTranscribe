@@ -62,6 +62,7 @@ from fw_engine import FasterWhisperEngine, register_cuda_dll_dirs       # noqa: 
 from hw_profile import choose_config, detect_hardware                   # noqa: E402
 from prompt_loader import load_prompt                                   # noqa: E402
 from vocab import build_text_pipeline                                   # noqa: E402
+import text_fixes                                                       # noqa: E402
 import voice_commands                                                   # noqa: E402
 
 SR = 16000
@@ -86,6 +87,8 @@ PROFILES = {
     "candidate": _CANDIDATE,
     # ... plus Options -> "Spoken punctuation".
     "candidate_marks": dict(_CANDIDATE, commands={"lenient": True, "punctuation": True}),
+    # ... plus Options -> "Extra corrections".
+    "candidate_full": dict(_CANDIDATE, commands={"lenient": True, "punctuation": True}, extra_fixes=True),
     # Silence-handling variants tried on top of it (none was better; see the results note).
     "cand_pad150": dict(_CANDIDATE, engine={"decode_overrides": {"vad_parameters": {
         "min_silence_duration_ms": 700, "speech_pad_ms": 150}}}),
@@ -266,6 +269,8 @@ def run_pipeline(engine, audio, stop_at, style, builder, post, profile, with_spo
     """
     pcm = (np.clip(audio, -1, 1) * 32767).astype(np.int16)
     mic = FileMic(pcm, stop_at)
+    if getattr(post, "corrector", None) is not None:
+        post.corrector.same_sound = bool(profile.get("extra_fixes"))
     t = ChunkedTranscriber(engine, style, stream_factory=lambda: (mic, None),
                            prompt_builder=builder, postprocess=post, **profile.get("transcriber", {}))
     mic.on_stop = t.stop_recording
@@ -278,7 +283,8 @@ def run_pipeline(engine, audio, stop_at, style, builder, post, profile, with_spo
         t._stopped.wait(30)
     t.wait_until_idle()
     text = t.text
-    final = voice_commands.apply(text, **profile.get("commands", {}))
+    final = text_fixes.format_readings(text) if profile.get("extra_fixes") else text
+    final = voice_commands.apply(final, **profile.get("commands", {}))
     out = (final, list(t.transcriptions), time.perf_counter() - t0, t.rescued_commands)
     return out + (text,) if with_spoken else out
 

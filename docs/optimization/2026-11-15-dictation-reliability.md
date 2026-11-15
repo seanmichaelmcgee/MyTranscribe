@@ -110,6 +110,26 @@ The owner's recordings contain almost no dictated marks, so the rules were writt
 - A computer voice pauses and pronounces the marks more regularly than a person. The real evidence that a human's dictated marks are handled is the Corti result; the owner's own voice dictating marks is untested.
 - False conversions are the risk: zero on the owner's recordings, which rarely contain "period" or "colon" as nouns, so that check is weak. The unit tests list the noun phrases that are protected.
 
+## Extra corrections (second accuracy round)
+
+Options → "Extra corrections", or `MYTRANSCRIBE_EXTRA_FIXES=1`; off by default. Two text-side changes found by listing the remaining errors on the owner's development recordings:
+
+- **Same-sound term correction** (`vocab_correct`, `same_sound`): a non-word is corrected when it has exactly the Metaphone key of one vocabulary word and of no other, same first letter ("prendipril" → perindopril, "respiradone" → risperidone). An ambiguous one ("tomasartan": olmesartan or telmisartan) is left alone.
+- **Readings format** (`text_fixes.format_readings`): "138 over 78" → 138/78, "124 g per litre" → 124 g/L, "37.2 degrees Celsius" → 37.2 °C. Only a number with a known unit is touched. The blood-pressure and unit rules come from the owner's reference scripts; the degrees rule does not (those scripts contain no temperatures) and was added because "degrees" and "Fahrenheit" were among the leftover words in the first Corti run's aggregate count. That one rule is therefore informed by the benchmark.
+
+Recognition settings were tried on the development recordings and changed nothing beyond run-to-run noise: beam 8 instead of 5 (10.59% vs 10.48%) and float16 instead of int8_float16 (10.38%). Large-v3 is the largest Whisper model and already the one in use; on the 6 GB card it runs as int8 (about 3.9 GB), and float32 would not fit. No other model was tried.
+
+| As recorded, all options on vs spoken punctuation only | Before | After |
+|---|---|---|
+| Own development recordings, WER | 11.33% | 10.48% |
+| Own held-out recordings, WER (run once) | 4.45% | 3.54% |
+| Corti formatted track, 24 notes | 8.14% | 7.16% |
+| Corti formatted track, 23 Dragon-matched notes (Dragon 6.04%) | 8.36% | 7.34% |
+
+- This was the first of two further authorised Corti runs; the second has not been used. On Corti the whole gain came from the readings format (substitutions 353 → 294); the same-sound correction changed nothing measurable there.
+- Every change the two rules make across the 934 saved transcript pieces of the owner's recordings was listed and read: blood pressures, units and four drug or term spellings, no wrong conversion.
+- What is left on the owner's held-out recordings (47 word errors in 1,327) is mostly ordinary misrecognition (short function words, a few rare terms) and reference spelling variants, with no further pattern to fix in text. Closing the remaining 1.3 points to Dragon on Corti would take a better recogniser, not more rules, or rules fitted to that dataset's style, which was not done.
+
 ## Limitations
 
 - **Known regression:** with 4 s pauses one held-out letter lost four list commands that the classic pipeline kept (48/52 vs 52/52), and WER in that condition rose 5.81 → 6.06. Commands inside a numbered list ("new line, 2 period") are the weak spot.

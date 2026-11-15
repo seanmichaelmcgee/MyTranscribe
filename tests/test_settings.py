@@ -38,7 +38,8 @@ def test_settings_file_never_holds_text(tmp_path):
     assert set(json.loads(p.read_text(encoding="utf-8"))) == {"key", "key_mode", "mouse", "mouse_mode",
                                                               "start_compact", "accuracy", "voice_commands",
                                                               "keep_mic_ready", "live_insert", "chime_volume", "autopaste",
-                                                              "pause_aware", "spoken_punctuation"}
+                                                              "pause_aware", "spoken_punctuation",
+                                                              "extra_fixes"}
 
 
 def test_accuracy_default_and_validation(tmp_path):
@@ -121,3 +122,13 @@ def test_spoken_punctuation_default_file_env_and_dialog(qapp, tmp_path):
     assert not d.spoken_punctuation.isChecked()
     d.spoken_punctuation.setChecked(True)
     assert d.result_settings().spoken_punctuation is True
+
+
+def test_extra_fixes_default_file_env_and_dialog(qapp, tmp_path):
+    from options_dialog import OptionsDialog
+    assert st.Settings().extra_fixes is False
+    assert st.load(tmp_path / "none.json", env={"MYTRANSCRIBE_EXTRA_FIXES": "1"}).extra_fixes is True
+    d = OptionsDialog(st.Settings())
+    assert not d.extra_fixes.isChecked()
+    d.extra_fixes.setChecked(True)
+    assert d.result_settings().extra_fixes is True

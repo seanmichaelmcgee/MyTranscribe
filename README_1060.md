@@ -91,6 +91,12 @@ observation", "the sigmoid colon" and "colon cancer" stay words, but that check 
 list and can be wrong on an unusual phrase, so read the result. Leave it off if you let the
 app punctuate for you. `MYTRANSCRIBE_SPOKEN_PUNCTUATION=1` (or `0`) overrides the saved choice.
 
+**Extra corrections** (Options, off by default) fixes a misspelled drug or term when it
+sounds exactly like one vocabulary word and no other ("prendipril" becomes perindopril), and
+writes readings the chart way: "138 over 78" as 138/78, "g per litre" as g/L, "degrees
+Celsius" as °C. Check drug names as you always would.
+`MYTRANSCRIBE_EXTRA_FIXES=1` (or `0`) overrides the saved choice.
+
 ## Use
 
 The window starts small (compact view) and stays on top of other windows:

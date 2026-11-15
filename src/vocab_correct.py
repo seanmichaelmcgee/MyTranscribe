@@ -37,6 +37,13 @@ MIN_MARGIN = 6              # best must beat the runner-up by this much
 # far ahead of every other vocabulary word. From the user's real recordings
 # (2026-10-03): amlodiphene -> amlodipine, arithmatous -> erythematous.
 NEAR_PHONETIC_MARGIN = 15
+# Same-sound band (opt-in, TermCorrector.same_sound): the non-word has exactly the
+# Metaphone key of one vocabulary word and of no other, e.g. "prendipril" ->
+# perindopril, "respiradone" -> risperidone, "remapril" -> ramipril. Spelling
+# similarity may then be lower and the runner-up closer, because the rival does
+# not sound the same. Owner's development recordings, 2026-11-15.
+SAME_SOUND_SCORE = 70
+SAME_SOUND_MIN_KEY = 5      # consonant skeleton long enough to be distinctive
 MAX_SPAN = 3                # also try joining up to 3 split words ("licen opril")
 
 _WORD_RE = re.compile(r"[A-Za-z][A-Za-z'\-]*")
@@ -93,6 +100,10 @@ class TermCorrector:
         self.canonical = canon                 # lower -> display form
         self.choices = list(canon)
         self._phon = {k: self.phonetic(k) for k in self.choices}
+        self._phon_count = {}
+        for key in self._phon.values():
+            self._phon_count[key] = self._phon_count.get(key, 0) + 1
+        self.same_sound = False                # opt-in band, see SAME_SOUND_SCORE
         self.total_corrections = 0
 
     # ── matching ────────────────────────────────────────────────────────────
@@ -118,6 +129,10 @@ class TermCorrector:
         second = top[1][1] if len(top) > 1 else 0.0
         if abs(len(cand) - len(w)) > max(2, int(0.3 * len(cand))):
             return None
+        if (self.same_sound and score >= SAME_SOUND_SCORE and w[0] == cand[0]
+                and len(self._phon[cand]) >= SAME_SOUND_MIN_KEY and self.phonetic(w) == self._phon[cand]
+                and self._phon_count[self._phon[cand]] == 1):
+            return cand, score
         if score - second < MIN_MARGIN:
             return None
         if score >= ACCEPT_SCORE:

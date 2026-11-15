@@ -146,6 +146,12 @@ class OptionsDialog(QDialog):
         self.spoken_punctuation.setEnabled(settings.voice_commands)
         self.voice_commands.toggled.connect(self.spoken_punctuation.setEnabled)
         layout.addWidget(self.spoken_punctuation)
+        self.extra_fixes = QCheckBox("Extra corrections: drug names that sound right, 138/78, g/L (new)")
+        self.extra_fixes.setToolTip("Fixes a misspelled term when it sounds exactly like one vocabulary word "
+                                   "and no other, and writes readings the chart way: 138 over 78 as 138/78, "
+                                   "g per litre as g/L, degrees Celsius as \u00b0C. Check drug names as always.")
+        self.extra_fixes.setChecked(settings.extra_fixes)
+        layout.addWidget(self.extra_fixes)
         self.pause_aware = QCheckBox("Pause-aware dictation (new: try it, switch off to go back)")
         self.pause_aware.setToolTip("Keeps a sentence together when you pause to think, puts back a spoken "
                                    "“new paragraph” the model skipped, and keeps listening for a moment "
@@ -212,4 +218,5 @@ class OptionsDialog(QDialog):
                        live_insert=self.live_insert.isChecked(),
                        pause_aware=self.pause_aware.isChecked(),
                        spoken_punctuation=self.spoken_punctuation.isChecked(),
+                       extra_fixes=self.extra_fixes.isChecked(),
                        chime_volume=self.chime_volume.value(), autopaste=self.autopaste.isChecked())
