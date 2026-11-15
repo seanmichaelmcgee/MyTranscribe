@@ -24,6 +24,19 @@ its punctuation for a stretch ("...chest is clear new paragraph the abdomen is s
     ("a new line of therapy", "the new line on the film", "new line was placed").
 Quotes and list numbers are unchanged. The default (lenient=False) is the
 original behaviour.
+
+apply(text, punctuation=True) (Options -> "Spoken punctuation", off by default)
+also converts dictated marks, for people who say them:
+  "period" / "full stop" -> .    "comma" -> ,    "colon" -> :    "semicolon" -> ;
+  "question mark" -> ?    "exclamation mark|point" -> !    "hyphen" -> joins the
+  two words    "open paren(thesis)|bracket" ... "close paren(thesis)|bracket" -> ( )
+The dictated mark replaces whatever the model put after the word ("stable
+period. He" -> "stable. He"; "Plan colon, rest" -> "Plan: rest"). "period" and
+"colon" are also ordinary clinical words, so they stay text when the words
+around them make them a noun: "her last period", "a normal period", "period
+of observation", "the sigmoid colon", "colon cancer". That guard is a word
+list, not understanding: with the option on, an unusual noun use can still be
+converted, which is why it is a choice.
 """
 
 import re
@@ -94,16 +107,98 @@ def _replace_commands(text: str, pattern, token: str, lenient: bool = False) -> 
     return "".join(out)
 
 
-def apply(text: str, lenient: bool = False) -> str:
+# ── Spoken punctuation marks ─────────────────────────────────────────────────
+_MARKS = {"period": ".", "full stop": ".", "comma": ",", "colon": ":", "semicolon": ";", "semi-colon": ";",
+          "question mark": "?", "exclamation mark": "!", "exclamation point": "!"}
+_MARK = re.compile(r"(?<![\w-])(" + "|".join(k.replace(" ", r"[ \t]+") for k in sorted(_MARKS, key=len, reverse=True))
+                   + r")(?![\w-])", re.I)
+_DETERMINERS = {"a", "an", "the", "this", "that", "her", "his", "my", "your", "their", "our", "each", "every",
+                "per", "any", "no", "one", "same", "which", "what"}
+# "period" as a noun: directly after a determiner, after one of these adjectives
+# with a determiner or another of them just before ("a normal period", "her last
+# menstrual period"), or before one of the followers ("period of observation").
+_PERIOD_ADJ = {"last", "first", "next", "previous", "menstrual", "missed", "late", "heavy", "light", "irregular",
+               "regular", "normal", "time", "long", "short", "brief", "prolonged", "extended", "incubation",
+               "recovery", "observation", "trial", "refractory", "latent", "postoperative", "perioperative",
+               "postpartum", "neonatal", "washout", "waiting", "follow-up", "study", "treatment", "initial",
+               "whole", "entire", "second", "third", "monthly", "painful"}
+_PERIOD_NEXT = {"of", "was", "is", "has", "had", "pain", "pains", "cramps", "lasted", "started", "due",
+                "when", "during", "between"}
+_COLON_PREV = _DETERMINERS | {"of", "sigmoid", "ascending", "descending", "transverse", "proximal", "distal", "left",
+                              "right", "entire", "whole", "in", "to", "and", "or", "redundant", "irritable",
+                              "spastic", "toxic", "normal", "large", "dilated", "remaining", "throughout"}
+_COLON_NEXT = {"cancer", "carcinoma", "polyp", "polyps", "resection", "was", "is", "wall", "mass", "biopsy",
+               "and", "or", "showed", "appears", "appeared", "tumour", "tumor", "lesion", "adenocarcinoma",
+               "screening", "with", "to", "at", "has", "had", "were", "are", "cleansing", "prep", "preparation"}
+_OPEN_PAREN = re.compile(r"[ \t]*[,;:]?[ \t]*\b(?:open|left)[ \t]+(?:paren(?:thesis|theses)?|brackets?)\b[ \t]*[.,;:]*[ \t]*", re.I)
+_CLOSE_PAREN = re.compile(r"[ \t]*[.,;:]*[ \t]*\b(?:close|right|end)[ \t]+(?:paren(?:thesis|theses)?|brackets?)\b",
+                          re.I)
+_HYPHEN = re.compile(r"(?<=\w)[ \t]*,?[ \t]+hyphen\b[ \t]*[.,]?[ \t]+(?=\w)", re.I)
+_WORD = re.compile(r"[A-Za-z][A-Za-z'-]*")
+_LINE_START = "\n\x03\x04"                       # real breaks and apply()'s break placeholders
+# "2 period" opening a line is a list number; _LIST_ITEM converts it.
+_LIST_HEAD = re.compile(r"(?:^|[" + _LINE_START + r"])[ \t]*(?:number[ \t]+)?" + _NUM + r"[ \t]*[.,]?[ \t]*(?:"
+                        + _NUM + r"[ \t]*)?$", re.I)
+
+
+def _is_noun(word: str, before: str, after: str) -> bool:
+    """True when "period" / "colon" at this place reads as an ordinary word."""
+    if word == "period" and _LIST_HEAD.search(before):
+        return True
+    before = re.split(r"[" + re.escape(PUNCT) + _LINE_START + r"]", before)[-1]   # same clause only
+    prev = [w.lower() for w in _WORD.findall(before[-40:])][-2:]
+    nxt = _WORD.match(after.lstrip(" \t"))
+    nxt = nxt.group(0).lower() if nxt else ""
+    if word == "period":
+        return nxt in _PERIOD_NEXT or (bool(prev) and (
+            prev[-1] in _DETERMINERS
+            or (prev[-1] in _PERIOD_ADJ and len(prev) > 1 and prev[-2] in _DETERMINERS | _PERIOD_ADJ)))
+    if word == "colon":
+        return nxt in _COLON_NEXT or (bool(prev) and prev[-1] in _COLON_PREV)
+    return False
+
+
+def spoken_marks(text: str) -> str:
+    """Dictated punctuation marks -> the marks (see the module docstring)."""
+    text = _CLOSE_PAREN.sub(")", _OPEN_PAREN.sub(" (", text))
+    text = _HYPHEN.sub("-", text)
+    out, pos = [], 0
+    for m in _MARK.finditer(text):
+        word = re.sub(r"\s+", " ", m.group(1).lower())
+        if _is_noun(word, text[:m.start()], text[m.end():]):
+            continue
+        left = text[pos:m.start()].rstrip(" \t")
+        while left and left[-1] in PUNCT:             # the dictated mark replaces the model's own
+            left = left[:-1].rstrip(" \t")
+        out.append(left)
+        written = "".join(out)
+        if written and written[-1] not in PUNCT + _LINE_START + "(":
+            out.append(_MARKS[word])                  # nothing to attach to at a text or line start
+        pos = m.end()
+        while pos < len(text) and text[pos] in PUNCT + " \t":
+            pos += 1
+        if pos < len(text) and text[pos] not in _LINE_START and written and written[-1] not in _LINE_START:
+            out.append(" ")
+        if pos < len(text) and _MARKS[word] in ".?!" and text[pos].islower():
+            out.append(text[pos].upper())
+            pos += 1
+    out.append(text[pos:])
+    return "".join(out)
+
+
+def apply(text: str, lenient: bool = False, punctuation: bool = False) -> str:
     """
     Return `text` with spoken formatting commands turned into formatting.
     lenient=True also accepts "new paragraph" / "new line" written without
-    punctuation (see the module docstring).
+    punctuation; punctuation=True also converts dictated marks ("period",
+    "comma", ...). See the module docstring.
     """
     if not text:
         return text
     for pattern, br in _BREAKS:
         text = _replace_commands(text, pattern, "\x03" if br == "\n\n" else "\x04", lenient)
+    if punctuation:
+        text = spoken_marks(text)
     text = _replace_commands(text, _OPEN, "\x01")
     text = _replace_commands(text, _CLOSE, "\x02")
     text = text.replace("\x03", "\n\n").replace("\x04", "\n")

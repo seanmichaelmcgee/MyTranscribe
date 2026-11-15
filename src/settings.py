@@ -9,6 +9,7 @@ Environment variables still override the file (handy for testing):
   MYTRANSCRIBE_KEY / MYTRANSCRIBE_KEY_MODE      e.g. f9 / hold|toggle, or none
   MYTRANSCRIBE_MOUSE / MYTRANSCRIBE_MOUSE_MODE  x2|x1|middle|none / hold|toggle
   MYTRANSCRIBE_PAUSE_AWARE                      1|0: pause-aware dictation on/off
+  MYTRANSCRIBE_SPOKEN_PUNCTUATION               1|0: convert dictated punctuation marks on/off
 """
 
 import json
@@ -46,6 +47,7 @@ class Settings:
     chime_volume: int = 100           # percent of the original chime level; zero mutes
     autopaste: bool = False
     pause_aware: bool = False          # pause-aware dictation (see pause_flow.py); off = classic pipeline
+    spoken_punctuation: bool = False   # "period", "comma", "colon" ... -> the marks (voice_commands.py)
 
     def triggers(self) -> TriggerConfig:
         return TriggerConfig(
@@ -62,6 +64,7 @@ class Settings:
             self.chime_volume = d.chime_volume
         self.autopaste = bool(self.autopaste)
         self.pause_aware = bool(self.pause_aware)
+        self.spoken_punctuation = bool(self.spoken_punctuation)
         if self.key not in KEY_CHOICES and self.key != "none":
             self.key = d.key
         if self.mouse not in MOUSE_CHOICES and self.mouse != "none":
@@ -96,9 +99,11 @@ def load(path: Optional[Path] = None, env: Optional[dict] = None) -> Settings:
         value = env.get(var, "").strip().lower()
         if value:
             setattr(s, attr, value)
-    forced = env.get("MYTRANSCRIBE_PAUSE_AWARE", "").strip().lower()
-    if forced:
-        s.pause_aware = forced in ("1", "true", "yes", "on")
+    for attr, var in (("pause_aware", "MYTRANSCRIBE_PAUSE_AWARE"),
+                      ("spoken_punctuation", "MYTRANSCRIBE_SPOKEN_PUNCTUATION")):
+        forced = env.get(var, "").strip().lower()
+        if forced:
+            setattr(s, attr, forced in ("1", "true", "yes", "on"))
     return s.clean()
 
 

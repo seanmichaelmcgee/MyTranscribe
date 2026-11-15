@@ -136,6 +136,16 @@ class OptionsDialog(QDialog):
         self.voice_commands.setToolTip("Say “new line”, “new paragraph” or “open quote … close quote”.")
         self.voice_commands.setChecked(settings.voice_commands)
         layout.addWidget(self.voice_commands)
+        self.spoken_punctuation = QCheckBox("Spoken punctuation: period, comma, colon (new)")
+        self.spoken_punctuation.setToolTip("For when you dictate the marks: period, full stop, comma, colon, "
+                                          "semicolon, question mark, hyphen and open/close parenthesis "
+                                          "become the marks. 'Her last period' and 'the sigmoid colon' "
+                                          "stay words, but that check is a word list: leave this off "
+                                          "if you do not dictate punctuation.")
+        self.spoken_punctuation.setChecked(settings.spoken_punctuation)
+        self.spoken_punctuation.setEnabled(settings.voice_commands)
+        self.voice_commands.toggled.connect(self.spoken_punctuation.setEnabled)
+        layout.addWidget(self.spoken_punctuation)
         self.pause_aware = QCheckBox("Pause-aware dictation (new: try it, switch off to go back)")
         self.pause_aware.setToolTip("Keeps a sentence together when you pause to think, puts back a spoken "
                                    "“new paragraph” the model skipped, and keeps listening for a moment "
@@ -201,4 +211,5 @@ class OptionsDialog(QDialog):
                        keep_mic_ready=self.keep_mic_ready.isChecked(),
                        live_insert=self.live_insert.isChecked(),
                        pause_aware=self.pause_aware.isChecked(),
+                       spoken_punctuation=self.spoken_punctuation.isChecked(),
                        chime_volume=self.chime_volume.value(), autopaste=self.autopaste.isChecked())

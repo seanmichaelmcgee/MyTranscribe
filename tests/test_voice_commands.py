@@ -88,3 +88,50 @@ def test_lenient_still_leaves_ordinary_text(text):
 def test_default_is_not_lenient():
     raw = "chest is clear new paragraph the abdomen is soft"
     assert apply(raw) == raw
+
+
+# -- Spoken punctuation marks (punctuation=True) ------------------------------
+@pytest.mark.parametrize("raw, want", [
+    ("HENT normal period. TMs clear bilaterally period. Throat red comma, no exudate period.",
+     "HENT normal. TMs clear bilaterally. Throat red, no exudate."),
+    ("Medication review colon, ramipril 5 mg daily remains comma, no change period",
+     "Medication review: ramipril 5 mg daily remains, no change."),
+    ("HENT normal period tympanic membranes clear", "HENT normal. Tympanic membranes clear"),
+    ("Chest X-ray clear full stop", "Chest X-ray clear."),
+    ("Repeat creatinine. period. He agrees.", "Repeat creatinine. He agrees."),
+    ("a rash semicolon, it does not say anaphylaxis period.", "a rash; it does not say anaphylaxis."),
+    ("Is he fasting question mark. yes", "Is he fasting? Yes"),
+    ("follow hyphen up in 2 weeks open paren, sooner if worse close paren, period.",
+     "follow-up in 2 weeks (sooner if worse)."),
+    ("eGFR is 58 period. Potassium 4.1 period.", "eGFR is 58. Potassium 4.1."),
+    ("a 2 week period of observation period.", "a 2 week period of observation."),
+    ("stopped last month period. The cough resolved period.", "stopped last month. The cough resolved."),
+    ("the sigmoid colon is normal period. Plan colon, colonoscopy.", "the sigmoid colon is normal. Plan: colonoscopy."),
+    ("any spot period. New line. 1 period. Angina period. New line, two period, Dyslipidemia comma, on statin period.",
+     "any spot.\n1. Angina.\n2. Dyslipidemia, on statin."),
+    ("Open quote. Take with food period. Close quote.", '"Take with food".'),
+])
+def test_spoken_marks_become_marks(raw, want):
+    assert apply(raw, lenient=True, punctuation=True) == want
+
+
+@pytest.mark.parametrize("text", [
+    "Her last period was on the 3rd.",
+    "She had a normal period.",
+    "Her last menstrual period was in May.",
+    "She missed a period.",
+    "Bleeding between periods.",
+    "During the observation period he was stable.",
+    "The sigmoid colon is thickened.",
+    "Family history of colon cancer.",
+    "Carcinoma of the colon.",
+    "Small bowel and colon were normal.",
+    "There was no... ...injury. Cefazolin is documented (see chart) .",   # spacing is not tidied
+])
+def test_spoken_marks_leave_clinical_nouns(text):
+    assert apply(text, lenient=True, punctuation=True) == text
+
+
+def test_spoken_marks_are_off_by_default():
+    raw = "HENT normal period. Throat red comma, no exudate period."
+    assert apply(raw) == raw and apply(raw, lenient=True) == raw

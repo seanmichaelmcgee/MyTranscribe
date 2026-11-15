@@ -769,7 +769,8 @@ class MedTranscriptionWindow(TranscriptionWindow):
         """Spoken commands -> formatting, if enabled (lenient in the pause-aware pipeline)."""
         if not self._settings.voice_commands:
             return text
-        return voice_commands.apply(text, lenient=self._settings.pause_aware)
+        return voice_commands.apply(text, lenient=self._settings.pause_aware,
+                                    punctuation=self._settings.spoken_punctuation)
 
     # ── Clipboard: verified copy, then (maybe) paste ──────────────────────────
     def _clipboard(self):

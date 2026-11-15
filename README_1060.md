@@ -84,6 +84,13 @@ use: results and known limits are in
 [docs/optimization/2026-11-15-dictation-reliability.md](docs/optimization/2026-11-15-dictation-reliability.md).
 `MYTRANSCRIBE_PAUSE_AWARE=1` (or `0`) overrides the saved choice.
 
+**Spoken punctuation** (Options, off by default) is for dictating the marks yourself:
+"period" / "full stop", "comma", "colon", "semicolon", "question mark", "exclamation mark",
+"hyphen" and "open / close parenthesis" become the marks. "Her last period", "a period of
+observation", "the sigmoid colon" and "colon cancer" stay words, but that check is a word
+list and can be wrong on an unusual phrase, so read the result. Leave it off if you let the
+app punctuate for you. `MYTRANSCRIBE_SPOKEN_PUNCTUATION=1` (or `0`) overrides the saved choice.
+
 ## Use
 
 The window starts small (compact view) and stays on top of other windows:

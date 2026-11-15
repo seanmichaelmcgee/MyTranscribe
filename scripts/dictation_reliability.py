@@ -84,6 +84,8 @@ PROFILES = {
     "baseline": {},
     # What Options -> "Pause-aware dictation" switches on.
     "candidate": _CANDIDATE,
+    # ... plus Options -> "Spoken punctuation".
+    "candidate_marks": dict(_CANDIDATE, commands={"lenient": True, "punctuation": True}),
     # Silence-handling variants tried on top of it (none was better; see the results note).
     "cand_pad150": dict(_CANDIDATE, engine={"decode_overrides": {"vad_parameters": {
         "min_silence_duration_ms": 700, "speech_pad_ms": 150}}}),

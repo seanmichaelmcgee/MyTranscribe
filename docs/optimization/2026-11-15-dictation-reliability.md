@@ -89,6 +89,27 @@ On all 24 notes: spoken 14.87% → 14.90%, formatted 23.97% → 24.23%; neither 
 - The spoken track mirrors it: Dragon turns the spoken marks into punctuation, so it scores badly against a verbatim reference, and the local pipelines lose about 590 reference words the same way where Whisper writes the mark instead of the word.
 - The pause-aware changes do not address spoken punctuation marks, so no gain was expected here and none was found. No pause, command or early-Stop conditions were derived from this set.
 
+## Spoken punctuation (added after the first Corti run)
+
+Options → "Spoken punctuation", or `MYTRANSCRIBE_SPOKEN_PUNCTUATION=1`; off by default and independent of pause-aware dictation. `voice_commands.apply(punctuation=True)` turns "period" / "full stop", "comma", "colon", "semicolon", "question mark", "exclamation mark", "hyphen" and "open / close parenthesis" into the marks; the dictated mark replaces whatever the model wrote after the word. "period" and "colon" stay words when their neighbours make them a noun ("her last period", "a period of observation", "the sigmoid colon", "colon cancer"); that guard is a word list.
+
+The owner's recordings contain almost no dictated marks, so the rules were written against a synthetic set: the corpus scripts read by the two Windows text-to-speech voices with every mark spoken (`scripts/spoken_punctuation_tts.py`), development split for writing the rules, held-out split run once. No Corti output was read while writing them; only the aggregate count of leftover mark words above was known.
+
+| Check | Option off | Option on |
+|---|---|---|
+| Synthetic development (48 readings, 640 marks): mark words left in the text | 511 | 0 |
+| Synthetic held-out (46 readings, 436 marks): mark words left in the text | 305 | 0 |
+| Synthetic held-out: marks missing / added against the script | 23 / 28 | 8 / 9 |
+| Synthetic held-out: WER | 14.62% | 2.95% |
+| Real recordings (398 saved transcripts, all conditions): transcripts changed | - | 0 |
+| Corti formatted track, 24 notes | 24.23% | 8.14% |
+| Corti formatted track, the 23 notes with a Dragon capture (Dragon 6.04%) | 24.48% | 8.36% |
+
+- Corti was run once with the option on. A spacing bug found afterwards on the owner's recordings was fixed and the saved Corti text re-converted without new recognition; one note's text changed and the totals did not. The Corti spoken track is unaffected (14.90%).
+- The remaining gap to Dragon on Corti is not broken down here, deliberately: reading those errors to design the next change would be developing against the benchmark.
+- A computer voice pauses and pronounces the marks more regularly than a person. The real evidence that a human's dictated marks are handled is the Corti result; the owner's own voice dictating marks is untested.
+- False conversions are the risk: zero on the owner's recordings, which rarely contain "period" or "colon" as nouns, so that check is weak. The unit tests list the noun phrases that are protected.
+
 ## Limitations
 
 - **Known regression:** with 4 s pauses one held-out letter lost four list commands that the classic pipeline kept (48/52 vs 52/52), and WER in that condition rose 5.81 → 6.06. Commands inside a numbered list ("new line, 2 period") are the weak spot.
@@ -96,7 +117,7 @@ On all 24 notes: spoken 14.87% → 14.90%, formatted 23.97% → 24.23%; neither 
 - Pauses inside a chunk still cause some sentence breaks and an occasional dropped word next to the pause (8 of 80 sites at 4 s on the development split). Only the breaks caused by the chunk cut are addressed.
 - Under spliced pauses the candidate writes more comma-joined sentences: sentence ends missing against the script rose (held-out, 1.5 s pauses: 5 → 11) while extra ones fell (16 → 10).
 - When no sentence end with a usable pause lies in the last 6 s of a chunk, the chunk is committed whole, exactly as in the classic pipeline.
-- Commands covered: new line, new paragraph, quotes, numbered items. Spoken "comma", "full stop", "colon" are not commands.
+- Commands covered: new line, new paragraph, quotes, numbered items. Spoken "comma", "full stop", "colon" are converted only with the separate Spoken punctuation option (above).
 - Script-relative scoring; no listen-back adjudication and no clinical review of meaning. One speaker, one headset, one GPU. Not timed on the GTX 1060; live insert was not exercised with real audio.
 - If a clipboard copy fails and a new recording is started, the uncopied text is still discarded (unchanged from the classic app).
 
