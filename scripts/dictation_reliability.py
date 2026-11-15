@@ -257,8 +257,11 @@ class FileMic:
         pass
 
 
-def run_pipeline(engine, audio, stop_at, style, builder, post, profile):
-    """Final text (as the GUI would copy it) and the raw per-chunk pieces."""
+def run_pipeline(engine, audio, stop_at, style, builder, post, profile, with_spoken=False):
+    """
+    Final text (as the GUI would copy it) and the raw per-chunk pieces. With
+    with_spoken, the text before spoken commands are converted is appended.
+    """
     pcm = (np.clip(audio, -1, 1) * 32767).astype(np.int16)
     mic = FileMic(pcm, stop_at)
     t = ChunkedTranscriber(engine, style, stream_factory=lambda: (mic, None),
@@ -274,7 +277,8 @@ def run_pipeline(engine, audio, stop_at, style, builder, post, profile):
     t.wait_until_idle()
     text = t.text
     final = voice_commands.apply(text, **profile.get("commands", {}))
-    return final, list(t.transcriptions), time.perf_counter() - t0, t.rescued_commands
+    out = (final, list(t.transcriptions), time.perf_counter() - t0, t.rescued_commands)
+    return out + (text,) if with_spoken else out
 
 
 # ── Scoring ──────────────────────────────────────────────────────────────────

@@ -74,6 +74,21 @@ How to read it:
 - For Dragon, "Stop 0.15 s early" means the audio ends there and the microphone is switched off at once; the cable adds latency, so the timing is approximate.
 - One play per cell, no repeat; a virtual cable, not a live microphone; script-relative scoring with no listen-back.
 
+## Corti Med-Dictate (English, 24 notes, 66 minutes)
+
+Run once on the finished candidate with `scripts/corti_benchmark.py`; nothing was tuned against it (the dataset licence allows benchmarking existing systems, not developing them). Dataset revision `2a840558`, file hash checked against the October acquisition receipt. Scored with the metric module frozen for the October benchmark ("conservative" view: case and punctuation marks ignored, number spellings kept). The spoken track is the text before command conversion against the verbatim reference; the formatted track is the final text against the publisher's formatted note. Dragon was not replayed: its figures are the saved October captures (23 notes; one capture failed then).
+
+| 23 notes scored for all three | Existing | Candidate | Dragon (October) |
+|---|---|---|---|
+| Spoken track WER | 15.19% | 15.24% | 39.04% |
+| Formatted track WER | 24.20% | 24.48% | 6.04% |
+
+On all 24 notes: spoken 14.87% → 14.90%, formatted 23.97% → 24.23%; neither difference is distinguishable from zero (paired bootstrap over notes: −0.6 to +0.7 and −0.8 to +1.3 points). Compute 184 s → 213 s for 3,949 s of audio on the RTX 4070 Ti SUPER.
+
+- These speakers dictate every punctuation mark. Of the 1,175 inserted words on the formatted track (existing pipeline), 1,027 are "period", "comma", "colon", "hyphen", "parenthesis" and similar, left in the text as words. Without those the formatted WER would be about 8.2% (8.4% candidate) against Dragon's 6.0%; that is arithmetic on the alignment, not a measured result.
+- The spoken track mirrors it: Dragon turns the spoken marks into punctuation, so it scores badly against a verbatim reference, and the local pipelines lose about 590 reference words the same way where Whisper writes the mark instead of the word.
+- The pause-aware changes do not address spoken punctuation marks, so no gain was expected here and none was found. No pause, command or early-Stop conditions were derived from this set.
+
 ## Limitations
 
 - **Known regression:** with 4 s pauses one held-out letter lost four list commands that the classic pipeline kept (48/52 vs 52/52), and WER in that condition rose 5.81 → 6.06. Commands inside a numbered list ("new line, 2 period") are the weak spot.
