@@ -47,6 +47,7 @@ SAME_SOUND_MIN_KEY = 5      # consonant skeleton long enough to be distinctive
 MAX_SPAN = 3                # also try joining up to 3 split words ("licen opril")
 
 _WORD_RE = re.compile(r"[A-Za-z][A-Za-z'\-]*")
+_WORD_RE_ANY = re.compile(r"[^\W\d_][^\W\d_'’\-]*(?:['’\-][^\W\d_]+)*", re.UNICODE)   # accented letters too
 _TITLE_RE = re.compile(r"\b(?:Dr|Mr|Mrs|Ms|Miss|Mx|Prof)\.?$")
 
 
@@ -104,6 +105,7 @@ class TermCorrector:
         for key in self._phon.values():
             self._phon_count[key] = self._phon_count.get(key, 0) + 1
         self.same_sound = False                # opt-in band, see SAME_SOUND_SCORE
+        self._word_re = _WORD_RE               # make_corrector switches to _WORD_RE_ANY for other languages
         self.total_corrections = 0
 
     # ── matching ────────────────────────────────────────────────────────────
@@ -151,7 +153,7 @@ class TermCorrector:
 
     # ── public ──────────────────────────────────────────────────────────────
     def find(self, text: str) -> List[Correction]:
-        words = [(m.start(), m.end(), m.group()) for m in _WORD_RE.finditer(text)]
+        words = [(m.start(), m.end(), m.group()) for m in self._word_re.finditer(text)]
         out: List[Correction] = []
         i = 0
         while i < len(words):
@@ -196,7 +198,7 @@ class TermCorrector:
         catch them (measured 2026-10-03: 0.78-0.90 on invented words).
         """
         out = []
-        for m in _WORD_RE.finditer(text):
+        for m in self._word_re.finditer(text):
             word = m.group()
             for piece in word.split("-"):
                 if not self._is_candidate(piece) or not piece.isalpha():
@@ -225,7 +227,7 @@ class TermCorrector:
         return "".join(parts)
 
 
-def make_corrector(terms: Iterable[str]) -> Optional[TermCorrector]:
+def make_corrector(terms: Iterable[str], language: str = "en") -> Optional[TermCorrector]:
     """Build a TermCorrector with rapidfuzz/jellyfish/wordfreq, or None if unavailable."""
     try:
         from rapidfuzz import fuzz, process
@@ -238,5 +240,13 @@ def make_corrector(terms: Iterable[str]) -> Optional[TermCorrector]:
     def extract(word, choices, limit=2):
         return [(c, s) for c, s, _ in process.extract(word, choices, scorer=fuzz.ratio, limit=limit)]
 
-    return TermCorrector(terms, ratio=fuzz.ratio, phonetic=jellyfish.metaphone,
-                         zipf=lambda w: zipf_frequency(w, "en"), extract=extract)
+    if language != "en":
+        from wordfreq import available_languages
+        if language not in available_languages():
+            logger.info("No word-frequency data for %s: spelling correction is off in that language", language)
+            return None                        # without it a real word cannot be told from a misspelling
+    corrector = TermCorrector(terms, ratio=fuzz.ratio, phonetic=jellyfish.metaphone,
+                              zipf=lambda w: zipf_frequency(w, language), extract=extract)
+    if language != "en":
+        corrector._word_re = _WORD_RE_ANY
+    return corrector

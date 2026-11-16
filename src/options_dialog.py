@@ -248,6 +248,11 @@ class OptionsDialog(QDialog):
                      f"medical vocabulary and spelling correction are off. {pack.reviewed}")
             if name != "whisper":
                 note += " Only Whisper understands this language: choose Whisper as the recogniser."
+            elif engines.tuned_model(pack.code) is not None:
+                note += " A model tuned for this language is installed and will be used."
+            elif pack.needs_tuned_model:
+                note += (" Standard Whisper is weak in this language: install the tuned model with "
+                         "scripts\\convert_whisper_model.py (see the multilingual note).")
         self.engine_note.setText(note)
 
     def _show_log(self) -> None:

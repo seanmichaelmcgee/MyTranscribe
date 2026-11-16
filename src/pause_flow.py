@@ -51,6 +51,38 @@ _COMMANDS = {
     "end quote": "close quote.", "end quotes": "close quote.", "unquote": "close quote.",
 }
 _COMMAND_RE = re.compile(r"\b(" + "|".join(sorted(_COMMANDS, key=len, reverse=True)).replace(" ", r"\s+") + r")\b")
+_ENGLISH = (LISTEN_PROMPT, _COMMANDS, _COMMAND_RE)
+
+
+def set_language(pack=None) -> None:
+    """
+    Use another language's command phrases (a lang_packs.LanguagePack), or
+    English again with None. The pause-aware pipeline keeps a chunk that ends
+    on a spoken command whole and listens again for a command the model
+    skipped; both need to know what a command sounds like in the language.
+    One language at a time per process, like the app.
+    """
+    global LISTEN_PROMPT, _COMMANDS, _COMMAND_RE
+    if pack is None:
+        LISTEN_PROMPT, _COMMANDS, _COMMAND_RE = _ENGLISH
+        return
+    commands = {}
+    for phrases, ending in ((pack.paragraph, "."), (pack.line, "."), (pack.open_quote, ","), (pack.close_quote, ".")):
+        if phrases:
+            written = phrases[0][0].upper() + phrases[0][1:] + ending if ending == "." and phrases is not pack.close_quote \
+                else phrases[0] + ending
+            for phrase in phrases:
+                commands[" ".join(_norm(phrase).split())] = written
+    _COMMANDS = commands
+    _COMMAND_RE = re.compile(r"(?<!\w)(" + "|".join(re.escape(k).replace(r"\ ", r"\s+")
+                                                    for k in sorted(commands, key=len, reverse=True)) + r")(?!\w)")
+    firsts = [p[0] for p in (pack.paragraph, pack.line, pack.open_quote, pack.close_quote) if p]
+    LISTEN_PROMPT = ". ".join(f[0].upper() + f[1:] for f in firsts) + "."
+
+
+def _norm(text: str) -> str:
+    """Lower-case letters and spaces only (any alphabet)."""
+    return re.sub(r"[^\w ]+|[\d_]+", " ", text.lower())
 
 
 def words_text(words: Sequence[Word]) -> str:
@@ -77,8 +109,8 @@ def split_for_carry(words: Sequence[Word], audio_s: float,
     chunk, where the model is most likely to leave it out.
     """
     words = list(words)
-    tail = [_key(w[0]) for w in words[-2:]]
-    if " ".join(tail) in _COMMANDS or (tail and tail[-1] in _COMMANDS):
+    tail = [_key(w[0]) for w in words[-3:]]                # commands are one to three words long
+    if any(" ".join(tail[i:]) in _COMMANDS for i in range(len(tail))):
         return words, None
     for k in range(len(words) - 2, -1, -1):
         gap_start, gap_end = words[k][2], words[k + 1][1]
@@ -106,12 +138,12 @@ def speech_gaps(words: Sequence[Word], audio_s: float,
 
 
 def _key(word: str) -> str:
-    return re.sub(r"[^a-z0-9]", "", word.lower())
+    return re.sub(r"[^\w]|_", "", word.lower())
 
 
 def match_command(text: str) -> Optional[str]:
     """The canonical command if `text` contains a spoken command phrase; else None."""
-    norm = " ".join(re.sub(r"[^a-z ]+", " ", text.lower()).split())
+    norm = " ".join(_norm(text).split())
     m = _COMMAND_RE.search(norm)
     return _COMMANDS[" ".join(m.group(1).split())] if m else None
 

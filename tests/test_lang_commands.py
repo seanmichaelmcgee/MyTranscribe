@@ -112,3 +112,33 @@ def test_draft_reading_sets_round_trip():
             from lang_commands import format_readings as readings
             assert apply(readings(it["spoken"], pack), pack, punctuation=True) == it["reference"], it["id"]
     assert vt.set_language(Path("validation_set_v1.txt")) == "en"
+
+
+def test_small_numbers_before_countable_things_become_digits():
+    assert format_readings("desde hace cuatro años, toma dos comprimidos y tiene tres hijos", ES) == \
+        "desde hace 4 años, toma 2 comprimidos y tiene tres hijos"
+    assert format_readings("depuis trois mois, deux comprimés par jour, il a deux enfants", FR) == \
+        "depuis 3 mois, 2 comprimés par jour, il a deux enfants"
+
+
+def test_term_corrector_per_language():
+    from lang_commands import corrector_for
+    es, fr = corrector_for(ES), corrector_for(FR)
+    if es is None or fr is None:
+        pytest.skip("rapidfuzz / jellyfish / wordfreq not installed")
+    assert corrector_for(SW) is None                      # no word-frequency data: never guess
+    assert es("urucultivo negativo, disipemia y lomeprazol") == "urocultivo negativo, dislipemia y omeprazol"
+    assert es("el paciente camina sin dolor") == "el paciente camina sin dolor"
+    assert fr("rosuastatine et dyslépidémie") == "rosuvastatine et dyslipidémie"
+    assert fr("le patient marche sans douleur") == "le patient marche sans douleur"
+
+
+def test_dictated_punctuation_gets_its_own_prompt():
+    from lang_commands import prompt_for
+    assert prompt_for(ES, False) == ES.prompt
+    assert prompt_for(ES, True).endswith(ES.dictation_prompt) and prompt_for(ES, True).startswith(ES.prompt)
+
+
+def test_glued_sentences_get_their_space_but_abbreviations_do_not():
+    assert apply("kukuza mazingira.Salama kwa wote nukta", SW, punctuation=True) == "kukuza mazingira. Salama kwa wote."
+    assert apply("tomar p.r.n. y potasio 5.4 punto Ver al Dr. Ruiz punto", ES, punctuation=True) ==         "tomar p.r.n. y potasio 5.4. Ver al Dr. Ruiz."

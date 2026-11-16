@@ -498,6 +498,72 @@ def adjusted_errors(reference: str, text: str) -> int:
 PROFILES = {"whisper": "candidate_full", "medasr": "classic_full", "parakeet": "classic_full", "canary": "classic_full"}
 
 
+def transcribe_all_language(items: list, out: Path, model=None) -> dict:
+    """{id: text} for a Spanish / French / Swahili set: Whisper with that language's pack and all options."""
+    import dictation_reliability as dr
+    import engines
+    import lang_commands
+    import lang_packs
+    import pause_flow
+    from bench_engine import load_wav
+
+    pack = lang_packs.get(items[0]["language"])
+    cache = out / "local_whisper.json"
+    done = json.loads(cache.read_text(encoding="utf-8")) if cache.is_file() else {}
+    todo = [it for it in items if it["id"] not in done and (out / "items" / f"{it['id']}.wav").is_file()]
+    if not todo:
+        return done
+    tuned = model or engines.tuned_model(pack.code)
+    engine = dr.make_engine("whisper", str(tuned) if tuned else None)
+    engine.language = pack.code
+    pause_flow.set_language(pack)
+    post = lang_commands.corrector_for(pack)
+    if post is not None:
+        post.same_sound = True
+    prompt = lang_commands.prompt_for(pack, True)
+    for it in todo:
+        audio = load_wav(out / "items" / f"{it['id']}.wav")
+        raw = dr.run_pipeline(engine, audio, None, prompt, None, post, dr.PROFILES["candidate"], with_spoken=True)[4]
+        done[it["id"]] = lang_commands.apply(lang_commands.format_readings(raw, pack), pack, punctuation=True)
+        cache.write_text(json.dumps(done, indent=1, ensure_ascii=False), encoding="utf-8")
+        print(f"  whisper {it['id']}", flush=True)
+    return done
+
+
+def score_language(args, items: list, systems: dict):
+    """Word errors, marks and layout for a non-English set (any alphabet)."""
+    import lang_reliability as lr
+    result, table = {"items": len(items), "language": items[0]["language"], "systems": {}}, []
+    print(f"\n{len(items)} items in {items[0]['language']} scored against the text that was read")
+    print(f"{'system':10s} {'kind':8s} {'n':>3s} {'WER %':>7s} {'marks missing':>14s} {'marks added':>12s} {'layout ok':>10s}")
+    for name, texts in systems.items():
+        rows = []
+        for it in items:
+            text = texts.get(it["id"], "")
+            ref, hyp = lr.word_tokens(it["reference"]), lr.word_tokens(text)
+            marks, missing, added = lr.mark_errors(it["reference"], text)
+            rows.append({"id": it["id"], "category": it["category"], "ref_words": len(ref),
+                         "errors": lr.edit_distance(ref, hyp), "marks": marks, "marks_missing": missing,
+                         "marks_added": added, "format_ok": lr.layout(it["reference"]) == lr.layout(text), "text": text})
+        result["systems"][name] = {"rows": rows}
+        for kind in ("short", "consult", "all"):
+            sel = [r for r in rows if kind == "all" or r["category"] == kind]
+            if sel:
+                words = max(1, sum(r["ref_words"] for r in sel))
+                print(f"{name:10s} {kind:8s} {len(sel):3d} {100 * sum(r['errors'] for r in sel) / words:7.2f} "
+                      f"{sum(r['marks_missing'] for r in sel):>7d}/{sum(r['marks'] for r in sel):<6d} "
+                      f"{sum(r['marks_added'] for r in sel):>12d} {sum(r['format_ok'] for r in sel):>7d}/{len(sel)}")
+        table += [{"system": name, "id": r["id"], "kind": r["category"], "ref_words": r["ref_words"],
+                   "errors": r["errors"], "marks_missing": r["marks_missing"], "marks_added": r["marks_added"],
+                   "format_ok": r["format_ok"]} for r in rows]
+    (args.out / "results.json").write_text(json.dumps(result, indent=1, ensure_ascii=False), encoding="utf-8")
+    with (args.out / "results.csv").open("w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=list(table[0]))
+        writer.writeheader()
+        writer.writerows(table)
+    print(f"\nresults: {args.out / 'results.json'} and results.csv")
+
+
 def transcribe_all(engine_name: str, items: list, out: Path, model=None) -> dict:
     """{id: text} from the saved recordings, through the app's pipeline with the text options on."""
     import dictation_reliability as dr
@@ -514,7 +580,7 @@ def transcribe_all(engine_name: str, items: list, out: Path, model=None) -> dict
         os.environ["MYTRANSCRIBE_MODEL"] = str(model)
     engine = engines.build(engine_name)
     profile = dr.PROFILES[PROFILES[engine_name]]
-    style = dr.load_prompt()
+    style = dr.style_for(profile)
     builder, post = dr.build_text_pipeline(style, count=getattr(engine, "count_tokens", None), env={})
     for it in todo:
         audio = load_wav(out / "items" / f"{it['id']}.wav")
@@ -539,6 +605,10 @@ def cmd_score(args):
         raise SystemExit(f"no recorded items in {args.out}; run 'record' first")
     systems = {"dragon": {it["id"]: (args.out / "items" / f"{it['id']}.dragon.txt").read_text(encoding="utf-8")
                           for it in items}}
+    if items[0]["language"] != "en":                      # only Whisper understands the other languages
+        print(f"running whisper ({items[0]['language']}) on {len(items)} recordings ...", flush=True)
+        systems["whisper"] = transcribe_all_language(items, args.out, args.model)
+        return score_language(args, items, systems)
     for name in args.engines.split(","):
         ok, why = engines.availability(name)
         if not ok:

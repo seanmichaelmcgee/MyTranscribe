@@ -43,9 +43,19 @@ class LanguagePack:
     units: Dict[str, str] = field(default_factory=dict)        # spoken unit -> abbreviation (after a digit)
     per_units: Dict[str, str] = field(default_factory=dict)    # spoken denominator -> abbreviation
     prompt: str = ""                                           # style example in the language
+    # A few words of dictation with the commands spoken. Whisper treats its prompt as
+    # what came before; without this example it tends to leave a spoken "nuevo párrafo"
+    # out as if it were an aside (layout right in 26 of 40 synthetic Spanish readings;
+    # 40 of 40 with it). Used when Spoken punctuation is on.
+    dictation_prompt: str = ""
     space_before: str = ""                                     # marks written with a space before (French : ; ? !)
     say: Dict[str, str] = field(default_factory=dict)          # how to dictate each mark and break (reading sets)
     titles: Tuple[str, ...] = ()                               # abbreviations whose dot is not dictated
+    vocab_file: str = ""                                       # src/vocab/<file>: terms for the spelling corrector
+    number_words: Dict[str, str] = field(default_factory=dict)  # small number words written as digits ...
+    counted: Tuple[str, ...] = ()                              # ... in front of these (regex alternatives)
+    needs_tuned_model: bool = False                            # standard Whisper is too weak in this language
+    tuned_model_repo: str = ""                                 # a fine-tuned Whisper to install for it
 
 
 _F = frozenset
@@ -77,9 +87,18 @@ SPANISH = LanguagePack(
                        next=_F({"de", "doloroso", "gatillo", "máximo", "maximo", "medio", "ciego", "negro"})),
         "dos puntos": Guard(next=_F({"de", "en", "por", "más", "mas", "menos", "porcentuales"})),
     },
+    dictation_prompt="Paciente estable, punto. Nuevo párrafo. Sin fiebre, coma, sin disnea, punto. Nueva línea. "
+                     "Abrir comillas, reposo, cerrar comillas, punto y aparte.",
     say={".": "punto", ",": "coma", ":": "dos puntos", ";": "punto y coma", "?": "cerrar interrogación",
          "\n\n": "nuevo párrafo", "\n": "nueva línea", "open": "abrir comillas", "close": "cerrar comillas"},
     titles=("Sr", "Sra", "Srta", "Dr", "Dra"),
+    vocab_file="medical_es.txt",
+    number_words={"dos": "2", "tres": "3", "cuatro": "4", "cinco": "5", "seis": "6", "siete": "7", "ocho": "8",
+                  "nueve": "9", "diez": "10", "once": "11", "doce": "12", "quince": "15", "veinte": "20",
+                  "treinta": "30"},
+    counted=("mg", "mcg", "g", "ml", "miligramos?", "gramos?", "mililitros?", "comprimidos?", "cápsulas?",
+             "capsulas?", "gotas", "inhalaciones", "días?", "dias?", "semanas?", "mes(?:es)?", "años?", "horas?",
+             "minutos?", "veces", "manzanas", "kilos?", "centímetros?", "centimetros?", "milímetros?", "milimetros?"),
     over=("sobre",), per=("por",),
     units={"miligramos": "mg", "miligramo": "mg", "microgramos": "mcg", "microgramo": "mcg", "gramos": "g",
            "gramo": "g", "mililitros": "mL", "mililitro": "mL", "kilogramos": "kg", "kilogramo": "kg",
@@ -120,10 +139,20 @@ FRENCH = LanguagePack(
         "tiret": Guard(prev=_F({"un", "le", "du"})),
     },
     space_before=":;?!",
+    dictation_prompt="Patient stable, point. Nouveau paragraphe. Pas de fièvre, virgule, pas de dyspnée, point. "
+                     "À la ligne. Ouvrez les guillemets, repos, fermez les guillemets, point.",
     say={".": "point", ",": "virgule", ":": "deux points", ";": "point-virgule", "?": "point d'interrogation",
          "\n\n": "nouveau paragraphe", "\n": "à la ligne", "open": "ouvrez les guillemets",
          "close": "fermez les guillemets"},
     titles=("M", "Dr", "Pr"),
+    vocab_file="medical_fr.txt",
+    number_words={"deux": "2", "trois": "3", "quatre": "4", "cinq": "5", "six": "6", "sept": "7", "huit": "8",
+                  "neuf": "9", "dix": "10", "onze": "11", "douze": "12", "quinze": "15", "vingt": "20",
+                  "trente": "30"},
+    counted=("mg", "µg", "g", "ml", "milligrammes?", "grammes?", "millilitres?", "comprimés?", "comprimes?",
+             "gélules?", "gelules?", "gouttes?", "bouffées?", "bouffees?", "jours?", "semaines?", "mois", "ans?",
+             "heures?", "minutes?", "fois", "mètres?", "metres?", "kilos?", "centimètres?", "centimetres?",
+             "millimètres?", "millimetres?"),
     over=("sur",), per=("par",),
     units={"milligrammes": "mg", "milligramme": "mg", "microgrammes": "µg", "microgramme": "µg",
            "grammes": "g", "gramme": "g", "millilitres": "mL", "millilitre": "mL", "kilogrammes": "kg",
@@ -140,7 +169,7 @@ SWAHILI = LanguagePack(
     code="sw", name="Kiswahili (Swahili)",
     reviewed="NOT reviewed by a Swahili speaker. Phrases are the standard punctuation terms as far as the "
              "author knows them; verify every one with a clinician who dictates in Swahili before relying on it.",
-    paragraph=("aya mpya", "ibara mpya"),
+    paragraph=("aya mpya", "ibara mpya", "haya mpya"),      # "haya mpya" is how the model often hears it
     line=("mstari mpya",),
     open_quote=("fungua nukuu", "fungua alama za nukuu"),
     close_quote=("funga nukuu", "funga alama za nukuu"),
@@ -152,9 +181,12 @@ SWAHILI = LanguagePack(
         "mkato": Guard(prev=_F({"njia", "wa", "ya", "kwa"}), next=_F({"wa", "mdogo", "mkubwa"})),
         "nukta": Guard(prev=_F({"hii", "hiyo", "moja", "kila", "ya"}), next=_F({"ya", "hii", "muhimu"})),
     },
+    dictation_prompt="Mgonjwa yuko imara, nukta. Aya mpya. Hana homa, koma, hana kikohozi, nukta. Mstari mpya. "
+                     "Fungua nukuu, pumzika, funga nukuu, nukta.",
     say={".": "nukta", ",": "koma", ":": "nukta mbili", ";": "nukta mkato", "?": "alama ya kuuliza",
          "\n\n": "aya mpya", "\n": "mstari mpya", "open": "fungua nukuu", "close": "funga nukuu"},
     titles=("Dkt", "Bw", "Bi"),
+    needs_tuned_model=True, tuned_model_repo="cdli/whisper-large-v3-swahili-afrivoice-cv",
     over=("kwa",),                                   # "120 kwa 80"; "kwa" is too common to use as "per"
     units={"miligramu": "mg", "gramu": "g", "mililita": "mL", "kilogramu": "kg", "kilo": "kg",
            "sentimita": "cm", "milimita": "mm"},

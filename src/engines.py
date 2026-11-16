@@ -105,7 +105,17 @@ def _is_missing_model(exc: BaseException) -> bool:
         "offline" in text and ("hub" in text or "cannot find" in text or "outgoing traffic" in text))
 
 
-def build(name: str = DEFAULT, accurate: bool = True, allow_download: bool = False):
+def tuned_model(language: str) -> Optional[Path]:
+    """
+    A Whisper model fine-tuned for this dictation language, if one has been
+    installed with scripts/convert_whisper_model.py (models_whisper/<language>/).
+    Standard Whisper covers Spanish and French well; Swahili needs a tuned one.
+    """
+    folder = ROOT / "models_whisper" / (language or "")
+    return folder if language and (folder / "model.bin").is_file() else None
+
+
+def build(name: str = DEFAULT, accurate: bool = True, allow_download: bool = False, language: str = "en"):
     """
     Load and warm up the recogniser `name`. With allow_download the hub is
     reachable for this one load (the user said yes); otherwise it stays offline.
@@ -125,7 +135,7 @@ def build(name: str = DEFAULT, accurate: bool = True, allow_download: bool = Fal
             os.environ.setdefault("HF_HUB_OFFLINE", "1")
         _hub_offline(not allow_download and os.environ["HF_HUB_OFFLINE"] == "1")
         try:
-            return _build(name, accurate)
+            return _build(name, accurate, language)
         except Exception as exc:
             if not allow_download and _is_missing_model(exc):
                 raise ModelNotDownloaded(name) from exc
@@ -139,12 +149,15 @@ def build(name: str = DEFAULT, accurate: bool = True, allow_download: bool = Fal
             _hub_offline(os.environ["HF_HUB_OFFLINE"] == "1")
 
 
-def _build(name: str, accurate: bool):
+def _build(name: str, accurate: bool, language: str = "en"):
     if name == "whisper":
         from fw_engine import FasterWhisperEngine, register_cuda_dll_dirs
         from hw_profile import choose_config, detect_hardware
         register_cuda_dll_dirs()                 # before ctranslate2 touches CUDA (Windows); harmless to repeat
         cfg = choose_config(detect_hardware(), accurate=accurate)
+        tuned = tuned_model(language)
+        if tuned is not None:
+            cfg.model = str(tuned)                # a model fine-tuned for this language
         logger.info("Engine config: model=%s device=%s compute=%s threads=%d (%s)",
                     cfg.model, cfg.device, cfg.compute_type, cfg.cpu_threads, cfg.reason)
         engine = FasterWhisperEngine(cfg)

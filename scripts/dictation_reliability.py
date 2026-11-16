@@ -414,6 +414,14 @@ def cached_word_times(cache_dir: Path, audio: np.ndarray, engine=None):
 ENGINES = ("whisper", "parakeet", "parakeet-v3", "canary", "medasr")
 
 
+def style_for(profile: dict) -> str:
+    """The style prompt the app would use for these options (a dictated example with Spoken punctuation)."""
+    style = load_prompt()
+    if profile.get("commands", {}).get("punctuation"):
+        style = (style + " " + voice_commands.DICTATION_EXAMPLE).strip()
+    return style
+
+
 def make_engine(name: str = "whisper", model=None, profile=None):
     """
     The recogniser for a run. "whisper" is the app's engine (large-v3, as the
@@ -465,7 +473,7 @@ def main(argv=None):
 
     engine = make_engine(args.engine, args.model, profile)
     cfg = engine.config
-    style = load_prompt()
+    style = style_for(profile)
     builder, post = build_text_pipeline(style, count=getattr(engine, "count_tokens", None), env={})
     tag = args.profile if args.engine == "whisper" else f"{args.engine}_{args.profile}"
 

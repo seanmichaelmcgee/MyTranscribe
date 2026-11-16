@@ -148,16 +148,21 @@ marks as words by itself.
 ## Other languages (experimental)
 
 **Options → Speech model → Dictation language** switches between English, Spanish, French and
-Swahili (or `MYTRANSCRIBE_LANGUAGE=es`). Whisper is the only recogniser that understands them.
-Spoken commands and punctuation then use that language's own words ("punto y aparte", "coma",
-"à la ligne", "virgule"), and the English medical vocabulary and spelling correction are
-switched off.
+Swahili (or `MYTRANSCRIBE_LANGUAGE=es`). It is the same Whisper model: no extra download for
+Spanish or French. All the options work in each language: spoken formatting and punctuation
+in that language's own words ("punto y aparte", "coma", "à la ligne", "virgule", "aya mpya",
+"nukta"), pause-aware dictation, and extra corrections (readings, units, and for Spanish and
+French a draft medical term list). The English vocabulary and corrector are switched off.
 
-- **Spanish and French:** recognition is good on public test sentences (2.3% and 5.5% word
-  errors). The command and punctuation words are drafts that no clinician has yet dictated
-  with; draft reading sets are in `validation/`.
-- **Swahili:** more than one word in three is wrong with the current model (38.7%), so treat
-  it as a demonstration only. Its command words have not been checked by a Swahili speaker.
+- **Spanish and French:** 2.3% and 5.5% word errors on public test sentences. On real French
+  medical dictation (7 notes) the French pack took word errors from 33% to 8.7%.
+- **Swahili:** standard Whisper gets more than one word in three wrong (38.7%). A model tuned
+  for Swahili halves that (20.5%); install it once with
+  `python scripts\convert_whisper_model.py --repo cdli/whisper-large-v3-swahili-afrivoice-cv --language sw`
+  (6 GB download, Apache 2.0, needs the optional packages in `requirements-engines.txt`). The
+  app then uses it whenever Swahili is chosen. Still a demonstration, not a clinical tool.
+- The command words, term lists and reading sets are drafts that no clinician has dictated
+  with yet; the Swahili ones have not been checked by a Swahili speaker.
 
 Details and limits: [docs/optimization/2026-11-16-multilingual.md](docs/optimization/2026-11-16-multilingual.md).
 

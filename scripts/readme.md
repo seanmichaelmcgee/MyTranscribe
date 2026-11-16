@@ -10,6 +10,8 @@ Follow [instructions.md](instructions.md) and [project SOP](../docs/PROJECT_SOP.
 | `personal_audio_trial.py` | Opt-in verified original-PCM replay and isolated prompt candidates |
 | `trial_asr.py` | Shared offline raw/filtered/cleaned replay harness; historical PCM route differs from exact replay |
 | `whisper_runtime_trial.py` | Fixed local Whisper runtime trial and opt-in trace adapter |
+| `lang_reliability.py` | Dictated punctuation in Spanish, French, Swahili: synthetic speech sets, pipeline run and scoring |
+| `convert_whisper_model.py` | Download a fine-tuned Whisper (e.g. Swahili) and convert it for the app |
 | `fleurs_benchmark.py` | Baseline word error rate in other languages on the public FLEURS test sets |
 | `validation_tool.py` | Read a fictional set while Dragon types; scores Dragon, Whisper and MedASR (docs/VALIDATION.md) |
 | `live_app_trial.py` | Plays recordings through the virtual cable into the real app window; accuracy and Stop-to-text time, and switching recogniser while running |

@@ -28,3 +28,7 @@ sentencepiece==0.2.1
 
 # On networks that re-sign HTTPS, lets model downloads use the Windows certificate store
 truststore>=0.10
+
+# Only for building synthetic test audio in other languages (scripts/lang_reliability.py make).
+# Install with --no-deps so it does not pull in the CPU onnxruntime:  pip install --no-deps piper-tts
+# piper-tts==1.8.0

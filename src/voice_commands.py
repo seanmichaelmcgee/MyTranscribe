@@ -42,6 +42,13 @@ converted, which is why it is a choice.
 import re
 
 PUNCT = ",.;:!?"
+# A few words of dictation with the commands spoken, appended to Whisper's style prompt
+# when Spoken punctuation is on. Whisper treats its prompt as what came before; with this
+# example it keeps a spoken "open quote" or "new paragraph" instead of dropping it as an
+# aside (fictional validation set: commands 39/40 -> 40/40; owner's development
+# recordings: 52/58 -> 54/58, no change for the worse elsewhere).
+DICTATION_EXAMPLE = ("The chest is clear, period. New paragraph. No fever, comma, no cough, period. New line. "
+                     "Open quote, rest, close quote, period.")
 _BREAKS = [(re.compile(r"\bnew\s+paragraph\b", re.I), "\n\n"),
            (re.compile(r"\b(?:new|next)\s+line\b", re.I), "\n")]
 _NUMBER_WORDS = {w: str(i) for i, w in enumerate(

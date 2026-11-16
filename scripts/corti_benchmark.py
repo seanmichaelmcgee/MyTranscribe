@@ -41,7 +41,7 @@ def cmd_run(args):
     profile = dr.PROFILES[args.profile]
     engine = dr.make_engine(args.engine, args.model, profile)
     cfg = engine.config
-    style = dr.load_prompt()
+    style = dr.style_for(profile)
     builder, post = dr.build_text_pipeline(style, count=getattr(engine, "count_tokens", None), env={})
     tag = args.profile if args.engine == "whisper" else f"{args.engine}_{args.profile}"
     rows, t0 = [], time.perf_counter()

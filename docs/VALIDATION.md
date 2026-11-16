@@ -49,8 +49,8 @@ you reading again: delete `local_*.json` and run `score` once more.
 
 Draft Spanish and French sets are in `validation/validation_set_es_v1.txt` and
 `validation_set_fr_v1.txt`. Add `--set validation\validation_set_es_v1.txt` to `show` and
-`record`; the dictated words are shown in that language. Scoring the local recogniser on them
-is not wired up yet: `score` runs the English pipeline. They are drafts written by an AI
+`record` and `score`; the dictated words are shown in that language, and `score` runs Whisper
+with that language's pack and reports word errors, marks and layout. They are drafts written by an AI
 assistant and need a clinician who dictates in the language to read them first.
 
 ### How the score is computed, and how far to trust it

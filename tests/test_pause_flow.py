@@ -134,3 +134,22 @@ def test_insert_commands_keeps_order():
     # A recovered command is a sentence end the carry logic can cut after.
     keep, carry_from = pf.split_for_carry(out, audio_s=8.0, max_carry_s=6.0)
     assert pf.words_text(keep).endswith("New line.") and 6.2 < carry_from < 7.0
+
+
+def test_commands_follow_the_dictation_language():
+    import lang_packs
+    import pause_flow as pf
+    try:
+        pf.set_language(lang_packs.SPANISH)
+        assert pf.match_command("y sigue, nuevo párrafo, luego") == "Punto y aparte."   # one written form
+        assert pf.match_command("Punto y aparte.") == "Punto y aparte."
+        assert pf.match_command("new paragraph") is None
+        assert "Punto y aparte" in pf.LISTEN_PROMPT
+        for ending in ([(" Nueva", 1.0, 1.3), (" línea.", 1.3, 1.7)],
+                       [(" Punto", 1.0, 1.2), (" y", 1.2, 1.3), (" aparte.", 1.3, 1.7)]):
+            words = [(" Sin", 0.0, 0.3), (" fiebre.", 0.3, 0.8)] + ending
+            kept, carry = pf.split_for_carry(words, 2.0, 6.0)
+            assert carry is None and len(kept) == len(words)   # a chunk ending on a command stays whole
+    finally:
+        pf.set_language(None)
+    assert pf.match_command("new paragraph") == "New paragraph." and pf.match_command("nuevo párrafo") is None

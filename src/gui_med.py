@@ -217,7 +217,8 @@ class MedTranscriptionWindow(TranscriptionWindow):
         self._sync_autopaste()
         self._allow_download = False   # set for one load after the user agrees to fetch a model
         self._engine_factory = engine_factory or (lambda: engines.build(
-            self._settings.engine, self._settings.accuracy == "best", allow_download=self._allow_download))
+            self._settings.engine, self._settings.accuracy == "best", allow_download=self._allow_download,
+            language=self._settings.language))
         self._pipeline_injected = text_pipeline is not None
         self._load_exc: Optional[BaseException] = None
         self._reload_pending = False
@@ -358,13 +359,23 @@ class MedTranscriptionWindow(TranscriptionWindow):
             self._engine.language = code
         elif pack is not None:
             logger.warning("This recogniser only understands English; dictation language %s is ignored", code)
+        import pause_flow
+        pause_flow.set_language(pack if hasattr(self._engine, "language") else None)
         builder, corrector = self._text_pipeline or (None, None)
         if pack is None:
-            self._transcriber.base_prompt = self._base_prompt
+            style = self._base_prompt
+            if self._settings.spoken_punctuation and self._settings.voice_commands:
+                style = (style + " " + voice_commands.DICTATION_EXAMPLE).strip()
+            self._transcriber.base_prompt = style
+            if hasattr(builder, "style"):
+                builder.style = style
             self._transcriber.prompt_builder, self._transcriber.postprocess = builder, corrector
         else:
-            self._transcriber.base_prompt = pack.prompt
-            self._transcriber.prompt_builder = self._transcriber.postprocess = None
+            self._transcriber.base_prompt = lang_commands.prompt_for(pack, self._settings.spoken_punctuation)
+            self._transcriber.prompt_builder = None
+            self._transcriber.postprocess = lang_commands.corrector_for(pack)   # that language's term list
+            if self._transcriber.postprocess is not None:
+                self._transcriber.postprocess.same_sound = self._settings.extra_fixes
         logger.info("Dictation language: %s", code)
 
     def _confirm_download(self, engine: str) -> bool:
@@ -1016,8 +1027,9 @@ class MedTranscriptionWindow(TranscriptionWindow):
         self._apply_mic_mode()
         self._apply_pause_mode()
         self._apply_language()
-        if (old.engine, old.accuracy) != (self._settings.engine, self._settings.accuracy):
-            self._reload_engine()
+        if ((old.engine, old.accuracy, engines.tuned_model(old.language))
+                != (self._settings.engine, self._settings.accuracy, engines.tuned_model(self._settings.language))):
+            self._reload_engine()                 # also when the language has its own tuned model
 
     def closeEvent(self, event) -> None:
         if self._triggers is not None:

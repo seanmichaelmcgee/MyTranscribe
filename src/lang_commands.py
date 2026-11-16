@@ -33,8 +33,11 @@ def _phrase(text: str) -> str:
     return r"[ \t]+".join(re.escape(part).replace("'", "['’]").replace("’", "['’]") for part in text.split())
 
 
-def _any(phrases) -> "re.Pattern":
+def _any(phrases, loose: bool = False) -> "re.Pattern":
+    """One pattern for the phrases; loose=True also accepts a comma between a phrase's words ("nuevo, párrafo")."""
     body = "|".join(_phrase(p) for p in sorted(phrases, key=len, reverse=True))
+    if loose:
+        body = body.replace(r"[ 	]+", r"[ 	]*,?[ 	]+")
     return re.compile(r"(?<![\w-])(" + body + r")(?![\w-])", re.I | re.UNICODE)
 
 
@@ -116,6 +119,9 @@ def _marks(text: str, pack: LanguagePack) -> str:
 
 def format_readings(text: str, pack: LanguagePack) -> str:
     """Blood pressures and unit ratios written the chart way; units after a digit abbreviated."""
+    if pack.number_words and pack.counted:                # "cuatro años" -> 4 años, as the model usually writes it
+        text = re.sub(r"(?<![\w-])(" + "|".join(pack.number_words) + r")(?=[ \t]+(?:" + "|".join(pack.counted)
+                      + r")(?![\w-]))", lambda m: pack.number_words[m.group(1).lower()], text, flags=re.I)
     for word in pack.over:
         text = re.sub(r"(?<![\w./])(\d{2,3})[ \t]+" + _phrase(word) + r"[ \t]+(\d{2,3})(?!\w|[./]\d)", r"\1/\2",
                       text, flags=re.I)
@@ -132,24 +138,53 @@ def format_readings(text: str, pack: LanguagePack) -> str:
     return text
 
 
+_correctors = {}
+
+
+def corrector_for(pack: LanguagePack):
+    """
+    The spelling corrector for the language's medical term list, or None when
+    the pack has no list, the optional packages are missing, or there is no
+    word-frequency data to tell a real word from a misspelling (Swahili).
+    """
+    if pack.code not in _correctors:
+        corrector = None
+        if pack.vocab_file:
+            from pathlib import Path
+            from vocab_correct import make_corrector
+            path = Path(__file__).parent / "vocab" / pack.vocab_file
+            terms = [line.strip() for line in path.read_text(encoding="utf-8").splitlines()
+                     if line.strip() and not line.startswith("#")]
+            corrector = make_corrector(terms, language=pack.code)
+        _correctors[pack.code] = corrector
+    return _correctors[pack.code]
+
+
+def prompt_for(pack: LanguagePack, punctuation: bool) -> str:
+    """Whisper's style prompt for the language; with dictated punctuation, an example of it comes last."""
+    if punctuation and pack.dictation_prompt:
+        return (pack.prompt + " " + pack.dictation_prompt).strip()
+    return pack.prompt
+
+
 def apply(text: str, pack: LanguagePack, punctuation: bool = False) -> str:
     """Spoken formatting commands (and, with punctuation=True, dictated marks) -> formatting."""
     if not text:
         return text
     if pack.paragraph:
-        text = _replace(text, _any(pack.paragraph), "\x03", full_stop=True)   # a paragraph ends its sentence
+        text = _replace(text, _any(pack.paragraph, loose=True), "\x03", full_stop=True)   # a paragraph ends its sentence
     if pack.line:
-        text = _replace(text, _any(pack.line), "\x04")
+        text = _replace(text, _any(pack.line, loose=True), "\x04")
     if punctuation and pack.marks:
         text = _marks(text, pack)
     if pack.open_quote:
-        text = _replace(text, _any(pack.open_quote), "\x01")
+        text = _replace(text, _any(pack.open_quote, loose=True), "\x01")
     if pack.close_quote:
-        text = _replace(text, _any(pack.close_quote), "\x02")
+        text = _replace(text, _any(pack.close_quote, loose=True), "\x02")
     if pack.open_paren:
-        text = _replace(text, _any(pack.open_paren), "\x05")
+        text = _replace(text, _any(pack.open_paren, loose=True), "\x05")
     if pack.close_paren:
-        text = _replace(text, _any(pack.close_paren), "\x06")
+        text = _replace(text, _any(pack.close_paren, loose=True), "\x06")
     text = text.replace("\x03", "\n\n").replace("\x04", "\n")
     text = re.sub(r"[ \t]*\x01[ \t]*", " " + pack.quotes[0], text)
     text = re.sub(r"[ \t]*\x02", pack.quotes[1], text)
@@ -158,6 +193,8 @@ def apply(text: str, pack: LanguagePack, punctuation: bool = False) -> str:
     text = re.sub(r"(^|\n)[ \t]+", r"\1", text)
     text = re.sub(r"[ \t]+\n", "\n", text)
     text = re.sub(r"[ \t]{2,}", " ", text).strip(" \n")
+    # A sentence end glued to the next sentence ("mazingira.Salama", where two pieces of audio met).
+    text = re.sub(r"(?<=[^\W\d_]{3})([.?!])(?=[A-ZÀ-ÖØ-Þ][^\W\d_])", r"\1 ", text, flags=re.UNICODE)
     # Capitalise the first letter of each new line (after an opening quote, bracket or ¿ ¡ too).
     return re.sub(r"(\n)([\"«(¿¡ ]*)([^\W\d_])", lambda m: m.group(1) + m.group(2) + m.group(3).upper(), text,
                   flags=re.UNICODE)

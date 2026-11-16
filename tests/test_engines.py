@@ -42,7 +42,7 @@ def test_a_missing_model_becomes_a_question_not_a_download(monkeypatch):
     class LocalEntryNotFoundError(Exception):
         pass
 
-    def offline_load(name, accurate):
+    def offline_load(name, accurate, language="en"):
         raise LocalEntryNotFoundError("Cannot find the requested files in the local cache")
 
     monkeypatch.setattr(engines, "_build", offline_load)
@@ -53,7 +53,7 @@ def test_a_missing_model_becomes_a_question_not_a_download(monkeypatch):
     assert err.value.engine == "whisper"
     seen = {}
 
-    def online_load(name, accurate):
+    def online_load(name, accurate, language="en"):
         import os
         seen["offline"] = os.environ["HF_HUB_OFFLINE"]
         return "engine"
@@ -227,11 +227,13 @@ def test_switching_language_retargets_the_engine_and_turns_english_aids_off(qapp
     engine = FakeEngine()
     engine.language = "en"
     w = make_window(engine=engine)
-    w._text_pipeline = ("builder", "corrector")
+    corrector_marker = "corrector"
+    w._text_pipeline = ("builder", corrector_marker)
     w.apply_settings(replace(w._settings, language="es", spoken_punctuation=True))
     assert engine.language == "es"
-    assert w._transcriber.prompt_builder is None and w._transcriber.postprocess is None
-    assert "metformina" in w._transcriber.base_prompt
+    assert w._transcriber.prompt_builder is None
+    assert w._transcriber.postprocess is not corrector_marker      # the English corrector is not used
+    assert "metformina" in w._transcriber.base_prompt and "Nuevo párrafo" in w._transcriber.base_prompt
     assert w._format("dolor torácico coma sin disnea punto y aparte plan dos puntos reposo punto") == \
         "dolor torácico, sin disnea.\n\nPlan: reposo."
     w.apply_settings(replace(w._settings, language="en"))

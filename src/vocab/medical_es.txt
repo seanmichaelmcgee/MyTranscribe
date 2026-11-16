@@ -1,0 +1,145 @@
+# medical_es.txt — términos médicos en español para el corrector ortográfico (un término por línea).
+#
+# DRAFT written by an AI assistant: international nonproprietary drug names in their Spanish
+# form and common clinical terms. Have a Spanish-dictating clinician check and extend it.
+# The corrector only changes a word that is NOT a Spanish word and is very close to exactly
+# one of these (see vocab_correct.py). Add your own terms; one per line, "#" for comments.
+
+# Fármacos
+paracetamol
+ibuprofeno
+metamizol
+naproxeno
+diclofenaco
+tramadol
+morfina
+oxicodona
+metformina
+sitagliptina
+empagliflozina
+dapagliflozina
+gliclazida
+insulina glargina
+enalapril
+ramipril
+losartán
+valsartán
+candesartán
+amlodipino
+bisoprolol
+atenolol
+carvedilol
+furosemida
+hidroclorotiazida
+espironolactona
+atorvastatina
+simvastatina
+rosuvastatina
+pravastatina
+omeprazol
+pantoprazol
+lansoprazol
+esomeprazol
+metoclopramida
+ondansetrón
+loperamida
+levotiroxina
+amoxicilina
+ácido clavulánico
+azitromicina
+claritromicina
+ciprofloxacino
+levofloxacino
+cefuroxima
+ceftriaxona
+doxiciclina
+nitrofurantoína
+fosfomicina
+warfarina
+acenocumarol
+apixabán
+rivaroxabán
+dabigatrán
+clopidogrel
+ácido acetilsalicílico
+salbutamol
+budesonida
+formoterol
+tiotropio
+prednisona
+dexametasona
+sertralina
+escitalopram
+fluoxetina
+paroxetina
+venlafaxina
+lorazepam
+diazepam
+alprazolam
+quetiapina
+risperidona
+olanzapina
+gabapentina
+pregabalina
+levetiracetam
+carbamazepina
+lamotrigina
+ácido valproico
+digoxina
+amiodarona
+nitroglicerina
+alopurinol
+colchicina
+tamsulosina
+finasterida
+
+# Términos clínicos
+dislipemia
+hipotiroidismo
+hipertiroidismo
+urocultivo
+hemograma
+electrocardiograma
+ecocardiograma
+auscultación
+disnea
+síncope
+ortopnea
+taquicardia
+bradicardia
+fibrilación auricular
+cardiopatía isquémica
+neumonía
+bronquitis
+gastroenteritis
+pielonefritis
+colelitiasis
+colecistitis
+apendicitis
+diverticulitis
+artrosis
+lumbalgia
+cervicalgia
+gonalgia
+cefalea
+parestesias
+hemiparesia
+disartria
+afasia
+ferropenia
+hiperglucemia
+hipoglucemia
+creatinina
+transaminasas
+bilirrubina
+triglicéridos
+tirotropina
+ecografía
+colonoscopia
+gastroscopia
+espirometría
+infiltración
+interconsulta
+anticoagulación
+pinzamiento
+interlínea
