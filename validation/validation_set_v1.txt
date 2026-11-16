@@ -1,0 +1,152 @@
+# MyTranscribe validation set v1: fictional text to read aloud.
+#
+# Every person, result and detail here is invented; no real patient is described.
+# Each item is the text as it should finally appear. The validation tool shows it
+# with the punctuation and formatting spelled out as you would dictate it to Dragon
+# ("period", "comma", "new paragraph", "open quote" ...).
+#
+# Format:  "## <id> | <kind>" starts an item (kind: short | consult); the lines up
+# to the next "##" are its text. Lines starting with "#" before the first item are comments.
+
+## s01 | short
+Please let her know the X-ray was okay.
+
+"X-ray normal".
+
+## s02 | short
+Noted, confirming receipt of report.
+
+## s03 | short
+Please book a follow-up in 2 weeks, any slot.
+
+## s04 | short
+Results reviewed, no action needed.
+
+## s05 | short
+Please call and advise the potassium is slightly high at 5.4. Repeat the lab next week.
+
+## s06 | short
+Okay to renew ramipril 5 mg daily for 3 months.
+
+## s07 | short
+Urine culture negative. No antibiotics required.
+
+## s08 | short
+Please ask him to come in to discuss his results, not urgent.
+
+## s09 | short
+Referral sent to cardiology. He will be contacted with the date.
+
+## s10 | short
+Please let her know the mammogram was normal.
+
+"Routine screening in 2 years".
+
+## s11 | short
+Thank you, form completed and signed.
+
+## s12 | short
+Hemoglobin is 118, slightly low. Start iron once daily and recheck in 3 months.
+
+## s13 | short
+Please fax the note to the pharmacy and confirm they received it.
+
+## s14 | short
+Blood pressure readings from home are fine, continue the same dose.
+
+## s15 | short
+He can stop the antibiotic if the rash gets worse, and should call the office.
+
+## s16 | short
+A1c is 7.2%, improved from 8.1%. No change to metformin.
+
+## s17 | short
+Declined, this needs an appointment first.
+
+## s18 | short
+Please tell her the ultrasound shows gallstones.
+
+"Surgical referral offered".
+
+## s19 | short
+Chest X-ray clear. Cough should settle over the next 2 weeks.
+
+## s20 | short
+Note for file: spoke with daughter, she agrees with the plan.
+
+## c01 | consult
+Thank you for seeing Mr. Alan Verhoeven, a 58-year-old man with 3 months of exertional chest tightness. It comes on after 2 blocks of walking and settles within 5 minutes of rest. He has no pain at rest, no syncope and no shortness of breath lying flat.
+
+His past history includes hypertension, type 2 diabetes and dyslipidemia. He takes ramipril 10 mg daily, metformin 1000 mg twice daily and rosuvastatin 20 mg daily. He stopped smoking 4 years ago. His father had a heart attack at age 61.
+
+On examination, blood pressure was 142/86 and heart rate was 74 and regular. Heart sounds were normal with no murmurs. The chest was clear and there was no ankle swelling. His ECG showed sinus rhythm with no acute changes.
+
+I would appreciate your assessment for stress testing. Thank you for your help.
+
+## c02 | consult
+Thank you for seeing Mrs. Dolores Whitcombe, a 67-year-old woman with 6 weeks of right knee pain and swelling. The pain is worse on stairs and after sitting. She has had no injury, no locking and no fever.
+
+Her past history includes osteoarthritis of both hands, hypothyroidism and reflux. She takes levothyroxine 75 mcg daily and pantoprazole 40 mg daily. She uses acetaminophen as needed with partial relief.
+
+On examination, there was a small effusion in the right knee with tenderness along the medial joint line. Range of motion was reduced at the end of flexion. The ligaments were stable. X-ray showed moderate medial compartment narrowing.
+
+I would be grateful for your opinion on injection or other options. Thank you.
+
+## c03 | consult
+Thank you for seeing Ms. Priya Ramanathan, a 34-year-old woman with 4 months of intermittent abdominal pain and bloating. The pain is in the lower abdomen and is relieved by bowel movements. She has alternating constipation and loose stools. There has been no weight loss, no bleeding and no night symptoms.
+
+Her past history includes migraine and anxiety. She takes sertraline 50 mg daily and sumatriptan as needed. There is no family history of bowel cancer or celiac disease.
+
+On examination, she looked well. The abdomen was soft with mild tenderness in the left lower quadrant and no masses. Hemoglobin was 131, ferritin was 22 and celiac screen was negative.
+
+I suspect irritable bowel syndrome but would value your assessment. Thank you for seeing her.
+
+## c04 | consult
+Thank you for seeing Mr. Gordon Tanaka, a 72-year-old man with worsening shortness of breath over 2 months. He now stops after 1 flight of stairs. He has a morning cough with white sputum and no chest pain.
+
+His past history includes chronic obstructive pulmonary disease, atrial fibrillation and gout. He takes tiotropium once daily, apixaban 5 mg twice daily, bisoprolol 5 mg daily and allopurinol 300 mg daily. He smoked for 40 years and stopped 6 years ago.
+
+On examination, oxygen saturation was 93% on room air and respiratory rate was 18. There were scattered wheezes and reduced air entry at both bases. Heart rate was 82 and irregular. There was no leg swelling. Chest X-ray showed hyperinflation with no consolidation.
+
+I would appreciate your help with optimizing his inhalers. Thank you.
+
+## c05 | consult
+Thank you for seeing Miss Hannah Oyelaran, a 9-year-old girl with recurrent headaches for 5 months. They occur about twice a week, are felt across the forehead and last 2 to 3 hours. She sometimes feels nauseated but has not vomited. They do not wake her from sleep.
+
+Her past history is unremarkable. She was born at term and her development is normal. She takes no regular medications. Her mother has migraine.
+
+On examination, she was bright and interactive. Blood pressure was 98/62. Cranial nerves, fundi, gait and coordination were normal. Her growth is on the 50th percentile for height and weight.
+
+I think this is likely migraine, but her parents would appreciate a specialist opinion. Thank you for seeing her.
+
+## c06 | consult
+Thank you for seeing Mr. Luis Castellano, a 45-year-old man with a changing mole on his upper back. His wife noticed it has grown and darkened over 3 months. It is not painful and has not bled.
+
+His past history includes asthma and seasonal allergies. He takes budesonide and formoterol twice daily and cetirizine 10 mg as needed. He had several sunburns as a child. There is no family history of melanoma.
+
+On examination, there was an 8 mm irregular pigmented lesion on the left upper back with 2 colours and an uneven border. There were no enlarged lymph nodes in the neck or axillae.
+
+I would appreciate your assessment and biopsy if indicated. Thank you.
+
+## c07 | consult
+Thank you for seeing Mrs. Evelyn Marchetti, an 81-year-old woman with 2 falls in the past month. Both happened when she stood up from a chair. She felt lightheaded but did not lose consciousness. She had no chest pain or palpitations.
+
+Her past history includes hypertension, osteoporosis and mild cognitive impairment. She takes amlodipine 10 mg daily, hydrochlorothiazide 25 mg daily, alendronate 70 mg weekly and vitamin D.
+
+On examination, blood pressure was 128/74 lying and 104/60 standing. Heart rate was 68 and regular. Gait was slow with a short stride. Strength was normal in both legs. Her sodium was 133 and creatinine was 88.
+
+Plan:
+1. Stop hydrochlorothiazide.
+2. Recheck sodium in 2 weeks.
+3. Refer to the falls clinic.
+
+Thank you for your assessment.
+
+## c08 | consult
+Thank you for seeing Mr. Dennis Kowalczyk, a 63-year-old man with difficulty swallowing solids for 8 weeks. Food sticks behind the lower breastbone. Liquids are fine. He has lost 4 kg and has long-standing heartburn.
+
+His past history includes reflux, obesity and sleep apnea. He takes omeprazole 20 mg daily and uses CPAP at night. He drinks 2 beers a day and has never smoked.
+
+On examination, he looked well. There were no enlarged lymph nodes. The abdomen was soft with no masses. Hemoglobin was 126 and ferritin was 14.
+
+I would be grateful for an urgent gastroscopy. Thank you for seeing him promptly.

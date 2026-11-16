@@ -110,6 +110,10 @@ def test_default_is_not_lenient():
     ("any spot period. New line. 1 period. Angina period. New line, two period, Dyslipidemia comma, on statin period.",
      "any spot.\n1. Angina.\n2. Dyslipidemia, on statin."),
     ("Open quote. Take with food period. Close quote.", '"Take with food".'),
+    ("the X-ray was okay period new paragraph open quote X-ray normal close quote period",
+     'the X-ray was okay.\n\n"X-ray normal".'),
+    ("Thank you for seeing her period", "Thank you for seeing her."),
+    ("I have asked her to return period She agreed period", "I have asked her to return. She agreed."),
 ])
 def test_spoken_marks_become_marks(raw, want):
     assert apply(raw, lenient=True, punctuation=True) == want
@@ -120,6 +124,8 @@ def test_spoken_marks_become_marks(raw, want):
     "She had a normal period.",
     "Her last menstrual period was in May.",
     "She missed a period.",
+    "She missed her period.",
+    "Pain since her period started.",
     "Bleeding between periods.",
     "During the observation period he was stable.",
     "The sigmoid colon is thickened.",

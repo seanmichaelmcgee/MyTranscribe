@@ -78,7 +78,8 @@ def _set_off(text: str, start: int, end: int) -> bool:
     """True if text[start:end] has punctuation (or the text edge) on at least one side."""
     left = text[:start].rstrip(" ")
     right = text[end:].lstrip(" ")
-    return (not left or left[-1] in PUNCT + "\n") or (not right or right[0] in PUNCT + "\n")
+    edge = PUNCT + "\n\x03\x04"                    # a line or paragraph break just made also sets it off
+    return (not left or left[-1] in edge) or (not right or right[0] in edge)
 
 
 def _replace_commands(text: str, pattern, token: str, lenient: bool = False) -> str:
@@ -122,6 +123,12 @@ _PERIOD_ADJ = {"last", "first", "next", "previous", "menstrual", "missed", "late
                "recovery", "observation", "trial", "refractory", "latent", "postoperative", "perioperative",
                "postpartum", "neonatal", "washout", "waiting", "follow-up", "study", "treatment", "initial",
                "whole", "entire", "second", "third", "monthly", "painful"}
+# Words after which "her" is a person, not the owner of a period.
+_HER_IS_OBJECT = {"seeing", "see", "saw", "seen", "for", "to", "with", "told", "tell", "advised", "advise", "called",
+                  "call", "gave", "give", "asked", "ask", "about", "examined", "reviewed", "reassured", "referred",
+                  "refer", "thank", "thanked", "help", "helping", "assess", "assessing", "from", "by", "let",
+                  "inform", "informed", "treat", "treated", "met", "discharged", "discharge", "following",
+                  "assessed", "review", "contact", "contacted", "phoned", "book", "booked", "send", "sent"}
 _PERIOD_NEXT = {"of", "was", "is", "has", "had", "pain", "pains", "cramps", "lasted", "started", "due",
                 "when", "during", "between"}
 _COLON_PREV = _DETERMINERS | {"of", "sigmoid", "ascending", "descending", "transverse", "proximal", "distal", "left",
@@ -150,6 +157,8 @@ def _is_noun(word: str, before: str, after: str) -> bool:
     nxt = _WORD.match(after.lstrip(" \t"))
     nxt = nxt.group(0).lower() if nxt else ""
     if word == "period":
+        if len(prev) > 1 and prev[-1] == "her" and prev[-2] in _HER_IS_OBJECT:
+            return False                              # "thank you for seeing her period": her = the patient
         return nxt in _PERIOD_NEXT or (bool(prev) and (
             prev[-1] in _DETERMINERS
             or (prev[-1] in _PERIOD_ADJ and len(prev) > 1 and prev[-2] in _DETERMINERS | _PERIOD_ADJ)))
