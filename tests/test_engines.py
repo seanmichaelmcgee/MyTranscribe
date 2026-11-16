@@ -85,14 +85,25 @@ def test_options_lists_engines_and_disables_unavailable_ones(qapp, monkeypatch):
                         lambda name, **k: (name in ("whisper", "parakeet"), "" if name != "medasr" else "no model"))
     d = OptionsDialog(st.Settings())
     names = [d.engine.itemData(i) for i in range(d.engine.count())]
-    assert names == list(engines.ENGINES)
+    assert names == ["whisper", "medasr"]                   # Parakeet and Canary are trial-only
     assert d.engine.currentData() == "whisper" and d.accuracy.isEnabled()
     assert not d.engine.model().item(names.index("medasr")).isEnabled()
     assert "no model" in d.engine.itemText(names.index("medasr"))
-    d.engine.setCurrentIndex(names.index("parakeet"))
-    assert not d.accuracy.isEnabled()                       # Accuracy is a Whisper choice
-    assert "CC BY 4.0" in d.engine_note.text() and "asked before any download" in d.engine_note.text()
-    assert d.result_settings().engine == "parakeet"
+    assert "asked before any download" in d.engine_note.text()
+    d2 = OptionsDialog(st.Settings(engine="parakeet"))      # set by MYTRANSCRIBE_ENGINE: shown, not hidden
+    assert d2.engine.currentData() == "parakeet" and not d2.accuracy.isEnabled()
+    assert "CC BY 4.0" in d2.engine_note.text()
+    assert d2.result_settings().engine == "parakeet"
+
+
+def test_medasr_choice_says_the_licence_must_be_accepted(qapp, monkeypatch):
+    import settings as st
+    from options_dialog import OptionsDialog
+    monkeypatch.setattr(engines, "availability", lambda name, **k: (True, ""))
+    d = OptionsDialog(st.Settings())
+    d.engine.setCurrentIndex(d.engine.findData("medasr"))
+    note = d.engine_note.text()
+    assert "Licence terms must be accepted before use" in note and "huggingface.co/google/medasr" in note
 
 
 def test_options_opens_the_log_in_its_own_window(qapp):

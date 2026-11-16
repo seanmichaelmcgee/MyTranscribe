@@ -22,6 +22,9 @@ from typing import Optional, Tuple
 logger = logging.getLogger("engines")
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT = "whisper"
+# What Options -> Recogniser offers. Parakeet and Canary stay usable for trials
+# (MYTRANSCRIBE_ENGINE, the benchmark scripts) but were clearly behind on medical dictation.
+OFFERED = ("whisper", "medasr")
 
 
 @dataclass(frozen=True)
@@ -46,8 +49,10 @@ ENGINES = {
         "Hugging Face: google/medasr (gated)", "about 0.4 GB, plus PyTorch (about 2.5 GB)",
         "Health AI Developer Foundations terms: each user must accept them on huggingface.co/google/medasr "
         "with their own account and sign in before downloading",
-        "Good drug names, weak on people's names and the first words. Set up with scripts\\setup_medasr.ps1 "
-        "and scripts\\download_medasr.py (docs/MEDASR_TRIAL.md)."),
+        "Licence terms must be accepted before use: Google only releases this model to people who have "
+        "accepted its Health AI Developer Foundations terms themselves. Good drug names, weak on people's "
+        "names and the first words. Set up with scripts\\setup_medasr.ps1 and scripts\\download_medasr.py "
+        "(docs/MEDASR_TRIAL.md)."),
     "parakeet": EngineInfo(
         "parakeet", "Parakeet 0.6B v2 (NVIDIA; fastest)", ("onnx_asr", "onnxruntime"),
         "Hugging Face: istupakov/parakeet-tdt-0.6b-v2-onnx (community ONNX export of nvidia/parakeet-tdt-0.6b-v2)",

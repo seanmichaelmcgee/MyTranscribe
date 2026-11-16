@@ -112,7 +112,11 @@ class OptionsDialog(QDialog):
         acc_form = QFormLayout()
         acc_form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
         self.engine = QComboBox()
-        for name, info in engines.ENGINES.items():
+        offered = list(engines.OFFERED)
+        if settings.engine not in offered and settings.engine in engines.ENGINES:
+            offered.append(settings.engine)          # a trial engine chosen by environment variable
+        for name in offered:
+            info = engines.ENGINES[name]
             ok, why = engines.availability(name)
             self.engine.addItem(info.label if ok else f"{info.label} — {why}", name)
             if not ok and name != settings.engine:

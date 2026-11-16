@@ -119,6 +119,10 @@ what you dictated. The app works offline by default however it is started; it no
 (after the current dictation, if one is running); no restart. Whisper is the default and the
 only one the standard install provides. The others are listed with the reason they are
 unavailable until their packages and model are present (`requirements-engines.txt`).
+Options offers Whisper and MedASR. **MedASR's licence terms must be accepted before use**: Google
+releases it only to people who have accepted its Health AI Developer Foundations terms with their
+own Hugging Face account, so every person who uses it must do that themselves. Parakeet and Canary
+were clearly behind on medical dictation and are kept for trials only (`MYTRANSCRIBE_ENGINE=parakeet`).
 
 | Recogniser | Model source | Size | Licence and access | Notes |
 |---|---|---|---|---|
