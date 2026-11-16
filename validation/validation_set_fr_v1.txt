@@ -1,0 +1,55 @@
+# Jeu de validation MyTranscribe en français, v1 (BROUILLON) : texte fictif à lire à voix haute.
+#
+# DRAFT. Written by an AI assistant, not by a clinician who dictates in French. Have one
+# read it before relying on it: wording, abbreviations and regional usage may need changes.
+# Every person and detail is invented.
+#
+# Format: "## <id> | <kind>" starts an item (kind: short | consult).
+
+## fr01 | short
+Merci de la prévenir que la radiographie est normale.
+
+« Radiographie normale ».
+
+## fr02 | short
+Bien reçu, je confirme la réception du compte rendu.
+
+## fr03 | short
+Merci de convoquer le patient pour un contrôle dans 2 semaines.
+
+## fr04 | short
+Résultats vus, aucune mesure nécessaire.
+
+## fr05 | short
+Le potassium est légèrement élevé, à 5.4. Refaire le bilan la semaine prochaine.
+
+## fr06 | short
+Renouvellement possible du ramipril 5 mg par jour pour 3 mois.
+
+## fr07 | short
+Examen des urines négatif. Pas d'antibiotique nécessaire.
+
+## fr08 | short
+Hémoglobine à 118, légèrement basse. Débuter le fer une fois par jour et contrôler dans 3 mois.
+
+## fc01 | consult
+Je vous remercie de recevoir M. Alain Fournier, 58 ans, pour une oppression thoracique à l'effort évoluant depuis 3 mois. Elle survient après 200 mètres de marche et cède en 5 minutes au repos. Il ne décrit ni douleur de repos, ni syncope, ni dyspnée.
+
+Dans ses antécédents, on note une hypertension artérielle, un diabète de type 2 et une dyslipidémie. Il prend du ramipril 10 mg par jour, de la metformine 1000 mg matin et soir et de la rosuvastatine 20 mg le soir. Il a arrêté de fumer il y a 4 ans.
+
+À l'examen, la tension artérielle était à 142/86 et la fréquence cardiaque à 74, régulière. Les bruits du cœur étaient normaux, sans souffle. L'auscultation pulmonaire était normale et il n'y avait pas d'œdème. L'électrocardiogramme montrait un rythme sinusal sans anomalie aiguë.
+
+Je vous serais reconnaissant de votre avis pour une épreuve d'effort. Merci de votre aide.
+
+## fc02 | consult
+Je vous remercie de recevoir Mme Claire Dubois, 67 ans, pour une douleur et un gonflement du genou droit depuis 6 semaines. La douleur est majorée dans les escaliers et après la position assise. Il n'y a pas eu de traumatisme, de blocage ni de fièvre.
+
+Dans ses antécédents, on note une arthrose des mains, une hypothyroïdie et un reflux. Elle prend de la lévothyroxine 75 µg par jour et du pantoprazole 40 mg par jour. Elle utilise du paracétamol à la demande avec un soulagement partiel.
+
+À l'examen, il existe un petit épanchement du genou droit avec une douleur à la palpation de l'interligne médial. La flexion est limitée en fin de course. Les ligaments sont stables. La radiographie montre un pincement modéré du compartiment médial.
+
+Conduite à tenir :
+Discuter une infiltration.
+Contrôle dans 4 semaines.
+
+Merci de votre avis.

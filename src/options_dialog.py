@@ -17,6 +17,7 @@ from PyQt6.QtWidgets import (
 )
 
 import engines
+import lang_packs
 from settings import Settings
 from triggers import KEY_CHOICES, MOUSE_CHOICES, key_label
 
@@ -126,6 +127,9 @@ class OptionsDialog(QDialog):
         acc_form.addRow("Recogniser:", self.engine)
         self.accuracy = self._combo(ACCURACY, settings.accuracy)
         acc_form.addRow("Accuracy:", self.accuracy)
+        self.language = self._combo(list(lang_packs.LANGUAGES), settings.language)
+        acc_form.addRow("Dictation language:", self.language)
+        self.language.currentIndexChanged.connect(self._sync_engine)
         self.engine_note = QLabel()
         self.engine_note.setObjectName("fixedBinding")
         self.engine_note.setWordWrap(True)
@@ -236,9 +240,15 @@ class OptionsDialog(QDialog):
         name = self.engine.currentData()
         info = engines.ENGINES[name]
         self.accuracy.setEnabled(name == "whisper")
-        self.engine_note.setText(
-            f"{info.note} Model: {info.source}, {info.size}. Licence: {info.licence}. "
-            "Saving a change reloads the model; if it is not on this PC yet you are asked before any download.")
+        note = (f"{info.note} Model: {info.source}, {info.size}. Licence: {info.licence}. "
+                "Saving a change reloads the model; if it is not on this PC yet you are asked before any download.")
+        pack = lang_packs.get(self.language.currentData())
+        if pack is not None:
+            note += (f" {pack.name}: spoken commands and punctuation use that language's words; the English "
+                     f"medical vocabulary and spelling correction are off. {pack.reviewed}")
+            if name != "whisper":
+                note += " Only Whisper understands this language: choose Whisper as the recogniser."
+        self.engine_note.setText(note)
 
     def _show_log(self) -> None:
         from log_window import LogWindow
@@ -256,7 +266,7 @@ class OptionsDialog(QDialog):
         return replace(self._original, key=self.key.currentData(), key_mode=self.key_mode.currentData(),
                        mouse=self.mouse.currentData(), mouse_mode=self.mouse_mode.currentData(),
                        start_compact=self.start_compact.isChecked(), accuracy=self.accuracy.currentData(),
-                       engine=self.engine.currentData(),
+                       engine=self.engine.currentData(), language=self.language.currentData(),
                        voice_commands=self.voice_commands.isChecked(),
                        keep_mic_ready=self.keep_mic_ready.isChecked(),
                        live_insert=self.live_insert.isChecked(),

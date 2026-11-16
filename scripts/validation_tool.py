@@ -59,11 +59,14 @@ def parse_set(text: str) -> list:
     return items
 
 
-def spoken_form(reference: str, shout: bool = False) -> str:
+def spoken_form(reference: str, shout: bool = False, language: str = "en") -> str:
     """
     The text as it is dictated: every mark and break said as a word. With
     shout=True the dictated words are in CAPITALS so they are easy to read out.
+    `language` picks the words (English here; others from lang_packs).
     """
+    if language != "en":
+        return _spoken_form_pack(reference, shout, language)
     say = (lambda w: w.upper()) if shout else (lambda w: w)
     text = reference
     text = re.sub(r"(\d)/(\d)", r"\1 over \2", text)
@@ -77,14 +80,43 @@ def spoken_form(reference: str, shout: bool = False) -> str:
     return re.sub(r"[ \t]{2,}", " ", text).strip()
 
 
+def _spoken_form_pack(reference: str, shout: bool, language: str) -> str:
+    import lang_packs
+    pack = lang_packs.get(language)
+    if pack is None:
+        raise SystemExit(f"no language pack for {language!r}")
+    say = (lambda w: w.upper()) if shout else (lambda w: w)
+    words, text = pack.say, reference
+    text = re.sub(r"(\d)/(\d)", rf"\1 {pack.over[0]} \2", text)
+    left, right = (re.escape(q.strip()) for q in pack.quotes)
+    text = re.sub(left + r"\s*([^\n]*?)\s*" + right,
+                  lambda m: f" {say(words['open'])} {m.group(1)} {say(words['close'])}", text)
+    titles = "".join(rf"(?<!\b{t})" for t in pack.titles)
+    text = re.sub(r"[ \t]*" + titles + r"([.,:;?])(?=\s|$)", lambda m: f" {say(words[m.group(1)])}", text)
+    text = re.sub(r"[ \t]*\n[ \t]*\n[ \t]*", f" {say(words[chr(10) * 2])} ", text)
+    text = re.sub(r"[ \t]*\n[ \t]*", f" {say(words[chr(10)])} ", text)
+    return re.sub(r"[ \t]{2,}", " ", text).strip()
+
+
+def set_language(path: Path) -> str:
+    """Language code from the set's file name: validation_set_es_v1.txt -> es (English otherwise)."""
+    m = re.search(r"_set_([a-z]{2})_", path.name)
+    return m.group(1) if m else "en"
+
+
 def load_set(path: Path) -> list:
-    return parse_set(path.read_text(encoding="utf-8"))
+    language = set_language(path)
+    items = parse_set(path.read_text(encoding="utf-8"))
+    for item in items:
+        item["language"] = language
+        item["spoken"] = spoken_form(item["reference"], language=language)
+    return items
 
 
 # ── show ─────────────────────────────────────────────────────────────────────
 def cmd_show(args):
     for item in load_set(args.set):
-        print(f"[{item['id']}]  {spoken_form(item['reference'], shout=True)}\n")
+        print(f"[{item['id']}]  {spoken_form(item['reference'], shout=True, language=item['language'])}\n")
 
 
 # ── record ───────────────────────────────────────────────────────────────────
@@ -296,7 +328,7 @@ def cmd_record(args):
             self.toggle.setEnabled(True)
             self.header.setText(f"Item {self.index + 1} of {len(items)}  [{item['id']}, {item['category']}]"
                                 f"   recorded so far: {finished}")
-            self.script.setPlainText(spoken_form(item["reference"], shout=True))
+            self.script.setPlainText(spoken_form(item["reference"], shout=True, language=item["language"]))
             wav, txt = self.paths(item)
             self.dragon.set_text(txt.read_text(encoding="utf-8") if txt.is_file() else "")
             self.toggle.setText("Start (F8)")

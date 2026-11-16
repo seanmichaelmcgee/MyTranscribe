@@ -64,6 +64,8 @@ from triggers import InputTriggers                           # noqa: E402
 import settings as settings_store                            # noqa: E402
 import app_log                                               # noqa: E402
 import engines                                               # noqa: E402
+import lang_commands                                         # noqa: E402
+import lang_packs                                            # noqa: E402
 import text_fixes                                            # noqa: E402
 import voice_commands                                        # noqa: E402
 from mic_ready import ReadyMic                               # noqa: E402
@@ -333,6 +335,7 @@ class MedTranscriptionWindow(TranscriptionWindow):
             prompt_builder=builder, postprocess=corrector,
         )
         self._apply_pause_mode()
+        self._apply_language()
         logger.info("Topic prompts %s, spelling correction %s",
                     "on" if builder else "off", "on" if corrector else "off")
         self._device = getattr(getattr(self._engine, "config", None), "device", None)
@@ -340,6 +343,29 @@ class MedTranscriptionWindow(TranscriptionWindow):
         self._set_buttons_enabled(True)
         self._set_status("Ready", "idle")
         logger.info("Ready")
+
+    def _apply_language(self) -> None:
+        """
+        Dictation language (Options). English uses the vocabulary prompts and the
+        spelling corrector; for another language those English aids are switched
+        off and the language pack's own style prompt is used instead.
+        """
+        if self._transcriber is None:
+            return
+        code = self._settings.language
+        pack = lang_packs.get(code)
+        if hasattr(self._engine, "language"):
+            self._engine.language = code
+        elif pack is not None:
+            logger.warning("This recogniser only understands English; dictation language %s is ignored", code)
+        builder, corrector = self._text_pipeline or (None, None)
+        if pack is None:
+            self._transcriber.base_prompt = self._base_prompt
+            self._transcriber.prompt_builder, self._transcriber.postprocess = builder, corrector
+        else:
+            self._transcriber.base_prompt = pack.prompt
+            self._transcriber.prompt_builder = self._transcriber.postprocess = None
+        logger.info("Dictation language: %s", code)
 
     def _confirm_download(self, engine: str) -> bool:
         """Ask before fetching a model: what, from where, how big, under which licence."""
@@ -693,6 +719,8 @@ class MedTranscriptionWindow(TranscriptionWindow):
 
     # ── Words to check: non-words the corrector wouldn't guess at ────────────
     def _suspicious(self, text: str) -> list:
+        if lang_packs.get(self._settings.language) is not None:
+            return []                                 # the word check knows English only
         post = self._text_pipeline[1] if self._text_pipeline else None
         try:
             return post.suspicious(text) if post is not None and hasattr(post, "suspicious") else []
@@ -825,6 +853,13 @@ class MedTranscriptionWindow(TranscriptionWindow):
 
     def _format(self, text: str) -> str:
         """Spoken commands -> formatting, if enabled (lenient in the pause-aware pipeline)."""
+        pack = lang_packs.get(self._settings.language)
+        if pack is not None and hasattr(self._engine, "language"):
+            if self._settings.extra_fixes:
+                text = lang_commands.format_readings(text, pack)
+            if not self._settings.voice_commands:
+                return text
+            return lang_commands.apply(text, pack, punctuation=self._settings.spoken_punctuation)
         if self._settings.extra_fixes:
             text = text_fixes.format_readings(text)
         if not self._settings.voice_commands:
@@ -980,6 +1015,7 @@ class MedTranscriptionWindow(TranscriptionWindow):
         self._apply_triggers()
         self._apply_mic_mode()
         self._apply_pause_mode()
+        self._apply_language()
         if (old.engine, old.accuracy) != (self._settings.engine, self._settings.accuracy):
             self._reload_engine()
 

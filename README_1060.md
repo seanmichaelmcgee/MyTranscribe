@@ -145,6 +145,22 @@ Pause-aware dictation needs word timings: it works with Whisper and Parakeet and
 for MedASR and Canary. MedASR always converts dictated punctuation, because it writes the
 marks as words by itself.
 
+## Other languages (experimental)
+
+**Options → Speech model → Dictation language** switches between English, Spanish, French and
+Swahili (or `MYTRANSCRIBE_LANGUAGE=es`). Whisper is the only recogniser that understands them.
+Spoken commands and punctuation then use that language's own words ("punto y aparte", "coma",
+"à la ligne", "virgule"), and the English medical vocabulary and spelling correction are
+switched off.
+
+- **Spanish and French:** recognition is good on public test sentences (2.3% and 5.5% word
+  errors). The command and punctuation words are drafts that no clinician has yet dictated
+  with; draft reading sets are in `validation/`.
+- **Swahili:** more than one word in three is wrong with the current model (38.7%), so treat
+  it as a demonstration only. Its command words have not been checked by a Swahili speaker.
+
+Details and limits: [docs/optimization/2026-11-16-multilingual.md](docs/optimization/2026-11-16-multilingual.md).
+
 ## Use
 
 The window starts small (compact view) and stays on top of other windows:

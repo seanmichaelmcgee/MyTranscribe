@@ -198,3 +198,49 @@ def test_declining_the_download_leaves_a_clear_message(qapp, make_window, monkey
     assert wait_for(lambda: "not on this PC" in w._text_area.toPlainText(), app=qapp)
     assert not w.ready and "Show log" in w._text_area.toPlainText()
     time.sleep(0)
+
+
+
+# ── dictation language ──────────────────────────────────────────────────────
+def test_language_setting_default_env_and_bad_values(tmp_path):
+    import settings as st
+    assert st.Settings().language == "en"
+    assert st.Settings(language="xx").clean().language == "en"
+    assert st.load(tmp_path / "none.json", env={"MYTRANSCRIBE_LANGUAGE": "fr"}).language == "fr"
+
+
+def test_options_offers_languages_and_explains_what_changes(qapp, monkeypatch):
+    import settings as st
+    from options_dialog import OptionsDialog
+    monkeypatch.setattr(engines, "availability", lambda name, **k: (True, ""))
+    d = OptionsDialog(st.Settings())
+    assert [d.language.itemData(i) for i in range(d.language.count())] == ["en", "es", "fr", "sw"]
+    assert "spelling correction are off" not in d.engine_note.text()
+    d.language.setCurrentIndex(d.language.findData("sw"))
+    assert "NOT reviewed" in d.engine_note.text() and "spelling correction are off" in d.engine_note.text()
+    d.engine.setCurrentIndex(d.engine.findData("medasr"))
+    assert "Only Whisper understands this language" in d.engine_note.text()
+    assert d.result_settings().language == "sw"
+
+
+def test_switching_language_retargets_the_engine_and_turns_english_aids_off(qapp, make_window):
+    engine = FakeEngine()
+    engine.language = "en"
+    w = make_window(engine=engine)
+    w._text_pipeline = ("builder", "corrector")
+    w.apply_settings(replace(w._settings, language="es", spoken_punctuation=True))
+    assert engine.language == "es"
+    assert w._transcriber.prompt_builder is None and w._transcriber.postprocess is None
+    assert "metformina" in w._transcriber.base_prompt
+    assert w._format("dolor torácico coma sin disnea punto y aparte plan dos puntos reposo punto") == \
+        "dolor torácico, sin disnea.\n\nPlan: reposo."
+    w.apply_settings(replace(w._settings, language="en"))
+    assert engine.language == "en"
+    assert (w._transcriber.prompt_builder, w._transcriber.postprocess) == ("builder", "corrector")
+    assert w._format("stable period") == "stable."
+
+
+def test_an_english_only_recogniser_ignores_the_language(qapp, make_window):
+    w = make_window()                                          # FakeEngine has no language attribute
+    w.apply_settings(replace(w._settings, language="fr", spoken_punctuation=True))
+    assert w._format("stable period") == "stable."            # still formatted as English

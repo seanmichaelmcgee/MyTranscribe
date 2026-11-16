@@ -118,6 +118,7 @@ class FasterWhisperEngine:
         # below). Empty in the classic pipeline; the dictation candidate and the
         # trial scripts set it, e.g. {"vad_parameters": {...}} or {"vad_filter": False}.
         self.decode_overrides: dict = {}
+        self.language = "en"            # Whisper language code; Options -> Dictation language sets it
         if beam_size is None:
             try:
                 beam_size = int(os.environ.get("MYTRANSCRIBE_BEAM_SIZE", DEFAULT_BEAM_SIZE))
@@ -218,7 +219,7 @@ class FasterWhisperEngine:
         if audio.dtype != np.float32:
             audio = audio.astype(np.float32)
         kwargs = dict(
-            language="en",
+            language=self.language,
             task="transcribe",
             beam_size=self.beam_size,
             patience=DEFAULT_PATIENCE if self.beam_size > 1 else 1.0,

@@ -10,6 +10,8 @@ Follow [instructions.md](instructions.md) and [project SOP](../docs/PROJECT_SOP.
 | `personal_audio_trial.py` | Opt-in verified original-PCM replay and isolated prompt candidates |
 | `trial_asr.py` | Shared offline raw/filtered/cleaned replay harness; historical PCM route differs from exact replay |
 | `whisper_runtime_trial.py` | Fixed local Whisper runtime trial and opt-in trace adapter |
+| `fleurs_benchmark.py` | Baseline word error rate in other languages on the public FLEURS test sets |
+| `validation_tool.py` | Read a fictional set while Dragon types; scores Dragon, Whisper and MedASR (docs/VALIDATION.md) |
 | `live_app_trial.py` | Plays recordings through the virtual cable into the real app window; accuracy and Stop-to-text time, and switching recogniser while running |
 | `corti_benchmark.py` | Corti Med-Dictate benchmark (evaluation only), any engine, scored with the frozen October metric |
 | `dragon_replay.py` | Plays recordings into Dragon Medical One through the cable and scores what it types |

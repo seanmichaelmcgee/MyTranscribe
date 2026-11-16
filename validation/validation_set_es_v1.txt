@@ -1,0 +1,55 @@
+# Conjunto de validación de MyTranscribe en español, v1 (BORRADOR): texto ficticio para leer en voz alta.
+#
+# DRAFT. Written by an AI assistant, not by a clinician who dictates in Spanish. Have one
+# read it before relying on it: wording, abbreviations and regional usage may need changes.
+# Every person and detail is invented.
+#
+# Format: "## <id> | <kind>" starts an item (kind: short | consult).
+
+## es01 | short
+Por favor, avísele de que la radiografía fue normal.
+
+"Radiografía normal".
+
+## es02 | short
+Recibido, confirmo la recepción del informe.
+
+## es03 | short
+Por favor, cite al paciente para revisión en 2 semanas.
+
+## es04 | short
+Resultados revisados, no requiere ninguna acción.
+
+## es05 | short
+El potasio está ligeramente elevado, 5.4. Repetir la analítica la próxima semana.
+
+## es06 | short
+Se puede renovar enalapril 10 mg al día durante 3 meses.
+
+## es07 | short
+Urocultivo negativo. No precisa antibiótico.
+
+## es08 | short
+Hemoglobina de 118, ligeramente baja. Iniciar hierro una vez al día y control en 3 meses.
+
+## ec01 | consult
+Le agradezco que valore al Sr. Alberto Fuentes, varón de 58 años con opresión torácica de esfuerzo desde hace 3 meses. Aparece al caminar 2 manzanas y cede en 5 minutos con el reposo. No presenta dolor en reposo, síncope ni disnea.
+
+Entre sus antecedentes destacan hipertensión arterial, diabetes mellitus tipo 2 y dislipemia. Toma enalapril 10 mg al día, metformina 850 mg cada 12 horas y atorvastatina 20 mg por la noche. Dejó de fumar hace 4 años.
+
+En la exploración, la tensión arterial fue de 142/86 y la frecuencia cardíaca de 74, rítmica. Los tonos cardíacos eran normales, sin soplos. La auscultación pulmonar era normal y no había edemas. El electrocardiograma mostró ritmo sinusal sin alteraciones agudas.
+
+Agradecería su valoración para una prueba de esfuerzo. Gracias por su ayuda.
+
+## ec02 | consult
+Le agradezco que valore a la Sra. Carmen Ortega, mujer de 67 años con dolor e inflamación de la rodilla derecha desde hace 6 semanas. El dolor empeora al subir escaleras y después de estar sentada. No ha tenido traumatismo, bloqueos ni fiebre.
+
+Entre sus antecedentes destacan artrosis de manos, hipotiroidismo y reflujo. Toma levotiroxina 75 mcg al día y omeprazol 20 mg al día. Usa paracetamol a demanda con alivio parcial.
+
+En la exploración se aprecia un pequeño derrame en la rodilla derecha, con dolor a la palpación de la interlínea medial. La flexión está limitada en los últimos grados. Los ligamentos son estables. La radiografía mostró pinzamiento moderado del compartimento medial.
+
+Plan:
+Valorar infiltración.
+Control en 4 semanas.
+
+Gracias por su atención.

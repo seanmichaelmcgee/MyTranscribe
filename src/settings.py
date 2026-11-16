@@ -8,6 +8,7 @@ Holds only key bindings, view and accuracy preferences: never transcript text.
 Environment variables still override the file (handy for testing):
   MYTRANSCRIBE_KEY / MYTRANSCRIBE_KEY_MODE      e.g. f9 / hold|toggle, or none
   MYTRANSCRIBE_MOUSE / MYTRANSCRIBE_MOUSE_MODE  x2|x1|middle|none / hold|toggle
+  MYTRANSCRIBE_LANGUAGE                         en|es|fr|sw: the dictation language
   MYTRANSCRIBE_ENGINE                           whisper|medasr|parakeet|canary: the recogniser
   MYTRANSCRIBE_PAUSE_AWARE                      1|0: pause-aware dictation on/off
   MYTRANSCRIBE_SPOKEN_PUNCTUATION               1|0: convert dictated punctuation marks on/off
@@ -35,6 +36,7 @@ def default_path() -> Path:
 
 
 ENGINE_CHOICES = ("whisper", "medasr", "parakeet", "canary")
+LANGUAGE_CHOICES = ("en", "es", "fr", "sw")
 
 
 @dataclass
@@ -45,6 +47,7 @@ class Settings:
     mouse_mode: str = "toggle"
     start_compact: bool = True
     accuracy: str = "best"             # "best" (large-v3 if the GPU allows) | "fast" (turbo)
+    language: str = "en"               # dictation language: en | es | fr | sw (lang_packs.py)
     engine: str = "whisper"            # recogniser: whisper | medasr | parakeet | canary (engines.py)
     voice_commands: bool = True        # "new line", "new paragraph", "open/close quote"
     keep_mic_ready: bool = True        # mic open between dictations + 0.5 s pre-roll (like Dragon)
@@ -89,6 +92,8 @@ class Settings:
             self.accuracy = d.accuracy
         if self.engine not in ENGINE_CHOICES:
             self.engine = d.engine
+        if self.language not in LANGUAGE_CHOICES:
+            self.language = d.language
         return self
 
 
@@ -109,6 +114,9 @@ def load(path: Optional[Path] = None, env: Optional[dict] = None) -> Settings:
         value = env.get(var, "").strip().lower()
         if value:
             setattr(s, attr, value)
+    forced_language = env.get("MYTRANSCRIBE_LANGUAGE", "").strip().lower()
+    if forced_language:
+        s.language = forced_language
     forced_engine = env.get("MYTRANSCRIBE_ENGINE", "").strip().lower()
     if forced_engine:
         s.engine = forced_engine
