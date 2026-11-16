@@ -44,7 +44,8 @@ from typing import Callable, Optional
 
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtWidgets import (
-    QApplication, QFrame, QHBoxLayout, QLabel, QProgressBar, QPushButton, QTextEdit, QVBoxLayout, QWidget,
+    QApplication, QFrame, QHBoxLayout, QLabel, QMessageBox, QProgressBar, QPushButton, QTextEdit, QVBoxLayout,
+    QWidget,
 )
 
 _SRC_DIR = Path(__file__).parent
@@ -61,6 +62,8 @@ import phi_clipboard                                         # noqa: E402
 from gui_qt import AppState, TranscriptionWindow             # noqa: E402
 from triggers import InputTriggers                           # noqa: E402
 import settings as settings_store                            # noqa: E402
+import app_log                                               # noqa: E402
+import engines                                               # noqa: E402
 import text_fixes                                            # noqa: E402
 import voice_commands                                        # noqa: E402
 from mic_ready import ReadyMic                               # noqa: E402
@@ -76,7 +79,7 @@ AUTOPASTE_MAX_WAIT_MS = 3000    # ...for at most this long, then paste anyway
 COPY_ATTEMPTS = 6               # clipboard busy (EMR / Citrix)? retry...
 COPY_RETRY_MS = 100             # ...this often (~0.5 s total) before giving up
 LIVE_INSERT_GAP_MS = 300        # let the target app read the clipboard before the next piece
-LOADING_TEXT = "Loading speech model… (first run downloads ~1.6 GB)"
+LOADING_TEXT = "Loading speech model…"
 TRANSCRIBING_SUFFIX = "\n\n[Finishing transcription…]"
 NORMAL_SIZE = (560, 300)
 COMPACT_WIDTH = 300
@@ -210,8 +213,13 @@ class MedTranscriptionWindow(TranscriptionWindow):
         self._settings_path = settings_path
         self._settings = settings if settings is not None else settings_store.load(settings_path)
         self._sync_autopaste()
-        accurate = self._settings.accuracy == "best"
-        self._engine_factory = engine_factory or (lambda: build_default_engine(accurate))
+        self._allow_download = False   # set for one load after the user agrees to fetch a model
+        self._engine_factory = engine_factory or (lambda: engines.build(
+            self._settings.engine, self._settings.accuracy == "best", allow_download=self._allow_download))
+        self._pipeline_injected = text_pipeline is not None
+        self._load_exc: Optional[BaseException] = None
+        self._reload_pending = False
+        self._log_window = None
         self._install_hooks = install_hooks
         self._engine = None
         self._text_pipeline = text_pipeline    # (prompt_builder, corrector); built on load if None
@@ -254,17 +262,40 @@ class MedTranscriptionWindow(TranscriptionWindow):
         if self._settings.start_compact:
             self._toggle_compact()
 
-        # Background model load; buttons stay disabled until it finishes.
-        self._set_buttons_enabled(False)
-        self._text_area.setPlainText(LOADING_TEXT)
-        self._load_thread = threading.Thread(target=self._load_engine, name="model-load", daemon=True)
-        self._load_thread.start()
         self._load_timer = QTimer(self)
         self._load_timer.setInterval(LOAD_POLL_MS)
         self._load_timer.timeout.connect(self._check_load)
-        self._load_timer.start()
+        self._start_load()
 
     # ── Model loading ─────────────────────────────────────────────────────────
+    def _start_load(self) -> None:
+        """Load the recogniser in the background; buttons stay disabled until it finishes."""
+        self._load_error = self._load_exc = None
+        self._set_buttons_enabled(False)
+        self._text_area.setPlainText(LOADING_TEXT)
+        self._set_status("Loading model…", "busy")
+        self._load_thread = threading.Thread(target=self._load_engine, name="model-load", daemon=True)
+        self._load_thread.start()
+        self._load_timer.start()
+
+    def _reload_engine(self) -> None:
+        """Options changed the recogniser: drop the loaded one and load the new choice."""
+        if self._state != AppState.IDLE or self._finishing or self._load_thread.is_alive():
+            self._reload_pending = True          # applied when the current dictation is done
+            return
+        self._reload_pending = False
+        if self._transcriber is not None:
+            try:
+                self._transcriber.cleanup()
+            except Exception:
+                logger.error("Could not release the previous recogniser", exc_info=True)
+        self._transcriber = self._engine = None
+        if not self._pipeline_injected:
+            self._text_pipeline = None
+        import gc
+        gc.collect()                             # free the old model's GPU memory before loading the next
+        self._start_load()
+
     def _load_engine(self) -> None:
         """Runs on the model-load thread. Never touches widgets."""
         try:
@@ -273,17 +304,26 @@ class MedTranscriptionWindow(TranscriptionWindow):
                 self._text_pipeline = build_text_pipeline(
                     self._base_prompt, count=getattr(self._engine, "count_tokens", None))
         except Exception as exc:
-            logger.error("Model load failed", exc_info=True)
+            logger.error("Model load failed", exc_info=not isinstance(exc, engines.ModelNotDownloaded))
+            self._load_exc = exc
             self._load_error = str(exc) or exc.__class__.__name__
+        finally:
+            self._allow_download = False
 
     def _check_load(self) -> None:
         if self._load_thread.is_alive():
             return
         self._load_timer.stop()
         if self._load_error:
+            if isinstance(self._load_exc, engines.ModelNotDownloaded) and self._confirm_download(self._load_exc.engine):
+                self._allow_download = True
+                self._start_load()
+                self._text_area.setPlainText("Downloading the speech model… this can take several minutes.")
+                return
             self._text_area.setPlainText(
                 f"Could not load the speech model:\n{self._load_error}\n\n"
-                "Check the console log; see README_1060.md → Troubleshooting."
+                "Options → Show log has the details; Options → Recogniser lets you pick another model. "
+                "See README_1060.md → Troubleshooting."
             )
             self._set_status("Model failed to load", "warn")
             return
@@ -300,6 +340,18 @@ class MedTranscriptionWindow(TranscriptionWindow):
         self._set_buttons_enabled(True)
         self._set_status("Ready", "idle")
         logger.info("Ready")
+
+    def _confirm_download(self, engine: str) -> bool:
+        """Ask before fetching a model: what, from where, how big, under which licence."""
+        info = engines.ENGINES[engine]
+        answer = QMessageBox.question(
+            self, "Download the speech model?",
+            f"{info.label} is not on this PC yet.\n\nDownload it now?\n\n"
+            f"From: {info.source}\nSize: {info.size}\nLicence: {info.licence}\n\n"
+            "Only the model files are fetched. Nothing you dictate is sent anywhere, and the app goes back "
+            "to working offline afterwards.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
+        return answer == QMessageBox.StandardButton.Yes
 
     def _apply_pause_mode(self) -> None:
         """Classic or pause-aware pipeline (Options); takes effect from the next recording."""
@@ -620,6 +672,8 @@ class MedTranscriptionWindow(TranscriptionWindow):
 
     def _finalize(self, text: str, from_hotkey: bool) -> None:
         """Show final text, copy it (PHI-safe, verified), optionally auto-paste."""
+        if self._reload_pending:
+            QTimer.singleShot(1500, self._reload_engine)     # after this text has been shown and copied
         if self._transcriber.capture_error:
             text = (text + "\n\n" if text else "") + f"[{self._transcriber.capture_error}]"
         if not text:
@@ -775,8 +829,9 @@ class MedTranscriptionWindow(TranscriptionWindow):
             text = text_fixes.format_readings(text)
         if not self._settings.voice_commands:
             return text
-        return voice_commands.apply(text, lenient=self._settings.pause_aware,
-                                    punctuation=self._settings.spoken_punctuation)
+        # MedASR writes dictated marks as words of its own accord: always convert those.
+        marks = self._settings.spoken_punctuation or getattr(self._engine, "writes_marker_words", False)
+        return voice_commands.apply(text, lenient=self._settings.pause_aware, punctuation=marks)
 
     # ── Clipboard: verified copy, then (maybe) paste ──────────────────────────
     def _clipboard(self):
@@ -897,7 +952,13 @@ class MedTranscriptionWindow(TranscriptionWindow):
 
     def _open_options(self) -> None:
         dlg = OptionsDialog(self._settings, parent=self)
-        if dlg.exec():
+        accepted = dlg.exec()
+        if dlg.log_window is not None and dlg.log_window.isVisible():
+            # Keep the log open after Options closes: it becomes this window's.
+            self._log_window = dlg.log_window
+            self._log_window.setParent(self, Qt.WindowType.Window)
+            self._log_window.show()
+        if accepted:
             self.apply_settings(dlg.result_settings())
 
     def _sync_autopaste(self):
@@ -910,6 +971,7 @@ class MedTranscriptionWindow(TranscriptionWindow):
 
     def apply_settings(self, new: "settings_store.Settings") -> None:
         """Save and apply edited options (start_compact only affects the next start)."""
+        old = self._settings
         self._settings = new.clean()
         self._sync_autopaste()
         self._chime._inner.volume = self._settings.chime_volume / 100
@@ -918,6 +980,8 @@ class MedTranscriptionWindow(TranscriptionWindow):
         self._apply_triggers()
         self._apply_mic_mode()
         self._apply_pause_mode()
+        if (old.engine, old.accuracy) != (self._settings.engine, self._settings.accuracy):
+            self._reload_engine()
 
     def closeEvent(self, event) -> None:
         if self._triggers is not None:
@@ -938,6 +1002,7 @@ class MedTranscriptionWindow(TranscriptionWindow):
 
 def main() -> None:
     os.chdir(Path(__file__).parent)
+    app_log.setup(to_file=True)         # works with pythonw.exe too (no console window)
     signal.signal(signal.SIGINT, signal.SIG_DFL)
     register_cuda_dll_dirs()            # before ctranslate2 touches CUDA (Windows)
 

@@ -130,6 +130,41 @@ Recognition settings were tried on the development recordings and changed nothin
 - Every change the two rules make across the 934 saved transcript pieces of the owner's recordings was listed and read: blood pressures, units and four drug or term spellings, no wrong conversion.
 - What is left on the owner's held-out recordings (47 word errors in 1,327) is mostly ordinary misrecognition (short function words, a few rare terms) and reference spelling variants, with no further pattern to fix in text. Closing the remaining 1.3 points to Dragon on Corti would take a better recogniser, not more rules, or rules fitted to that dataset's style, which was not done.
 
+## Other recognisers: MedASR, Parakeet, Canary (third round)
+
+`src/onnx_engine.py` (Parakeet TDT 0.6B v2 and Canary 1B v2 through the onnx-asr package, community ONNX exports of NVIDIA's models) and `src/medasr_engine.py` (Google MedASR, pinned gated snapshot) sit behind the same engine contract as Whisper, so chunking, the vocabulary corrector and every text option apply to them unchanged. Each was worked on with the owner's recordings before the benchmark:
+
+- **All three** write numbers and units as words ("one hundred and twenty four grams per liter"). `src/spoken_numbers.py` converts them (part of Extra corrections): multi-word numbers always, a single number word only before something countable ("four months", "two puffs"), units after a digit to mg, mcg, mL, kg, mmol, mm, cm, %. Development WER fell from 14.3% to 12.9% (Parakeet) and 14.5% to 13.1% (Canary).
+- **Parakeet** has word timings, so the pause-aware pipeline runs, but it made things slightly worse (13.5% vs 12.9%, more lost last words); it and Canary were benchmarked with the text options only.
+- **MedASR** writes dictated formatting as brace markers and headings in brackets. They are turned into commands the app already understands ("{period}" → a set-off "period", "[PLAN]" → "Plan:"), stray half-markers are dropped, and 0.3 s of very quiet noise is put on each side of a chunk, which helped a little with garbled first words and dropped last words (13.96% → 13.33% development; digital silence made it worse, 16.3%).
+- None of them takes a vocabulary prompt.
+
+As recorded, text options on (Whisper also pause-aware):
+
+| | Own development | Own held-out (once) | Corti formatted, 23 Dragon-matched notes | Compute for Corti's 66 min |
+|---|---|---|---|---|
+| Whisper large-v3 | 10.48% | 3.32% | 7.18% | 209 s |
+| MedASR | 13.33% | 7.23% | 8.90% | 20 s |
+| Parakeet 0.6B v2 | 12.91% | 6.86% | 12.16% | 32 s |
+| Canary 1B v2 | 13.12% | 6.93% | 12.29% | 99 s |
+| Dragon Medical One | - | 5.73% | 6.04% | - |
+
+- Corti was used twice in this round as authorised: once for the three alternatives, once at the end for the Whisper build (7.34% → 7.18% on the 23 notes, 7.16% → 7.01% on all 24, from the number normaliser). Dragon's Corti figure is the saved October capture; its own-recordings figure is the replay above. Compute is on the RTX 4070 Ti SUPER; relative speed should carry to the 6 GB card but was not measured there. All three alternatives fit in 6 GB (about 2.3 GB whole-card with Parakeet or Canary loaded).
+- On the owner's recordings without the two inconsistent development scripts, word errors were 3.1% (Whisper), 5.8% (MedASR), 6.8% (Canary), 7.6% (Parakeet). MedASR's errors are names and openings ("Dear Dr. ..." lost); Parakeet's and Canary's are drug and clinical terms.
+- **Tried and dropped:** using MedASR's word to repair a Whisper non-word at the same place. On the held-out recordings it fixed one error (two spellings of telmisartan) and also swapped dysphasia for dysphagia, two real and different terms. Not worth a second model in memory.
+- So Whisper large-v3 stays the default. MedASR is a credible fast alternative for dictation-style notes with few names; the app can now switch to it in Options.
+
+## Live app trial
+
+`scripts/live_app_trial.py` drives the real window: recordings are played in real time through the virtual cable into the app's own always-open microphone, started and stopped the way the hotkey does it, with an in-memory clipboard and a throw-away settings file. Held-out recordings, Whisper large-v3:
+
+| | WER | Commands | Format ok | Last words ok | Stop to finished text |
+|---|---|---|---|---|---|
+| All three options on | 3.47% | 56/56 | 12/12 | 21/23 | median 0.75 s, max 1.95 s |
+| No options (classic) | 4.82% | 52/56 | 10/12 | 20/23 | median 0.50 s, max 1.41 s |
+
+The file-based figures for the same recordings were 3.32% and 4.52%, so the options behave live as they do offline; they add about a quarter of a second after Stop (the 0.3 s post-roll). Switching recogniser in the running window (what Save in Options does) took 4.1 s to MedASR, 3.5 s to Parakeet and 4.4 s back to Whisper, each followed by live dictation. The cable is not a microphone and a person was not speaking; live insert at the cursor and auto-paste were not exercised.
+
 ## Limitations
 
 - **Known regression:** with 4 s pauses one held-out letter lost four list commands that the classic pipeline kept (48/52 vs 52/52), and WER in that condition rose 5.81 → 6.06. Commands inside a numbered list ("new line, 2 period") are the weak spot.

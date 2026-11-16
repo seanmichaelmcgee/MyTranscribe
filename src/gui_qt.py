@@ -47,14 +47,9 @@ from sound_utils import ChimePlayer               # noqa: E402
 
 # ── Logging ──────────────────────────────────────────────────────────────────
 # Set stdout to UTF-8 so non-ASCII transcripts don't crash the log (Risk R26).
-if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(name)s %(levelname)s %(message)s",
-    handlers=[logging.StreamHandler(sys.stdout)],
-)
+# app_log also copes with pythonw.exe (no console) and keeps recent lines for Options -> Show log.
+import app_log  # noqa: E402
+app_log.setup(to_file=False)
 logger = logging.getLogger("gui_qt")
 
 # ── Constants ────────────────────────────────────────────────────────────────

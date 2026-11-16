@@ -37,10 +37,11 @@ venv1060\Scripts\python.exe -m pip install -r requirements-1060.txt
 run_1060.bat
 ```
 
-On the **first run** the model (~1.6 GB for turbo, ~3 GB for large-v3) is downloaded from Hugging Face into
-`%USERPROFILE%\.cache\huggingface`. The window says "Loading speech model…" and the
-buttons unlock when it's ready. After that, everything runs offline; set
-`HF_HUB_OFFLINE=1` (see `run_1060.bat`) to guarantee nothing is contacted.
+`scripts\setup_1060.bat` downloads the model (~1.6 GB for turbo, ~3 GB for large-v3) from Hugging Face into
+`%USERPROFILE%\.cache\huggingface`. If it is missing when the app starts, the app **asks before
+downloading** and says where the model comes from, its size and its licence. The window says
+"Loading speech model…" and the buttons unlock when it's ready. Otherwise the app never contacts
+the internet: it runs with the Hugging Face hub offline whichever way it is started.
 
 The console prints the chosen setup, e.g.
 `Engine config: model=large-v3 device=cuda compute=int8_float32 ... GPU NVIDIA GeForce GTX 1660 Ti (CC 7.5, 6144 MB): fast fp16, best-accuracy model`.
@@ -96,6 +97,49 @@ sounds exactly like one vocabulary word and no other ("prendipril" becomes perin
 writes readings the chart way: "138 over 78" as 138/78, "g per litre" as g/L, "degrees
 Celsius" as °C. Check drug names as you always would.
 `MYTRANSCRIBE_EXTRA_FIXES=1` (or `0`) overrides the saved choice.
+
+## Starting without a console window
+
+`run_1060.bat` keeps a console open with the log, which is handy when something is wrong.
+For everyday use:
+
+- `MyTranscribe.bat` starts the app and closes its own window at once, or
+- run `scripts\make_shortcut.ps1` once (PowerShell) for a desktop shortcut that shows no
+  console at all.
+
+Either way the app writes its messages to `%LOCALAPPDATA%\MyTranscribe\mytranscribe.log`
+(1 MB, two older copies kept) and **Options → Show log** opens the recent ones in their own
+window, with Copy and Open folder buttons. The log holds timings, lengths and errors, never
+what you dictated. The app works offline by default however it is started; it no longer needs
+`HF_HUB_OFFLINE=1` from the batch file.
+
+## Choosing the recogniser (Options → Speech model)
+
+**Recogniser** switches the model that listens. Saving a change reloads it in a few seconds
+(after the current dictation, if one is running); no restart. Whisper is the default and the
+only one the standard install provides. The others are listed with the reason they are
+unavailable until their packages and model are present (`requirements-engines.txt`).
+
+| Recogniser | Model source | Size | Licence and access | Notes |
+|---|---|---|---|---|
+| Whisper large-v3 (default; "Fast" = large-v3-turbo) | Hugging Face `Systran/faster-whisper-large-v3` | 3 GB (turbo 1.6 GB) | MIT; no account | Most accurate here; the only one that uses your vocabulary |
+| MedASR | Hugging Face `google/medasr` (gated) | 0.4 GB + PyTorch 2.5 GB | Health AI Developer Foundations terms: accept them with **your own** Hugging Face account, sign in, then `scripts\download_medasr.py` | About ten times faster; good drug names; loses people's names and sometimes the first words |
+| Parakeet 0.6B v2 | Hugging Face `istupakov/parakeet-tdt-0.6b-v2-onnx` (community ONNX export of NVIDIA's model) | 2.4 GB | CC BY 4.0; no account | Fastest; general English, no medical vocabulary |
+| Canary 1B v2 | Hugging Face `istupakov/canary-1b-v2-onnx` (community ONNX export) | 3.7 GB | CC BY 4.0; no account | General English, no medical vocabulary |
+
+**When is a model downloaded?** Never silently. `scripts\setup_1060.bat` fetches the Whisper
+models at install time. If you pick a recogniser whose model is not on the PC, the app asks
+first and shows where it comes from, how big it is and its licence; on Yes it downloads that
+model only and goes back to offline. Nothing you dictate is ever sent. MedASR cannot be
+fetched by the app: Google requires each user to accept its terms personally, so that one is
+a manual step (see `docs/MEDASR_TRIAL.md`). Read each licence yourself before relying on a
+model at work; the table is a summary, not legal advice.
+
+How they compare on the same recordings is in
+[docs/optimization/2026-11-15-dictation-reliability.md](docs/optimization/2026-11-15-dictation-reliability.md).
+Pause-aware dictation needs word timings: it works with Whisper and Parakeet and is skipped
+for MedASR and Canary. MedASR always converts dictated punctuation, because it writes the
+marks as words by itself.
 
 ## Use
 
@@ -202,7 +246,7 @@ testing):
 | `MYTRANSCRIBE_VOCAB_FILES` | none | Extra vocabulary files (`;`-separated on Windows) |
 | `MYTRANSCRIBE_VOCAB_TOPICS` | none | Topics to assume before you've said anything, e.g. `peds-acute,respiratory` |
 | `MYTRANSCRIBE_AUTOCORRECT` | on | `off` = no spelling correction |
-| `HF_HUB_OFFLINE` | off | `1` = never contact Hugging Face (after first download) |
+| `HF_HUB_OFFLINE` | `1` (set by the app) | The app works offline and asks before any model download. `0` lets the model libraries contact Hugging Face on every start |
 
 ## Check speed and accuracy on your machine (no microphone needed)
 
@@ -250,7 +294,7 @@ check with whoever handles privacy compliance for your practice.
 |---|---|
 | Console says `device=cpu` / `CUDA probe failed` | Update the NVIDIA driver; confirm `nvidia-smi` works in a terminal; reinstall `nvidia-cublas-cu12` and `nvidia-cudnn-cu12` into `venv1060` |
 | `Could not load library cudnn_ops64_9.dll` (or `cublas64_12.dll`) | Same as above; the app falls back to CPU automatically meanwhile |
-| "Could not load the speech model" on first run | No internet for the one-time download, or `HF_HUB_OFFLINE=1` set too early |
+| "Could not load the speech model" on first run | The model is not on this PC and the download was declined or failed (no internet). Start again and answer Yes, or run `scripts\setup_1060.bat`. Options → Show log has the details |
 | "Transcription is falling behind" warnings | Set `MYTRANSCRIBE_BEAM_SIZE=1`, or `MYTRANSCRIBE_MODEL=distil-large-v3.5` / `small.en` |
 | Auto-paste does nothing in the EMR | Remote/Citrix session blocking simulated keys: use Ctrl+V |
 | Words wrong at a ~30 s boundary | Report it: cuts are made at the quietest moment, but a long run-on sentence can still be split |

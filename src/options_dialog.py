@@ -13,9 +13,10 @@ import os
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QApplication, QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFormLayout, QFrame,
-    QLabel, QScrollArea, QVBoxLayout, QWidget, QSlider, QHBoxLayout,
+    QLabel, QPushButton, QScrollArea, QVBoxLayout, QWidget, QSlider, QHBoxLayout,
 )
 
+import engines
 from settings import Settings
 from triggers import KEY_CHOICES, MOUSE_CHOICES, key_label
 
@@ -110,12 +111,24 @@ class OptionsDialog(QDialog):
         layout.addWidget(self._title("Speech model"))
         acc_form = QFormLayout()
         acc_form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
+        self.engine = QComboBox()
+        for name, info in engines.ENGINES.items():
+            ok, why = engines.availability(name)
+            self.engine.addItem(info.label if ok else f"{info.label} — {why}", name)
+            if not ok and name != settings.engine:
+                item = self.engine.model().item(self.engine.count() - 1)
+                item.setEnabled(False)
+        self.engine.setCurrentIndex(max(0, self.engine.findData(settings.engine)))
+        acc_form.addRow("Recogniser:", self.engine)
         self.accuracy = self._combo(ACCURACY, settings.accuracy)
         acc_form.addRow("Accuracy:", self.accuracy)
-        note = QLabel("Takes effect next time MyTranscribe starts.")
-        note.setObjectName("fixedBinding")
-        acc_form.addRow("", note)
+        self.engine_note = QLabel()
+        self.engine_note.setObjectName("fixedBinding")
+        self.engine_note.setWordWrap(True)
+        acc_form.addRow("", self.engine_note)
         layout.addLayout(acc_form)
+        self.engine.currentIndexChanged.connect(self._sync_engine)
+        self._sync_engine()
 
         layout.addWidget(self._title("Microphone"))
         self.keep_mic_ready = QCheckBox("Keep microphone ready (avoid clipped first words)")
@@ -179,6 +192,16 @@ class OptionsDialog(QDialog):
         how.setTextFormat(Qt.TextFormat.RichText)
         layout.addWidget(how)
 
+        layout.addWidget(self._title("Troubleshooting"))
+        self.log_window = None
+        self.show_log = QPushButton("Show log…")
+        self.show_log.setToolTip("Opens the recent log in its own window: timings and errors, never what you dictated.")
+        self.show_log.clicked.connect(self._show_log)
+        log_row = QHBoxLayout()
+        log_row.addWidget(self.show_log)
+        log_row.addStretch(1)
+        layout.addLayout(log_row)
+
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Save
                                    | QDialogButtonBox.StandardButton.Cancel)
         buttons.accepted.connect(self.accept)
@@ -204,6 +227,22 @@ class OptionsDialog(QDialog):
         c.setCurrentIndex(max(0, i))
         return c
 
+    def _sync_engine(self) -> None:
+        """Accuracy only applies to Whisper; show where the chosen model comes from."""
+        name = self.engine.currentData()
+        info = engines.ENGINES[name]
+        self.accuracy.setEnabled(name == "whisper")
+        self.engine_note.setText(
+            f"{info.note} Model: {info.source}, {info.size}. Licence: {info.licence}. "
+            "Saving a change reloads the model; if it is not on this PC yet you are asked before any download.")
+
+    def _show_log(self) -> None:
+        from log_window import LogWindow
+        if self.log_window is None:
+            self.log_window = LogWindow(parent=self)      # a child of this dialog, so it stays usable
+        self.log_window.show()
+        self.log_window.raise_()
+
     def _sync_enabled(self) -> None:
         self.key_mode.setEnabled(self.key.currentData() != "none")
         self.mouse_mode.setEnabled(self.mouse.currentData() != "none")
@@ -213,6 +252,7 @@ class OptionsDialog(QDialog):
         return replace(self._original, key=self.key.currentData(), key_mode=self.key_mode.currentData(),
                        mouse=self.mouse.currentData(), mouse_mode=self.mouse_mode.currentData(),
                        start_compact=self.start_compact.isChecked(), accuracy=self.accuracy.currentData(),
+                       engine=self.engine.currentData(),
                        voice_commands=self.voice_commands.isChecked(),
                        keep_mic_ready=self.keep_mic_ready.isChecked(),
                        live_insert=self.live_insert.isChecked(),

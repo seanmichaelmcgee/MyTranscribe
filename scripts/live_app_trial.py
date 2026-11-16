@@ -71,8 +71,10 @@ def main(argv=None):
     ap.add_argument("--out", required=True, type=Path)
     ap.add_argument("--split", default="held", choices=["dev", "held"])
     ap.add_argument("--options", default=",".join(OPTIONS), help="comma list of " + ", ".join(OPTIONS) + " (or none)")
-    ap.add_argument("--engine", default="whisper", choices=dr.ENGINES)
-    ap.add_argument("--model")
+    ap.add_argument("--engine", default="whisper",
+                    help="recogniser, or a comma list to switch between in the same running window "
+                         "(as Options -> Recogniser does): whisper,medasr,parakeet,canary")
+    ap.add_argument("--model", help="local Whisper model folder (sets MYTRANSCRIBE_MODEL)")
     ap.add_argument("--limit", type=int)
     ap.add_argument("--only")
     ap.add_argument("--tail-s", type=float, default=0.4, help="silence between the last sample and Stop")
@@ -97,12 +99,17 @@ def main(argv=None):
     from settings import Settings
 
     app = QApplication.instance() or QApplication([])
+    import os
+    from dataclasses import replace
+    engine_names = args.engine.split(",")
+    if args.model:
+        os.environ["MYTRANSCRIBE_MODEL"] = args.model
     settings = Settings(start_compact=True, chime_volume=0, autopaste=False, live_insert=False,
-                        keep_mic_ready=True, voice_commands=True, **{o: o in on for o in OPTIONS})
-    factory = None if args.engine == "whisper" and not args.model else (
-        lambda: dr.make_engine(args.engine, args.model))
-    window = gui_med.MedTranscriptionWindow(engine_factory=factory, autopaste=False, settings=settings,
+                        keep_mic_ready=True, voice_commands=True, engine=engine_names[0],
+                        **{o: o in on for o in OPTIONS})
+    window = gui_med.MedTranscriptionWindow(autopaste=False, settings=settings,
                                             settings_path=args.out / "trial_settings.json", install_hooks=False)
+    window._confirm_download = lambda engine: False      # a trial never downloads: fail instead
     clip = FakeClipboard()
     window._clipboard = lambda: clip
     window._clipboard_seq = clip.sequence
@@ -111,7 +118,20 @@ def main(argv=None):
         raise SystemExit(f"app did not become ready: {window._load_error}")
     pump(app, lambda: False, 1.5)                      # let the always-open microphone fill its pre-roll
 
-    tag = f"{args.engine}__{'+'.join(sorted(on)) or 'none'}__{args.split}"
+    for position, engine_name in enumerate(engine_names):
+        if position:
+            switched = time.monotonic()
+            window.apply_settings(replace(window._settings, engine=engine_name))   # what Save in Options does
+            if not pump(app, lambda: window.ready or window._load_error, 300) or window._load_error:
+                raise SystemExit(f"switch to {engine_name} failed: {window._load_error}")
+            print(f"switched to {engine_name} in {time.monotonic() - switched:.1f} s", flush=True)
+            pump(app, lambda: False, 1.5)
+        run_engine(args, app, window, entries, engine_name, on)
+    window.close()
+
+
+def run_engine(args, app, window, entries, engine_name, on):
+    tag = f"{engine_name}__{'+'.join(sorted(on)) or 'none'}__{args.split}"
     rows, waits = [], []
     for n, e in enumerate(entries, 1):
         audio = dr.load_wav(e["wav"])
@@ -136,13 +156,12 @@ def main(argv=None):
         pump(app, lambda: False, 1.0)
 
     summary = dr.summarise(rows, ["orig"])
-    result = {"tag": tag, "options": sorted(on), "engine": args.engine, "summary": summary,
+    result = {"tag": tag, "options": sorted(on), "engine": engine_name, "summary": summary,
               "stop_to_text_s": {"median": round(statistics.median(waits), 2), "max": round(max(waits), 2)},
               "rows": rows}
     (args.out / f"{tag}.json").write_text(json.dumps(result, indent=1, ensure_ascii=False), encoding="utf-8")
     print(f"\nlive {tag}: Stop-to-text median {result['stop_to_text_s']['median']} s, max {result['stop_to_text_s']['max']} s")
     dr.print_summary(summary)
-    window.close()
 
 
 if __name__ == "__main__":

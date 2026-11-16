@@ -8,6 +8,7 @@ Holds only key bindings, view and accuracy preferences: never transcript text.
 Environment variables still override the file (handy for testing):
   MYTRANSCRIBE_KEY / MYTRANSCRIBE_KEY_MODE      e.g. f9 / hold|toggle, or none
   MYTRANSCRIBE_MOUSE / MYTRANSCRIBE_MOUSE_MODE  x2|x1|middle|none / hold|toggle
+  MYTRANSCRIBE_ENGINE                           whisper|medasr|parakeet|canary: the recogniser
   MYTRANSCRIBE_PAUSE_AWARE                      1|0: pause-aware dictation on/off
   MYTRANSCRIBE_SPOKEN_PUNCTUATION               1|0: convert dictated punctuation marks on/off
   MYTRANSCRIBE_EXTRA_FIXES                      1|0: same-sound term correction and readings format on/off
@@ -33,6 +34,9 @@ def default_path() -> Path:
     return Path.home() / ".config" / "mytranscribe" / "settings.json"
 
 
+ENGINE_CHOICES = ("whisper", "medasr", "parakeet", "canary")
+
+
 @dataclass
 class Settings:
     key: str = "f9"                    # a KEY_CHOICES name, or "none"
@@ -41,6 +45,7 @@ class Settings:
     mouse_mode: str = "toggle"
     start_compact: bool = True
     accuracy: str = "best"             # "best" (large-v3 if the GPU allows) | "fast" (turbo)
+    engine: str = "whisper"            # recogniser: whisper | medasr | parakeet | canary (engines.py)
     voice_commands: bool = True        # "new line", "new paragraph", "open/close quote"
     keep_mic_ready: bool = True        # mic open between dictations + 0.5 s pre-roll (like Dragon)
     live_insert: bool = False          # paste each ~30 s piece at the cursor while dictating
@@ -82,6 +87,8 @@ class Settings:
         self.live_insert = bool(self.live_insert)
         if self.accuracy not in ("best", "fast"):
             self.accuracy = d.accuracy
+        if self.engine not in ENGINE_CHOICES:
+            self.engine = d.engine
         return self
 
 
@@ -102,6 +109,9 @@ def load(path: Optional[Path] = None, env: Optional[dict] = None) -> Settings:
         value = env.get(var, "").strip().lower()
         if value:
             setattr(s, attr, value)
+    forced_engine = env.get("MYTRANSCRIBE_ENGINE", "").strip().lower()
+    if forced_engine:
+        s.engine = forced_engine
     for attr, var in (("pause_aware", "MYTRANSCRIBE_PAUSE_AWARE"),
                       ("spoken_punctuation", "MYTRANSCRIBE_SPOKEN_PUNCTUATION"),
                       ("extra_fixes", "MYTRANSCRIBE_EXTRA_FIXES")):

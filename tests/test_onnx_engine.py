@@ -65,4 +65,7 @@ def test_canary_has_no_word_timings_so_the_pipeline_stays_classic():
 
 def test_medasr_brace_markers_become_spoken_words():
     assert spoken_markers("clear {period} {new paragraph} soft {comma} non tender{period}{newline}plan {colon} rest") == \
-        "clear period new paragraph soft comma non tender period new line plan colon rest"
+        "clear period, new paragraph, soft comma, non tender period, new line, plan colon, rest"
+    import voice_commands
+    assert voice_commands.apply(spoken_markers("[PLAN] rest {period} {open quote} take with food {close quote}"),
+                                lenient=True, punctuation=True) == 'Plan: rest. "take with food"'
