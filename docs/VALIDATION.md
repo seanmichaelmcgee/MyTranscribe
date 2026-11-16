@@ -63,6 +63,37 @@ you reading again: delete `local_*.json` and run `score` once more.
   dictation, spoken punctuation and Extra corrections on; MedASR with the text
   options on.
 
+### Self-test of the tool and the scorer (2026-11-16)
+
+Before anyone read the set, a Windows text-to-speech voice read all 28 items through
+a virtual audio cable, with Dragon Medical One typing into the tool and the tool
+recording the same audio. This proves the tool end to end; it says little about your
+voice, and a computer voice is easier than a person.
+
+| | WER | Adjusted WER | Format ok | Commands | Last words ok |
+|---|---|---|---|---|---|
+| Dragon | 2.47% | 2.14% | 11/11 | 40/40 | 27/28 |
+| Whisper large-v3, all options | 1.15% | 0.82% | 10/11 | 39/40 | 28/28 |
+| MedASR, text options | 2.63% | 2.05% | 11/11 | 40/40 | 26/28 |
+
+Every flagged difference was then read (the text is invented, so that is safe):
+
+- Dragon 30 flagged, 4 not mistakes; Whisper 14 flagged, 4 not mistakes; MedASR 32
+  flagged, 7 not mistakes. The non-mistakes were all of two kinds: a British or
+  American spelling or "ok"/"okay", and one word written as two ("long-standing" /
+  "longstanding", "breastbone" / "breast bone", "follow-up" / "followup"). The
+  **adjusted** column no longer counts those; nothing else is forgiven.
+- What remains is real: people's names (all three; MedASR dropped most of them),
+  drug names (Dragon wrote Ativan for apixaban, Whisper "mg" for "mcg" once), and a
+  few small words. Two name spellings no listener could know (Whitcomb/Whitcombe,
+  Denis/Dennis) are still counted.
+- So expect the plain figure to overstate errors by roughly a quarter to a third at
+  these low error rates, and the adjusted figure to be close to what a reader would
+  count.
+- Whisper left out a spoken "open quote" twice and a "new paragraph" once. The
+  missing opening quote is now restored when the closing one follows a dictated
+  break; the missing paragraph break is the one formatting miss in the table.
+
 ## Stage 2: real dictation, counts only (design; not built yet)
 
 The aim is the same comparison on what you actually dictate, with nothing readable

@@ -141,3 +141,13 @@ def test_spoken_marks_leave_clinical_nouns(text):
 def test_spoken_marks_are_off_by_default():
     raw = "HENT normal period. Throat red comma, no exudate period."
     assert apply(raw) == raw and apply(raw, lenient=True) == raw
+
+
+def test_lenient_opens_a_quote_the_model_dropped_after_a_break():
+    raw = "the mammogram was normal. New paragraph. Routine screening in 2 years. close quote."
+    assert apply(raw, lenient=True) == 'the mammogram was normal.\n\n"Routine screening in 2 years".'
+    assert apply(raw) != apply(raw, lenient=True)                       # classic behaviour unchanged
+    first_line = "Routine screening in 2 years, close quote. New line. Thanks."
+    assert '"Routine' not in apply(first_line, lenient=True)           # no break before it: left alone
+    both = "Seen. New line. Open quote. Rest. Close quote."
+    assert apply(both, lenient=True) == 'Seen.\n"Rest".'

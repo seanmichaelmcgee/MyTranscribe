@@ -418,6 +418,51 @@ def _autoplay(app, window, items, audio_dir: Path):
 
 
 # ── score ────────────────────────────────────────────────────────────────────
+# Spellings that are the same word. The plain count charges these as errors; the
+# adjusted count does not. Found by reading every flagged difference on the set.
+_SAME_WORD = {"colour": "color", "colours": "color", "colors": "color", "okay": "ok", "litre": "liter",
+              "litres": "liters", "grey": "gray", "diarrhoea": "diarrhea", "haemoglobin": "hemoglobin",
+              "anaemia": "anemia", "oesophagus": "esophagus", "paediatric": "pediatric", "tumour": "tumor",
+              "centre": "center", "metre": "meter", "fibre": "fiber", "labour": "labor",
+              "behaviour": "behavior", "odour": "odor", "oedema": "edema", "foetal": "fetal",
+              "1st": "first", "2nd": "second", "3rd": "third"}
+
+
+def _canonical(word: str) -> str:
+    word = _SAME_WORD.get(word, word)
+    for british, american in (("isation", "ization"), ("ised", "ized"), ("ising", "izing"), ("ise", "ize"),
+                              ("yse", "yze")):
+        if word.endswith(british) and len(word) > len(british) + 3:
+            return word[:-len(british)] + american
+    return word
+
+
+def _join_compounds(words: list, other: list) -> list:
+    """Write "long standing" as "longstanding" when the other side has it as one word."""
+    whole, out, i = set(other), [], 0
+    while i < len(words):
+        if i + 1 < len(words) and words[i] + words[i + 1] in whole and words[i] not in whole:
+            out.append(words[i] + words[i + 1])
+            i += 2
+        else:
+            out.append(words[i])
+            i += 1
+    return out
+
+
+def adjusted_errors(reference: str, text: str) -> int:
+    """
+    Word errors after forgiving what is not a recognition mistake: British and
+    American spellings, ok/okay, and one word written as two or two as one
+    ("follow up" / "followup", "breast bone" / "breastbone").
+    """
+    import dictation_reliability as dr
+    ref = [_canonical(w) for w in dr.normalize_words(reference)]
+    hyp = [_canonical(w) for w in dr.normalize_words(text)]
+    ref, hyp = _join_compounds(ref, hyp), _join_compounds(hyp, ref)
+    return sum(op != "ok" for op, _i, _j in dr.align(ref, hyp))
+
+
 PROFILES = {"whisper": "candidate_full", "medasr": "classic_full", "parakeet": "classic_full", "canary": "classic_full"}
 
 
@@ -476,15 +521,20 @@ def cmd_score(args):
                               "reference": it["reference"], "spoken": it["spoken"]},
                              "orig", texts.get(it["id"], ""), texts.get(it["id"], ""), audio_s=0.0)
                 for it in items]
+        for it, r in zip(items, rows):
+            r["errors_adjusted"] = adjusted_errors(it["reference"], texts.get(it["id"], ""))
         by_kind = {}
         for kind in ("short", "consult", "all"):
             sel = [r for r in rows if kind == "all" or r["category"] == kind]
             if sel:
                 by_kind[kind] = dr.summarise(sel, ["orig"])["orig"]
+                words = sum(r["ref_words"] for r in sel)
+                by_kind[kind]["wer_adjusted"] = round(100 * sum(r["errors_adjusted"] for r in sel) / max(1, words), 2)
         result["systems"][name] = {"summary": by_kind, "rows": rows}
         for r in rows:
             table.append({"system": name, "id": r["id"], "kind": r["category"], "ref_words": r["ref_words"],
-                          "errors": r["errors"], "format_ok": r["format_ok"], "tail_ok": r["tail_ok"]})
+                          "errors": r["errors"], "errors_adjusted": r["errors_adjusted"],
+                          "format_ok": r["format_ok"], "tail_ok": r["tail_ok"]})
     (args.out / "results.json").write_text(json.dumps(result, indent=1, ensure_ascii=False), encoding="utf-8")
     with (args.out / "results.csv").open("w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=list(table[0]))
@@ -492,10 +542,12 @@ def cmd_score(args):
         writer.writerows(table)
 
     print(f"\n{len(items)} items scored against the text that was read (word errors ignore punctuation marks)")
-    print(f"{'system':10s} {'kind':8s} {'n':>3s} {'WER %':>7s} {'format ok':>10s} {'commands':>10s} {'last words':>11s}")
+    print("adjusted = not counting spelling variants (colour/color, ok/okay) or one word written as two")
+    print(f"{'system':10s} {'kind':8s} {'n':>3s} {'WER %':>7s} {'adjusted':>9s} {'format ok':>10s} {'commands':>10s} "
+          f"{'last words':>11s}")
     for name, data in result["systems"].items():
         for kind, s in data["summary"].items():
-            print(f"{name:10s} {kind:8s} {s['recordings']:3d} {s['wer']:7.2f} {s['format']:>10s} "
+            print(f"{name:10s} {kind:8s} {s['recordings']:3d} {s['wer']:7.2f} {s['wer_adjusted']:9.2f} {s['format']:>10s} "
                   f"{s['commands']:>10s} {s['tail']:>11s}")
     print(f"\nresults: {args.out / 'results.json'} and results.csv")
 

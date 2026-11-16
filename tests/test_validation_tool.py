@@ -39,3 +39,12 @@ def test_parse_ignores_the_header_and_keeps_blank_lines_inside_items():
     items = vt.parse_set("# note\n\n## a | short\nOne.\n\nTwo.\n\n## b | consult\nThree.\n")
     assert [(i["id"], i["category"], i["reference"]) for i in items] == [("a", "short", "One.\n\nTwo."),
                                                                          ("b", "consult", "Three.")]
+
+
+def test_adjusted_count_forgives_spelling_variants_and_split_words_only():
+    ref = "It was okay, 2 colours, long-standing heartburn behind the breastbone, follow-up first."
+    hyp = "It was ok, 2 colors, longstanding heartburn behind the breast bone, followup 1st."
+    assert vt.adjusted_errors(ref, hyp) == 0
+    assert vt.adjusted_errors(ref, hyp.replace("heartburn", "heartbeat")) == 1      # a real mistake still counts
+    assert vt.adjusted_errors("apixaban 5 mg", "ativan 5 mg") == 1
+    assert vt.adjusted_errors("the breast bone", "the bone") == 1

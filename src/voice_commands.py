@@ -195,6 +195,23 @@ def spoken_marks(text: str) -> str:
     return "".join(out)
 
 
+def _open_missing_quotes(text: str) -> str:
+    """
+    The model sometimes leaves out a spoken "open quote" but keeps the "close
+    quote". When a line that follows a dictated break has a closing quote and
+    no opening one, the quote is taken to start with the line ("new paragraph,
+    open quote, X-ray normal, close quote"). The first line is left alone:
+    there is no telling where its quote began.
+    """
+    parts = re.split(r"([\x03\x04])", text)
+    for i in range(2, len(parts), 2):
+        line = parts[i]
+        close = line.find("\x02")
+        if close != -1 and "\x01" not in line[:close]:
+            parts[i] = "\x01" + line.lstrip(" ")
+    return "".join(parts)
+
+
 def apply(text: str, lenient: bool = False, punctuation: bool = False) -> str:
     """
     Return `text` with spoken formatting commands turned into formatting.
@@ -210,6 +227,8 @@ def apply(text: str, lenient: bool = False, punctuation: bool = False) -> str:
         text = spoken_marks(text)
     text = _replace_commands(text, _OPEN, "\x01")
     text = _replace_commands(text, _CLOSE, "\x02")
+    if lenient:
+        text = _open_missing_quotes(text)
     text = text.replace("\x03", "\n\n").replace("\x04", "\n")
     text = re.sub(r"[ \t]*\x01[ \t]*", ' "', text)   # opening quote: space before, none after
     text = re.sub(r"[ \t]*\x02", '"', text)          # closing quote: hug the last word
