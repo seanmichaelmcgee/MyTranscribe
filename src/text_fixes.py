@@ -100,7 +100,7 @@ _PER = {"l": "L", "litre": "L", "liter": "L", "dl": "dL", "decilitre": "dL", "de
 _NUMBER = r"\d+(?:\.\d+)?"
 _UNIT_PER = re.compile(r"(?<![\w/])(" + _NUMBER + r")\s?(" + "|".join(sorted(_UNIT, key=len, reverse=True))
                        + r")\s+per\s+(" + "|".join(sorted(_PER, key=len, reverse=True)) + r")(?![\w/])", re.I)
-_OVER = re.compile(r"(?<![\w./])(\d{2,3})\s+over\s+(\d{2,3})(?![\w./]|\s+(?:the|a|an)\b)", re.I)
+_OVER = re.compile(r"(?<![\w./])(\d{2,3})\s+over\s+(\d{2,3})(?!\w|[./]\d|\s+(?:the|a|an)\b)", re.I)
 _DEGREES = re.compile(r"(?<![\w.])(" + _NUMBER + r")\s*(?:degrees?|°)\s*(celsius|centigrade|fahrenheit|c|f)(?!\w)", re.I)
 
 
@@ -111,6 +111,8 @@ def format_readings(text: str) -> str:
     "37.2 °C". Only a number followed by a known unit is touched; "5 mg per day"
     becomes "5 mg/day", "3 times per day" and "2 over the counter" are left alone.
     """
+    import spoken_numbers
+    text = spoken_numbers.normalise(text)
     text = _OVER.sub(r"\1/\2", text)
     text = _UNIT_PER.sub(lambda m: f"{m.group(1)} {_UNIT[m.group(2).lower()]}/{_PER[m.group(3).lower()]}", text)
     return _DEGREES.sub(lambda m: f"{m.group(1)} °{m.group(2)[0].upper()}", text)

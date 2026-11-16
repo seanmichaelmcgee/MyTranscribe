@@ -18,6 +18,18 @@ def checked_ctc_sequences(output, isfinite):
     return output.sequences
 
 
+def spoken_markers(text: str) -> str:
+    """
+    MedASR writes dictated formatting as brace markers ("{period}", "{comma}",
+    "{new paragraph}", "{newline}"). Turn them back into the spoken words so the
+    app's own command handling (voice_commands) formats them like any engine's.
+    """
+    import re
+    text = re.sub(r"\{\s*newline\s*\}", "{new line}", text, flags=re.I)
+    text = re.sub(r"\s*\{([^{}]+)\}\s*", lambda m: f" {m.group(1).strip()} ", text)
+    return re.sub(r"[ 	]{2,}", " ", text).strip()
+
+
 class MedASREngine:
     def __init__(self, model_path: Path, device: str = "cuda", precision: str = "float32"):
         if device not in ("cuda", "cpu") or precision not in ("float32", "float16"):
@@ -43,6 +55,8 @@ class MedASREngine:
             use_safetensors=True, dtype=dtype, attn_implementation="eager").to(device).eval()
         self.model_dtype = dtype
         self.gpu_name = torch.cuda.get_device_name(0) if device == "cuda" else None
+        from types import SimpleNamespace
+        self.config = SimpleNamespace(model=str(model_path), device=device, compute_type=precision)
 
     def transcribe(self, audio: np.ndarray, prompt=None) -> str:
         # MedASR CTC has no Whisper-style initial_prompt; never feed references.
@@ -57,7 +71,7 @@ class MedASREngine:
         with self.torch.inference_mode():
             output = self.model.generate(**inputs, return_dict_in_generate=True)
             tokens = checked_ctc_sequences(output, self.torch.isfinite)
-        return self.processor.batch_decode(tokens, skip_special_tokens=True)[0].strip()
+        return spoken_markers(self.processor.batch_decode(tokens, skip_special_tokens=True)[0])
 
     def synchronize(self):
         if self.device == "cuda":

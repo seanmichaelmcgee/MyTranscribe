@@ -89,6 +89,8 @@ PROFILES = {
     "candidate_marks": dict(_CANDIDATE, commands={"lenient": True, "punctuation": True}),
     # ... plus Options -> "Extra corrections".
     "candidate_full": dict(_CANDIDATE, commands={"lenient": True, "punctuation": True}, extra_fixes=True),
+    # The text options without the pause-aware pipeline (for engines it does not suit).
+    "classic_full": {"commands": {"lenient": True, "punctuation": True}, "extra_fixes": True},
     # Silence-handling variants tried on top of it (none was better; see the results note).
     "cand_pad150": dict(_CANDIDATE, engine={"decode_overrides": {"vad_parameters": {
         "min_silence_duration_ms": 700, "speech_pad_ms": 150}}}),
@@ -409,6 +411,36 @@ def cached_word_times(cache_dir: Path, audio: np.ndarray, engine=None):
     return words
 
 
+ENGINES = ("whisper", "parakeet", "parakeet-v3", "canary", "medasr")
+
+
+def make_engine(name: str = "whisper", model=None, profile=None):
+    """
+    The recogniser for a run. "whisper" is the app's engine (large-v3, as the
+    hardware profile picks it); the others are trial engines that need their
+    own environment (see src/onnx_engine.py, src/medasr_engine.py).
+    """
+    if name == "whisper":
+        register_cuda_dll_dirs()
+        cfg = choose_config(detect_hardware(), accurate=True)
+        if model:
+            cfg.model = model
+        engine = FasterWhisperEngine(cfg)
+        engine.warmup()
+        for key, value in (profile or {}).get("engine", {}).items():
+            setattr(engine, key, value)
+        return engine
+    if name == "medasr":
+        from medasr_engine import MedASREngine
+        if not model:
+            raise SystemExit("--model <verified MedASR snapshot folder> is required for medasr")
+        return MedASREngine(Path(model))
+    from onnx_engine import OnnxAsrEngine
+    engine = OnnxAsrEngine(name)
+    engine.warmup()
+    return engine
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--corpus-root", required=True, type=Path)
@@ -418,6 +450,7 @@ def main(argv=None):
     ap.add_argument("--conditions", default=",".join(CONDITIONS))
     ap.add_argument("--model")
     ap.add_argument("--only", help="substring of recording ids to keep")
+    ap.add_argument("--engine", default="whisper", choices=ENGINES)
     args = ap.parse_args(argv)
 
     profile = PROFILES[args.profile]
@@ -430,21 +463,16 @@ def main(argv=None):
     cache_dir = args.out.parent / "word_times"
     cache_dir.mkdir(exist_ok=True)
 
-    register_cuda_dll_dirs()
-    cfg = choose_config(detect_hardware(), accurate=True)
-    if args.model:
-        cfg.model = args.model
-    engine = FasterWhisperEngine(cfg)
-    engine.warmup()
-    for key, value in profile.get("engine", {}).items():
-        setattr(engine, key, value)
+    engine = make_engine(args.engine, args.model, profile)
+    cfg = engine.config
     style = load_prompt()
-    builder, post = build_text_pipeline(style, count=engine.count_tokens, env={})
+    builder, post = build_text_pipeline(style, count=getattr(engine, "count_tokens", None), env={})
+    tag = args.profile if args.engine == "whisper" else f"{args.engine}_{args.profile}"
 
     rows, t_start = [], time.perf_counter()
     for e in entries:
         audio = load_wav(e["wav"])
-        words = cached_word_times(cache_dir, audio, engine)
+        words = cached_word_times(cache_dir, audio, engine if args.engine == "whisper" else None)
         base_text = None
         for cond in args.conditions.split(","):
             built = build_condition(cond, audio, words)
@@ -462,10 +490,10 @@ def main(argv=None):
     result = {"profile": args.profile, "settings": profile, "split": args.split,
               "model": cfg.model, "compute_type": engine.config.compute_type, "device": engine.config.device,
               "summary": summary, "rows": rows}
-    (args.out / f"{args.profile}__{args.split}.json").write_text(
+    (args.out / f"{tag}__{args.split}.json").write_text(
         json.dumps(result, indent=1, ensure_ascii=False), encoding="utf-8")
 
-    print(f"\nprofile={args.profile} split={args.split} model={Path(str(cfg.model)).name} "
+    print(f"\nprofile={tag} split={args.split} model={Path(str(cfg.model)).name} "
           f"{engine.config.device}/{engine.config.compute_type}")
     print_summary(summary)
 

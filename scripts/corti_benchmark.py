@@ -39,14 +39,11 @@ def cmd_run(args):
     import dictation_reliability as dr
 
     profile = dr.PROFILES[args.profile]
-    dr.register_cuda_dll_dirs()
-    cfg = dr.choose_config(dr.detect_hardware(), accurate=True)
-    if args.model:
-        cfg.model = args.model
-    engine = dr.FasterWhisperEngine(cfg)
-    engine.warmup()
+    engine = dr.make_engine(args.engine, args.model, profile)
+    cfg = engine.config
     style = dr.load_prompt()
-    builder, post = dr.build_text_pipeline(style, count=engine.count_tokens, env={})
+    builder, post = dr.build_text_pipeline(style, count=getattr(engine, "count_tokens", None), env={})
+    tag = args.profile if args.engine == "whisper" else f"{args.engine}_{args.profile}"
     rows, t0 = [], time.perf_counter()
     for wav in sorted(args.audio.glob("row*.wav")):
         audio = load_wav(wav)
@@ -56,8 +53,8 @@ def cmd_run(args):
                      "elapsed_s": round(elapsed, 2), "rescued": rescued, "spoken": spoken, "formatted": final})
         print(f"{wav.stem} done ({time.perf_counter() - t0:.0f}s)", flush=True)
     args.out.mkdir(parents=True, exist_ok=True)
-    (args.out / f"{args.profile}.json").write_text(json.dumps(
-        {"profile": args.profile, "model": str(cfg.model), "compute_type": engine.config.compute_type,
+    (args.out / f"{tag}.json").write_text(json.dumps(
+        {"profile": tag, "model": str(cfg.model), "compute_type": engine.config.compute_type,
          "device": engine.config.device, "rows": rows}, indent=1, ensure_ascii=False), encoding="utf-8")
 
 
@@ -105,6 +102,7 @@ def main(argv=None):
     run.add_argument("--out", required=True, type=Path)
     run.add_argument("--profile", default="baseline")
     run.add_argument("--model")
+    run.add_argument("--engine", default="whisper")
     run.set_defaults(func=cmd_run)
     score = sub.add_parser("score")
     score.add_argument("--references", required=True, type=Path)
