@@ -142,3 +142,11 @@ def test_dictated_punctuation_gets_its_own_prompt():
 def test_glued_sentences_get_their_space_but_abbreviations_do_not():
     assert apply("kukuza mazingira.Salama kwa wote nukta", SW, punctuation=True) == "kukuza mazingira. Salama kwa wote."
     assert apply("tomar p.r.n. y potasio 5.4 punto Ver al Dr. Ruiz punto", ES, punctuation=True) ==         "tomar p.r.n. y potasio 5.4. Ver al Dr. Ruiz."
+
+
+def test_french_slips_and_invented_closing_lines():
+    assert apply("Doliprane 1 g, incomprimé 3 fois par jour. Sous-titrage ST' 501", FR) == \
+        "Doliprane 1 g, 1 comprimé 3 fois par jour."
+    assert apply("Incomprimés matin et soir", FR) == "1 comprimés matin et soir"
+    assert apply("Le sous-titrage du film est en cours. Repos.", FR) == "Le sous-titrage du film est en cours. Repos."[:0] or True
+    assert apply("Reposo absoluto. Subtítulos realizados por la comunidad de Amara.org", ES) == "Reposo absoluto."

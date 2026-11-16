@@ -165,6 +165,33 @@ As recorded, text options on (Whisper also pause-aware):
 
 The file-based figures for the same recordings were 3.32% and 4.52%, so the options behave live as they do offline; they add about a quarter of a second after Stop (the 0.3 s post-roll). Switching recogniser in the running window (what Save in Options does) took 4.1 s to MedASR, 3.5 s to Parakeet and 4.4 s back to Whisper, each followed by live dictation. The cable is not a microphone and a person was not speaking; live insert at the cursor and auto-paste were not exercised.
 
+## Modulate Synthetic Medical Dictation (English, fourth round)
+
+[modulate/synthetic-medical-dictation](https://huggingface.co/datasets/modulate/synthetic-medical-dictation) (CC BY 4.0): 300 generated clinical notes read by 28 text-to-speech voices in six recording conditions, about 60% with dictated punctuation, scored by **term recall** (does each drug, dose, diagnosis, finding, lab value, name, chart number, date of birth appear, in any accepted written form). Splits are by note. `scripts/modulate_benchmark.py`. 20 development notes (120 recordings) were used to find problems; the test split (77 notes, 462 recordings, 5.6 hours) was run once.
+
+| Test split, term recall | Existing pipeline | All options | MedASR, text options |
+|---|---|---|---|
+| All 9,366 terms | 80.8% | **86.1%** | 58.2% |
+| Clean | 85.6% | 91.5% | 70.0% |
+| Telephone | 86.6% | 91.9% | 70.7% |
+| Low-bitrate MP3 | 85.6% | 91.7% | 69.3% |
+| Fast speech | 84.7% | 90.2% | 69.4% |
+| Busy ward | 76.4% | 81.3% | 41.4% |
+| Fast + ward + MP3 | 65.9% | 69.7% | 28.2% |
+| Date of birth | 0.0% | 83.1% | 0.9% |
+| Chart number | 83.3% | 91.3% | 5.6% |
+| Drug | 70.5% | 72.9% | 66.9% |
+| Dose / lab value | 98.5% / 96.9% | 98.8% / 98.2% | 87.3% / 87.2% |
+| Patient name / spelled surname | 54.1% / 76.6% | 55.0% / 77.1% | 0.0% / 1.5% |
+| Negated finding | 70.6% | 69.5% | 63.9% |
+
+- **What the development notes led to** (`src/dictation_fixes.py`, part of Extra corrections): a date of birth or chart number read digit by digit is written in one piece ("0-8-1-2-19-84" → 08/12/1984, digits in the order said; "8, 8-0-7-2-9" → 880729). Development recall 83.9% → 88.7%.
+- **Tried and dropped:** correcting a name from the letters spelled after it. The model's letters were wrong more often than its word; the repair lost 25 names for 4 gained. Names are a low priority for the owner (Dragon is weak on them too).
+- **Still weak:** drug names (73%; the set uses many oncology and specialty drugs that are not in the primary-care vocabulary) and background talkers. A broader drug list is the obvious next step for the general build.
+- **MedASR** loses names, chart numbers and dates almost entirely and collapses with background talkers. On this kind of dictation it is not a substitute for Whisper.
+- Compute for 5.6 hours of audio on the RTX 4070 Ti SUPER: 1,059 s existing, 1,228 s all options, 136 s MedASR.
+- Synthetic voices and generated notes: a comparison between builds, not accuracy on clinicians. The dictated-prompt example adopted for English (see the multilingual note) was in place for these runs.
+
 ## Limitations
 
 - **Known regression:** with 4 s pauses one held-out letter lost four list commands that the classic pipeline kept (48/52 vs 52/52), and WER in that condition rose 5.81 → 6.06. Commands inside a numbered list ("new line, 2 period") are the weak spot.

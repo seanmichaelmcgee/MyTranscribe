@@ -48,3 +48,74 @@ def test_adjusted_count_forgives_spelling_variants_and_split_words_only():
     assert vt.adjusted_errors(ref, hyp.replace("heartburn", "heartbeat")) == 1      # a real mistake still counts
     assert vt.adjusted_errors("apixaban 5 mg", "ativan 5 mg") == 1
     assert vt.adjusted_errors("the breast bone", "the bone") == 1
+
+
+def test_import_takes_recordings_named_by_item_code(tmp_path, capsys):
+    import argparse
+    import wave
+    import numpy as np
+    pytest = __import__("pytest")
+    pytest.importorskip("faster_whisper")
+    src, out = tmp_path / "drive", tmp_path / "session"
+    src.mkdir()
+    tone = (np.sin(np.arange(44100) * 0.05) * 8000).astype("<i2")
+    for name in ("S01.wav", "c03.wav", "holiday.wav"):
+        with wave.open(str(src / name), "wb") as w:
+            w.setnchannels(1)
+            w.setsampwidth(2)
+            w.setframerate(44100)                               # not the app's rate: must be converted
+            w.writeframes(tone.tobytes())
+    (src / "s01.dragon.txt").write_text("Please let her know.", encoding="utf-8")
+    (src / "holiday.wav").rename(src / "holiday.txt")       # not audio: ignored (a long recording needs a model)
+    vt.cmd_import(argparse.Namespace(**{"set": vt.DEFAULT_SET, "from": src, "out": out, "model": None}))
+    with wave.open(str(out / "items" / "s01.wav")) as w:
+        assert (w.getframerate(), w.getnchannels()) == (16000, 1) and 15000 < w.getnframes() < 17000
+    assert (out / "items" / "c03.wav").is_file() and not (out / "items" / "holiday.wav").exists()
+    assert (out / "items" / "s01.dragon.txt").read_text(encoding="utf-8") == "Please let her know."
+    printed = capsys.readouterr().out
+    assert "2 of 28 items imported" in printed and "still missing" in printed
+
+
+def _timed(text, start=0.0, step=0.4):
+    return [(" " + w, start + i * step, start + i * step + 0.3) for i, w in enumerate(text.split())]
+
+
+def test_break_break_cuts_one_long_recording_into_pieces():
+    words = (_timed("Noted comma confirming receipt of report period")
+             + _timed("Break, break.", 5.0)
+             + _timed("Results reviewed comma no action needed period", 7.0)
+             + _timed("brake break break", 12.0)
+             + _timed("Please take a break from lifting period", 15.0))          # one "break" alone is just a word
+    assert [(round(a, 1), round(b, 1)) for a, b in vt.find_breaks(words)] == [(5.0, 5.7), (12.0, 13.1)]
+    pieces = vt.split_pieces(words, 20.0)
+    assert [p[2].split()[0] for p in pieces] == ["Noted", "Results", "Please"]
+    assert pieces[0][1] < 5.0 and pieces[1][0] > 5.7                            # the break itself is cut out
+
+
+def test_pieces_are_matched_to_items_by_what_was_said_and_a_reread_wins():
+    items = vt.load_set(vt.DEFAULT_SET)
+    by = {it["id"]: it["spoken"] for it in items}
+    pieces = [(0, 5, by["s02"]),                                   # out of order
+              (6, 9, "um sorry noted confirming"),                 # a false start: matches nothing well enough
+              (10, 20, by["s04"].replace("reviewed", "revued")),   # a stumble ...
+              (21, 31, by["s04"]),                                 # ... read again: this one is kept
+              (32, 40, "something else entirely about the weather today and tomorrow")]
+    assert vt.match_pieces(pieces, items) == {"s02": 0, "s04": 3}
+
+
+def test_a_false_start_before_sorry_break_break_is_cut_off():
+    words = (_timed("I would be grateful period Thank you period")
+             + _timed("Thank you for seeing Mrs sorry", 4.0)
+             + _timed("break break", 7.0)
+             + _timed("Thank you for seeing Mrs Dolores Whitcombe comma a 67-year-old woman", 9.0))
+    pieces = vt.split_pieces(words, 20.0)
+    assert pieces[0][2] == "I would be grateful period Thank you period"
+    assert pieces[0][1] < 4.0                                   # the abandoned words are not in the first clip
+    assert pieces[1][2].startswith("Thank you for seeing Mrs Dolores")
+
+
+def test_an_item_that_ends_like_the_next_one_begins_is_not_cut():
+    words = (_timed("I suspect irritable bowel syndrome period Thank you for seeing her period")
+             + _timed("break break", 6.0)
+             + _timed("Thank you for seeing Mr Gordon Tanaka comma a 72-year-old man", 8.0))
+    assert vt.split_pieces(words, 20.0)[0][2].endswith("Thank you for seeing her period")

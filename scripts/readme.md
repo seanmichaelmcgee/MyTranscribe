@@ -10,6 +10,7 @@ Follow [instructions.md](instructions.md) and [project SOP](../docs/PROJECT_SOP.
 | `personal_audio_trial.py` | Opt-in verified original-PCM replay and isolated prompt candidates |
 | `trial_asr.py` | Shared offline raw/filtered/cleaned replay harness; historical PCM route differs from exact replay |
 | `whisper_runtime_trial.py` | Fixed local Whisper runtime trial and opt-in trace adapter |
+| `modulate_benchmark.py` | Term recall on Modulate's Synthetic Medical Dictation (names, drugs, doses, numbers) in six recording conditions |
 | `lang_reliability.py` | Dictated punctuation in Spanish, French, Swahili: synthetic speech sets, pipeline run and scoring |
 | `convert_whisper_model.py` | Download a fine-tuned Whisper (e.g. Swahili) and convert it for the app |
 | `fleurs_benchmark.py` | Baseline word error rate in other languages on the public FLEURS test sets |

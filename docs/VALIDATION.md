@@ -45,6 +45,26 @@ Output, all inside the `--out` folder (`results_1060/` is ignored by git):
 Because the audio is kept, a later build can be scored on the same reading without
 you reading again: delete `local_*.json` and run `score` once more.
 
+### Recording somewhere else (shared Google Drive folder)
+
+The Google Drive folder "MyTranscribe validation" holds the reading script and a `recordings`
+folder. On any machine, start **one** recording with the headset you dictate with and read
+straight through, saying **"break break"** between items. If you stumble, say "sorry, break
+break" and read that item again; the later reading counts. Put the recording in `recordings`
+under any name, in any common audio format; several recordings are fine. Nothing needs naming
+or ordering: `import` cuts the audio at each "break break" and matches every piece to its item
+by what was said. (Files named by item code, `s01.m4a`, and the `items` folder written by this
+tool's `record` window, with its `<code>.dragon.txt` files, are accepted too.) On the analysis
+machine, where Google Drive for desktop shows the folder as `G:\My Drive\MyTranscribe validation`:
+
+```powershell
+python scripts\validation_tool.py import --from "G:\My Drive\MyTranscribe validation\recordings" --out results_1060\validation\session1
+python scripts\validation_tool.py score  --out results_1060\validation\session1
+```
+
+Only the fictional reading material belongs in that folder. Real dictation must never be put
+there: the stage 2 rules below apply to it.
+
 ### Other languages
 
 Draft Spanish and French sets are in `validation/validation_set_es_v1.txt` and
@@ -70,6 +90,21 @@ assistant and need a clinician who dictates in the language to read them first.
 - The set dictates every mark, as you do with Dragon. Whisper is run with pause-aware
   dictation, spoken punctuation and Extra corrections on; MedASR with the text
   options on.
+
+### First real reading (2026-11-16)
+
+The owner read the set in one 8.5-minute recording with spoken breaks (26 of 28 items; the
+first two were not on the recording). It was cut into 26 clips, all matched, including one
+item restarted after "sorry, break break".
+
+| | WER | Adjusted WER | Format ok | Commands | Last words ok |
+|---|---|---|---|---|---|
+| Whisper large-v3, all options | 3.00% | 2.92% | 9/10 | 36/37 | 26/26 |
+| MedASR, text options | 5.92% | 5.33% | 10/10 | 37/37 | 25/26 |
+
+Dragon has not been run on these clips yet (they can be played into it through the virtual
+cable with `record --autoplay`). Getting the cut right mattered: before the clips were kept
+clear of the break words and of an abandoned false start, Whisper's figure read 4.3%.
 
 ### Self-test of the tool and the scorer (2026-11-16)
 

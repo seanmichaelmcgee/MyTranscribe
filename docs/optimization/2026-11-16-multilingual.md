@@ -63,6 +63,29 @@ MultiMed French came out at 33% word errors. It is short clips of conversation a
 
 In the real app window (file audio played in real time as the microphone): a Spanish item came out exactly as its text, Options → Swahili loaded the tuned model, and back to English restored the English model, prompt and corrector.
 
+## Real French prescriptions (PxCorpus)
+
+[PxCorpus](https://huggingface.co/datasets/bastiendechamps/px-corpus) (CC BY 4.0) is spoken drug prescriptions in French: "Kardégic 75 mg, un comprimé par jour pendant un mois". Real people, no dictated punctuation. Its development split (283 recordings, 39 speakers, experts and non-experts) was used to find problems; its test split (570 recordings by 14 doctors) was run once at the end.
+
+Its transcripts are unaccented, write "1" for "un" and spell units out, so a plain word comparison charges the app for writing "mg". `lang_reliability.py files --prescriptions` scores with units, small numbers, accents, hyphens, "%" and the filler "euh" made the same on both sides; drug names are compared as written.
+
+| Development split | Word error rate |
+|---|---|
+| Plain comparison, first run | 24.0% |
+| Fair comparison, same output | 13.9% |
+| + "incomprimé" → "1 comprimé", invented closing lines removed | 11.8% |
+| + French brand names in the term list | 11.5% |
+| + a prescription line in the style prompt | 9.1% |
+| **Test split, run once** | **10.7%** |
+
+What the development recordings showed, all now handled in the French pack:
+
+- "un comprimé" was heard as "incomprimé" in about one prescription in ten.
+- A brand name that opens the recording was often dropped or mangled; an example prescription in the prompt fixed most of that.
+- A trailing "euh" sometimes produced an invented "Sous-titrage …" line (a known Whisper habit in French); such closing lines are removed.
+
+What remains is mostly brand and generic names the model has not met ("praziquantel" → "prasicantel", "Deroxat" → "déoxyde"); the corpus's own spellings are annotators' ("efiline" for Euphylline), so some of those are not errors. The same prescription line was added to the Spanish prompt by analogy and checked only for doing no harm on the synthetic sets.
+
 ## Limits
 
 - **Computer voices and one small real set.** The Corti French result is the only evidence from people dictating, and it is 7 notes from that dataset's speakers. Spanish and Swahili have none.

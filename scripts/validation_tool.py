@@ -9,6 +9,13 @@ turn, and all of them are scored against the text you were asked to read.
     validation_tool.py show                       print the set as you would dictate it
     validation_tool.py record --out <folder>      the reading session (a window)
     validation_tool.py score  --out <folder>      run Whisper, then MedASR, and score all three
+    validation_tool.py import --from <folder> --out <folder>
+                                                  take recordings made elsewhere, e.g. from a shared Google
+                                                  Drive folder, and prepare them for "score". Easiest: ONE
+                                                  long recording of the whole script, saying "break break"
+                                                  between items; it is cut up and each piece is matched to
+                                                  its item by what was said. Files named by item code
+                                                  (s01.m4a, c03.wav) are also accepted.
 
 Everything stays in --out on this PC: one WAV and one Dragon text per item, then
 results.json and results.csv. Nothing is sent anywhere; the recognisers run
@@ -449,6 +456,155 @@ def _autoplay(app, window, items, audio_dir: Path):
     window.close()
 
 
+# ── import ───────────────────────────────────────────────────────────────────
+AUDIO = (".wav", ".m4a", ".mp3", ".mp4", ".aac", ".ogg", ".opus", ".flac", ".wma", ".webm")
+
+
+BREAK_WORDS = ("break", "brake", "breaks", "brakes")
+SORRY_WORDS = {"sorry", "oops", "again", "correction"}   # said before "break break" to abandon a false start
+BREAK_MAX_GAP_S = 1.5          # the two words of "break break" are said together
+MATCH_MIN = 0.35               # a piece must share at least this much of an item's opening words
+PAD_S = 0.2
+
+
+def _plain(word: str) -> str:
+    return re.sub(r"[^a-z0-9]", "", word.lower())
+
+
+def find_breaks(words: list) -> list:
+    """[(start_s, end_s)] of each spoken "break break" in [(word, start, end)]."""
+    out, i = [], 0
+    while i < len(words) - 1:
+        if (_plain(words[i][0]) in BREAK_WORDS and _plain(words[i + 1][0]) in BREAK_WORDS
+                and words[i + 1][1] - words[i][2] <= BREAK_MAX_GAP_S):
+            j = i + 1
+            while j + 1 < len(words) and _plain(words[j + 1][0]) in BREAK_WORDS \
+                    and words[j + 1][1] - words[j][2] <= BREAK_MAX_GAP_S:
+                j += 1                                  # "break break break" is still one break
+            out.append((words[i][1], words[j][2]))
+            i = j + 1
+        else:
+            i += 1
+    return out
+
+
+def _drop_false_start(inside: list, following: list) -> list:
+    """
+    "... thank you period. Thank you for seeing Mrs. Sorry, break break. Thank you for
+    seeing Mrs. Whitcombe ...": the words after the item's end are the next item begun
+    and abandoned. If the stretch ends with the opening words of the next stretch, cut
+    them (and the "sorry") off.
+    """
+    opening = [_plain(w[0]) for w in following[:3]]
+    plain = [_plain(w[0]) for w in inside]
+    if len(opening) < 3 or not set(plain[-2:]) & SORRY_WORDS:
+        return inside                   # only after a spoken "sorry": many items end as the next one begins
+    for k in range(len(plain) - 3, max(len(plain) - 30, 0), -1):
+        if plain[k:k + 3] == opening and k >= 2:
+            return inside[:k]
+    return inside
+
+
+def split_pieces(words: list, audio_s: float) -> list:
+    """[(start_s, end_s, text)] for the stretches between breaks that contain speech."""
+    edges = [0.0]
+    for start, end in find_breaks(words):
+        edges += [start, end]
+    edges.append(audio_s)
+    stretches = [[w for w in words if w[1] >= a - 0.01 and w[2] <= b + 0.01]
+                 for a, b in zip(edges[0::2], edges[1::2])]
+    limits = list(zip(edges[0::2], edges[1::2]))
+    pieces = []
+    for n, inside in enumerate(stretches):
+        if n + 1 < len(stretches):
+            inside = _drop_false_start(inside, stretches[n + 1])
+        if len(inside) >= 2:
+            a, b = limits[n]
+            # Stay clear of the break words on both sides: a clip that catches the start of
+            # "break" gets it transcribed as a word of the item.
+            start = max(a + 0.05 if a > 0 else 0.0, inside[0][1] - PAD_S)
+            last = inside[-1][2]
+            end = min(last + PAD_S, b - 0.05 if b < audio_s else audio_s)
+            end = max(end, min(last + 0.1, audio_s))        # word ends are timed a little early: never cut at one
+            pieces.append((start, end, " ".join(w[0].strip() for w in inside)))
+    return pieces
+
+
+def match_pieces(pieces: list, items: list) -> dict:
+    """
+    {item id: piece index}. Each piece goes to the item whose dictated text it
+    most resembles; when an item was read twice, the later reading wins (so a
+    stumble is fixed by just reading the item again).
+    """
+    import difflib
+    spoken = {it["id"]: [_plain(w) for w in it["spoken"].split()] for it in items}
+    chosen = {}
+    for n, (_a, _b, text) in enumerate(pieces):
+        heard = [_plain(w) for w in text.split() if _plain(w)]
+        best, score = None, 0.0
+        for code, want in spoken.items():
+            size = max(8, min(len(want), len(heard), 60))
+            ratio = difflib.SequenceMatcher(None, want[:size], heard[:size], autojunk=False).ratio()
+            ratio *= min(1.0, len(heard) / max(1, 0.8 * len(want)))     # a false start is not the item
+            if ratio > score:
+                best, score = code, ratio
+        if best is not None and score >= MATCH_MIN:
+            chosen[best] = n
+    return chosen
+
+
+def split_recording(path: Path, items: list, out: Path, engine) -> list:
+    """Cut one long recording at each "break break" and save the pieces as <out>/items/<code>.wav."""
+    import numpy as np
+    from faster_whisper import decode_audio
+    audio = decode_audio(str(path), sampling_rate=SR)
+    segments, _ = engine.model.transcribe(audio, language="en", word_timestamps=True, vad_filter=True,
+                                          condition_on_previous_text=False,
+                                          initial_prompt="Period. New paragraph. Break, break.")
+    words = [(w.word, float(w.start), float(w.end)) for seg in segments for w in (seg.words or [])]
+    pieces = split_pieces(words, len(audio) / SR)
+    chosen = match_pieces(pieces, items)
+    for code, n in chosen.items():
+        a, b, _text = pieces[n]
+        clip = audio[int(a * SR):int(b * SR)]
+        save_wav(out / "items" / f"{code}.wav", (np.clip(clip, -1, 1) * 32767).astype("<i2").tobytes())
+    print(f"{path.name}: {len(audio) / SR / 60:.1f} min, {len(pieces)} pieces between breaks, "
+          f"{len(chosen)} matched to items")
+    return sorted(chosen)
+
+
+def cmd_import(args):
+    """Recordings -> <out>/items/<code>.wav (16 kHz mono), with any <code>.dragon.txt."""
+    import numpy as np
+    from faster_whisper import decode_audio
+    items = load_set(args.set)
+    codes = {it["id"] for it in items}
+    (args.out / "items").mkdir(parents=True, exist_ok=True)
+    taken, long_files = [], []
+    for path in sorted(getattr(args, "from").rglob("*")):
+        if not path.is_file():
+            continue
+        code = path.name.split(".")[0].strip().lower()
+        if path.suffix.lower() in AUDIO:
+            if code not in codes:
+                long_files.append(path)                 # not an item code: one long recording to cut up
+                continue
+            audio = decode_audio(str(path), sampling_rate=SR)
+            save_wav(args.out / "items" / f"{code}.wav", (np.clip(audio, -1, 1) * 32767).astype("<i2").tobytes())
+            taken.append(code)
+        elif path.name.lower().endswith(".dragon.txt") and code in codes:
+            (args.out / "items" / f"{code}.dragon.txt").write_text(path.read_text(encoding="utf-8-sig"), encoding="utf-8")
+    if long_files:
+        import dictation_reliability as dr
+        engine = dr.make_engine("whisper", args.model)
+        for path in long_files:                         # later files win, like later readings
+            taken += split_recording(path, items, args.out, engine)
+    print(f"{len(set(taken))} of {len(codes)} items imported into {args.out}")
+    missing = sorted(codes - set(taken))
+    if missing:
+        print("still missing:", " ".join(missing))
+
+
 # ── score ────────────────────────────────────────────────────────────────────
 # Spellings that are the same word. The plain count charges these as errors; the
 # adjusted count does not. Found by reading every flagged difference on the set.
@@ -600,11 +756,17 @@ def cmd_score(args):
     import dictation_reliability as dr
     import engines
 
-    items = [it for it in load_set(args.set) if (args.out / "items" / f"{it['id']}.dragon.txt").is_file()]
+    items = [it for it in load_set(args.set) if (args.out / "items" / f"{it['id']}.wav").is_file()]
     if not items:
-        raise SystemExit(f"no recorded items in {args.out}; run 'record' first")
-    systems = {"dragon": {it["id"]: (args.out / "items" / f"{it['id']}.dragon.txt").read_text(encoding="utf-8")
-                          for it in items}}
+        raise SystemExit(f"no recorded items in {args.out}; run 'record' or 'import' first")
+    dragon = {it["id"]: (args.out / "items" / f"{it['id']}.dragon.txt").read_text(encoding="utf-8")
+              for it in items if (args.out / "items" / f"{it['id']}.dragon.txt").is_file()}
+    systems = {"dragon": dragon} if dragon else {}         # recordings made without Dragon have no Dragon text
+    if dragon and len(dragon) < len(items):
+        print(f"note: Dragon text exists for {len(dragon)} of {len(items)} items; its totals cover only those")
+        items_dragon = [it for it in items if it["id"] in dragon]
+    else:
+        items_dragon = items
     if items[0]["language"] != "en":                      # only Whisper understands the other languages
         print(f"running whisper ({items[0]['language']}) on {len(items)} recordings ...", flush=True)
         systems["whisper"] = transcribe_all_language(items, args.out, args.model)
@@ -619,11 +781,12 @@ def cmd_score(args):
 
     result, table = {"items": len(items), "systems": {}}, []
     for name, texts in systems.items():
+        scored = items_dragon if name == "dragon" else items
         rows = [dr.score_row({"id": it["id"], "split": "validation", "category": it["category"],
                               "reference": it["reference"], "spoken": it["spoken"]},
                              "orig", texts.get(it["id"], ""), texts.get(it["id"], ""), audio_s=0.0)
-                for it in items]
-        for it, r in zip(items, rows):
+                for it in scored]
+        for it, r in zip(scored, rows):
             r["errors_adjusted"] = adjusted_errors(it["reference"], texts.get(it["id"], ""))
         by_kind = {}
         for kind in ("short", "consult", "all"):
@@ -657,12 +820,15 @@ def cmd_score(args):
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     sub = ap.add_subparsers(dest="cmd", required=True)
-    for name, func in (("show", cmd_show), ("record", cmd_record), ("score", cmd_score)):
+    for name, func in (("show", cmd_show), ("record", cmd_record), ("score", cmd_score), ("import", cmd_import)):
         p = sub.add_parser(name)
         p.add_argument("--set", type=Path, default=DEFAULT_SET)
         p.set_defaults(func=func)
         if name != "show":
             p.add_argument("--out", required=True, type=Path)
+        if name == "import":
+            p.add_argument("--from", required=True, type=Path, help="folder holding the recordings")
+            p.add_argument("--model", help="local Whisper model folder (used to find the breaks)")
         if name == "record":
             p.add_argument("--input", default="microphone", choices=["microphone", "cable"])
             p.add_argument("--autoplay", help="self-test: folder of <id>.wav to play through the virtual cable")

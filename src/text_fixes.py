@@ -111,7 +111,9 @@ def format_readings(text: str) -> str:
     "37.2 °C". Only a number followed by a known unit is touched; "5 mg per day"
     becomes "5 mg/day", "3 times per day" and "2 over the counter" are left alone.
     """
+    import dictation_fixes
     import spoken_numbers
+    text = dictation_fixes.apply(text)                    # spelled names, dates of birth, chart numbers
     text = spoken_numbers.normalise(text)
     text = _OVER.sub(r"\1/\2", text)
     text = _UNIT_PER.sub(lambda m: f"{m.group(1)} {_UNIT[m.group(2).lower()]}/{_PER[m.group(3).lower()]}", text)

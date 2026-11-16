@@ -51,6 +51,10 @@ class LanguagePack:
     space_before: str = ""                                     # marks written with a space before (French : ; ? !)
     say: Dict[str, str] = field(default_factory=dict)          # how to dictate each mark and break (reading sets)
     titles: Tuple[str, ...] = ()                               # abbreviations whose dot is not dictated
+    # Recognition slips with one obvious reading, as (regex, replacement): applied to every text.
+    fixes: Tuple[Tuple[str, str], ...] = ()
+    # Lines the model invents over silence or a trailing "euh" (regexes, matched to the end of the text).
+    phantoms: Tuple[str, ...] = ()
     vocab_file: str = ""                                       # src/vocab/<file>: terms for the spelling corrector
     number_words: Dict[str, str] = field(default_factory=dict)  # small number words written as digits ...
     counted: Tuple[str, ...] = ()                              # ... in front of these (regex alternatives)
@@ -63,6 +67,7 @@ _F = frozenset
 SPANISH = LanguagePack(
     code="es", name="Español (Spanish)",
     reviewed="Drafted from standard Spanish dictation terms; not yet checked with a Spanish-dictating clinician.",
+    phantoms=(r"subt[ií]tulos\s+(?:realizados|por la comunidad)\b[^\n]*", r"gracias por ver(?: el v[ií]deo)?[^\n]*"),
     paragraph=("punto y aparte", "nuevo párrafo", "nuevo parrafo", "párrafo nuevo", "parrafo nuevo"),
     line=("nueva línea", "nueva linea", "línea nueva", "linea nueva", "salto de línea", "salto de linea"),
     open_quote=("abrir comillas", "abre comillas", "comillas de apertura"),
@@ -109,7 +114,9 @@ SPANISH = LanguagePack(
     prompt="Gracias por valorar a la Sra. Gómez, mujer de 67 años con dolor de rodilla derecha de 6 semanas de "
            "evolución. Antecedentes: hipertensión arterial, diabetes mellitus tipo 2. Tratamiento: metformina "
            "850 mg cada 12 horas, enalapril 10 mg al día. Exploración: tensión arterial 142/86 mmHg, frecuencia "
-           "cardíaca 74 lpm.",
+           "cardíaca 74 lpm. "
+           # By analogy with French (where a prescription line was measured to help); not measured in Spanish.
+           "Receta: paracetamol 1 g, 1 comprimido cada 8 horas durante 5 días. Omeprazol 20 mg, 1 cápsula al día.",
 )
 
 FRENCH = LanguagePack(
@@ -145,6 +152,10 @@ FRENCH = LanguagePack(
          "\n\n": "nouveau paragraphe", "\n": "à la ligne", "open": "ouvrez les guillemets",
          "close": "fermez les guillemets"},
     titles=("M", "Dr", "Pr"),
+    # PxCorpus development recordings: "un comprimé" is heard as "incomprimé" in about one prescription in ten.
+    fixes=((r"\b[iI]ncomprim(ée?s?|és?)\b", r"1 comprim\1"),),
+    phantoms=(r"sous[- ]titrage\b[^\n]*", r"sous[- ]titres?\s+(?:réalisés?|faits?)\b[^\n]*",
+              r"merci d['’]avoir regardé[^\n]*"),
     vocab_file="medical_fr.txt",
     number_words={"deux": "2", "trois": "3", "quatre": "4", "cinq": "5", "six": "6", "sept": "7", "huit": "8",
                   "neuf": "9", "dix": "10", "onze": "11", "douze": "12", "quinze": "15", "vingt": "20",
@@ -162,7 +173,11 @@ FRENCH = LanguagePack(
                "kilogramme": "kg"},
     prompt="Je vous remercie de recevoir Mme Lefèvre, 67 ans, pour une gonalgie droite évoluant depuis 6 semaines. "
            "Antécédents : hypertension artérielle, diabète de type 2. Traitement : metformine 850 mg matin et soir, "
-           "ramipril 5 mg par jour. À l'examen : tension artérielle 14/8, fréquence cardiaque 74/min.",
+           "ramipril 5 mg par jour. À l'examen : tension artérielle 14/8, fréquence cardiaque 74/min. "
+           # A prescription line: without it the model drops or mangles a brand name that opens the
+           # recording and hears "un comprimé" as "incomprimé" (PxCorpus development: 11.5% -> 9.1%).
+           "Ordonnance : Kardégic 75 mg, 1 comprimé par jour pendant 1 mois. Doliprane 1 g, 1 comprimé "
+           "3 fois par jour pendant 5 jours. Ventoline, 2 bouffées si besoin.",
 )
 
 SWAHILI = LanguagePack(

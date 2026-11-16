@@ -167,10 +167,20 @@ def prompt_for(pack: LanguagePack, punctuation: bool) -> str:
     return pack.prompt
 
 
+def clean(text: str, pack: LanguagePack) -> str:
+    """Drop invented closing lines and apply the pack's one-reading fixes ("incomprimé" -> "1 comprimé")."""
+    for pattern in pack.phantoms:
+        text = re.sub(r"[ \t]*" + pattern + r"[ \t.!]*$", "", text, flags=re.I)
+    for pattern, replacement in pack.fixes:
+        text = re.sub(pattern, replacement, text)
+    return text
+
+
 def apply(text: str, pack: LanguagePack, punctuation: bool = False) -> str:
     """Spoken formatting commands (and, with punctuation=True, dictated marks) -> formatting."""
     if not text:
         return text
+    text = clean(text, pack)
     if pack.paragraph:
         text = _replace(text, _any(pack.paragraph, loose=True), "\x03", full_stop=True)   # a paragraph ends its sentence
     if pack.line:

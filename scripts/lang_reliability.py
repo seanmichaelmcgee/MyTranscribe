@@ -65,6 +65,34 @@ def mark_errors(reference: str, hyp: str):
     return sum(map(is_mark, r)), missing, added
 
 
+_RX_FR = {"mg": "milligrammes", "milligramme": "milligrammes", "g": "grammes", "gramme": "grammes",
+          "µg": "microgrammes", "mcg": "microgrammes", "microgramme": "microgrammes", "ml": "millilitres",
+          "millilitre": "millilitres", "kg": "kilogrammes", "h": "heures", "heure": "heures", "un": "1", "une": "1",
+          "deux": "2", "trois": "3", "quatre": "4", "cinq": "5", "six": "6", "sept": "7", "huit": "8", "neuf": "9",
+          "dix": "10", "pourcent": "pourcent", "comprimé": "comprimés", "comprimée": "comprimés",
+          "comprimées": "comprimés", "gélule": "gélules", "goutte": "gouttes", "jour": "jours", "semaine": "semaines"}
+
+
+def rx_tokens(text: str) -> list:
+    """
+    Word tokens for scoring French prescriptions against PxCorpus transcripts, which are
+    unaccented, write "1" for "un" and spell units out. Units, small numbers, plural of
+    the commonest nouns, accents, hyphens, "%" and the filler "euh" are made the same on
+    both sides; drug names and everything else are compared as written.
+    """
+    import unicodedata
+    text = text.lower().replace("’", "'").replace("%", " pourcent ").replace("pour cent", "pourcent")
+    text = re.sub(r"(\d)\s*h\b", r"\1 heures", text)
+    text = re.sub(r"(?<=\d)[ .](?=\d{3}\b)", "", text)                     # 1 000 / 1.000 -> 1000
+    out = []
+    for w in re.findall(r"[^\W_]+(?:'[^\W_]+)*", text.replace("-", " "), re.UNICODE):
+        w = _RX_FR.get(w, w)
+        w = "".join(c for c in unicodedata.normalize("NFD", w) if unicodedata.category(c) != "Mn")
+        if w not in ("euh", "heu"):
+            out.append(w)
+    return out
+
+
 def edit_distance(a: list, b: list) -> int:
     prev = list(range(len(b) + 1))
     for i in range(1, len(a) + 1):
@@ -212,24 +240,32 @@ def cmd_files(args):
     from faster_whisper import decode_audio
 
     pack = lang_packs.get(args.language)
-    model = args.model or engines.tuned_model(args.language)
-    engine = dr.make_engine("whisper", str(model) if model else None)
-    engine.language = pack.code
-    pause_flow.set_language(pack)
-    post = lang_commands.corrector_for(pack)
-    if post is not None:
-        post.same_sound = True
-    rows = json.loads((args.out / "refs.json").read_text(encoding="utf-8"))
-    prompt = lang_commands.prompt_for(pack, args.dictated)
-    for r in rows:
-        audio = decode_audio(str(args.out / r["wav"]), sampling_rate=16000)
-        r["raw"] = dr.run_pipeline(engine, audio, None, prompt, None, post, dr.PROFILES["candidate"], with_spoken=True)[4]
-        r["text"] = lang_commands.apply(lang_commands.format_readings(r["raw"], pack), pack, punctuation=args.dictated)
     name = "dictated" if args.dictated else "plain"
-    (args.out / f"out_{name}.json").write_text(json.dumps(rows, indent=1, ensure_ascii=False), encoding="utf-8")
+    saved = args.out / f"out_{name}.json"
+    if args.rescore:
+        rows = json.loads(saved.read_text(encoding="utf-8"))
+    else:
+        model = args.model or engines.tuned_model(args.language)
+        engine = dr.make_engine("whisper", str(model) if model else None)
+        engine.language = pack.code
+        pause_flow.set_language(pack)
+        post = lang_commands.corrector_for(pack)
+        if post is not None:
+            post.same_sound = True
+        rows = json.loads((args.out / "refs.json").read_text(encoding="utf-8"))
+        import os
+        prompt = os.environ.get("LANG_PROMPT", lang_commands.prompt_for(pack, args.dictated))
+        for r in rows:
+            audio = decode_audio(str(args.out / r["wav"]), sampling_rate=16000)
+            r["raw"] = dr.run_pipeline(engine, audio, None, prompt, None, post, dr.PROFILES["candidate"],
+                                       with_spoken=True)[4]
+    for r in rows:
+        r["text"] = lang_commands.apply(lang_commands.format_readings(r["raw"], pack), pack, punctuation=args.dictated)
+    saved.write_text(json.dumps(rows, indent=1, ensure_ascii=False), encoding="utf-8")
+    tokens = rx_tokens if args.prescriptions else word_tokens
     for label, key in (("before conversion", "raw"), ("final text", "text")):
-        errs = sum(edit_distance(word_tokens(r["reference"]), word_tokens(r[key])) for r in rows)
-        words = sum(len(word_tokens(r["reference"])) for r in rows)
+        errs = sum(edit_distance(tokens(r["reference"]), tokens(r[key])) for r in rows)
+        words = sum(len(tokens(r["reference"])) for r in rows)
         print(f"{args.language} {args.out.name} ({name}) {label}: {len(rows)} recordings, {words} words, "
               f"WER {100 * errs / max(1, words):.2f}%")
 
@@ -245,6 +281,9 @@ def main(argv=None):
         if name == "files":
             p.add_argument("--model")
             p.add_argument("--dictated", action="store_true", help="the speakers dictate punctuation")
+            p.add_argument("--prescriptions", action="store_true",
+                           help="score with the French prescription normaliser (PxCorpus transcripts)")
+            p.add_argument("--rescore", action="store_true", help="score the saved output again; no recognition")
             continue
         if name == "make":
             p.add_argument("--fleurs", required=True, type=Path)
