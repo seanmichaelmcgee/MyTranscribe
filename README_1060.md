@@ -92,6 +92,10 @@ observation", "the sigmoid colon" and "colon cancer" stay words, but that check 
 list and can be wrong on an unusual phrase, so read the result. Leave it off if you let the
 app punctuate for you. `MYTRANSCRIBE_SPOKEN_PUNCTUATION=1` (or `0`) overrides the saved choice.
 
+**Only the commas I dictate** (Options, off by default; needs Spoken punctuation) removes the
+commas the model adds by itself and keeps the ones you say, the way Dragon behaves. For people
+who dictate every comma. `MYTRANSCRIBE_ONLY_DICTATED_COMMAS=1` (or `0`) overrides the saved choice.
+
 **Extra corrections** (Options, off by default) fixes a misspelled drug or term when it
 sounds exactly like one vocabulary word and no other ("prendipril" becomes perindopril), and
 writes readings the chart way: "138 over 78" as 138/78, "g per litre" as g/L, "degrees

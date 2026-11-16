@@ -93,6 +93,97 @@ def rx_tokens(text: str) -> list:
     return out
 
 
+# ── Fair scoring: the same number and unit style on both sides ───────────────
+def _french_numbers() -> dict:
+    units = ("zéro un deux trois quatre cinq six sept huit neuf dix onze douze treize quatorze quinze seize "
+             "dix-sept dix-huit dix-neuf").split()
+    tens = {20: "vingt", 30: "trente", 40: "quarante", 50: "cinquante", 60: "soixante", 80: "quatre-vingt"}
+    below = {}
+    for n in range(100):
+        if n < 20:
+            below[n] = [units[n]]
+        elif n < 70 or 80 <= n < 90:
+            base, u = n // 10 * 10, n % 10
+            if u == 0:
+                below[n] = [tens[base] + ("s" if base == 80 else ""), tens[base]]
+            elif u == 1 and base != 80:
+                below[n] = [f"{tens[base]} et un", f"{tens[base]}-et-un"]
+            else:
+                below[n] = [f"{tens[base]}-{units[u]}"]
+        else:                                           # 70-79 and 90-99 count on from 60 / 80
+            base, u = (60, n - 60) if n < 80 else (80, n - 80)
+            below[n] = [f"{tens[base]} et onze", f"{tens[base]}-et-onze"] if n == 71 else [f"{tens[base]}-{units[u]}"]
+    out = {}
+    for n in range(2, 1000):
+        h, r = divmod(n, 100)
+        heads = [""] if h == 0 else ["cent"] if h == 1 else [f"{units[h]} cent", f"{units[h]} cents", f"{units[h]}-cent"]
+        tails = [""] if r == 0 else below[r]
+        for head in heads:
+            for tail in tails:
+                phrase = f"{head} {tail}".strip()
+                if phrase:
+                    out[phrase] = str(n)
+    out["mille"] = "1000"
+    return out
+
+
+def _spanish_numbers() -> dict:
+    units = ("cero uno dos tres cuatro cinco seis siete ocho nueve diez once doce trece catorce quince dieciséis "
+             "diecisiete dieciocho diecinueve veinte veintiuno veintidós veintitrés veinticuatro veinticinco "
+             "veintiséis veintisiete veintiocho veintinueve").split()
+    tens = {30: "treinta", 40: "cuarenta", 50: "cincuenta", 60: "sesenta", 70: "setenta", 80: "ochenta", 90: "noventa"}
+    hundreds = {1: "ciento", 2: "doscientos", 3: "trescientos", 4: "cuatrocientos", 5: "quinientos", 6: "seiscientos",
+                7: "setecientos", 8: "ochocientos", 9: "novecientos"}
+    below = {n: [units[n]] for n in range(30)}
+    for n in range(30, 100):
+        base, u = n // 10 * 10, n % 10
+        below[n] = [tens[base]] if u == 0 else [f"{tens[base]} y {units[u]}"]
+    out = {}
+    for n in range(2, 1000):
+        h, r = divmod(n, 100)
+        heads = [""] if h == 0 else [hundreds[h], hundreds[h][:-2] + "as"] if h > 1 else ["ciento"]
+        if n == 100:
+            out["cien"] = "100"
+            continue
+        for head in heads:
+            for tail in ([""] if r == 0 else below[r]):
+                phrase = f"{head} {tail}".strip()
+                if phrase:
+                    out[phrase] = str(n)
+    out["mil"] = "1000"
+    for accented, plain in (("dieciséis", "dieciseis"), ("veintidós", "veintidos"), ("veintitrés", "veintitres"),
+                            ("veintiséis", "veintiseis")):
+        for phrase in [k for k in out if accented in k]:
+            out[phrase.replace(accented, plain)] = out[phrase]
+    return out
+
+
+_NUMBER_TABLES = {}
+
+
+def fair_tokens(text: str, language: str) -> list:
+    """
+    Word tokens with number words written as digits (2 to 1000) and the pack's units
+    abbreviated, so a reference that spells "soixante-trois milligrammes" and a
+    transcript that writes "63 mg" count as the same. "un / uno / una" are left alone:
+    they are also articles. Per cent is written the same way on both sides.
+    """
+    if language not in _NUMBER_TABLES:
+        table = {"fr": _french_numbers, "es": _spanish_numbers}.get(language, dict)()
+        pattern = re.compile(r"(?<![\w-])(" + "|".join(re.escape(k) for k in sorted(table, key=len, reverse=True))
+                             + r")(?![\w-])") if table else None
+        _NUMBER_TABLES[language] = (table, pattern)
+    table, pattern = _NUMBER_TABLES[language]
+    text = text.lower().replace("’", "'")
+    text = re.sub(r"\bpour[- ]cent\b|\bpor ciento\b|%", " pct ", text)
+    if pattern is not None:
+        text = pattern.sub(lambda m: table[m.group(1)], text)
+    pack = lang_packs.get(language)
+    if pack is not None:
+        text = lang_commands.format_readings(text, pack).lower()
+    return word_tokens(text.replace("/", " "))
+
+
 def edit_distance(a: list, b: list) -> int:
     prev = list(range(len(b) + 1))
     for i in range(1, len(a) + 1):
@@ -263,6 +354,8 @@ def cmd_files(args):
         r["text"] = lang_commands.apply(lang_commands.format_readings(r["raw"], pack), pack, punctuation=args.dictated)
     saved.write_text(json.dumps(rows, indent=1, ensure_ascii=False), encoding="utf-8")
     tokens = rx_tokens if args.prescriptions else word_tokens
+    if args.fair:
+        tokens = lambda t: fair_tokens(t, args.language)            # noqa: E731
     for label, key in (("before conversion", "raw"), ("final text", "text")):
         errs = sum(edit_distance(tokens(r["reference"]), tokens(r[key])) for r in rows)
         words = sum(len(tokens(r["reference"])) for r in rows)
@@ -284,6 +377,8 @@ def main(argv=None):
             p.add_argument("--prescriptions", action="store_true",
                            help="score with the French prescription normaliser (PxCorpus transcripts)")
             p.add_argument("--rescore", action="store_true", help="score the saved output again; no recognition")
+            p.add_argument("--fair", action="store_true",
+                           help="write number words as digits and units as abbreviations on both sides before scoring")
             continue
         if name == "make":
             p.add_argument("--fleurs", required=True, type=Path)

@@ -111,7 +111,7 @@ def cmd_run(args):
     engine = dr.FasterWhisperEngine(cfg)
     engine.warmup()
     style = dr.load_prompt()
-    builder, post = dr.build_text_pipeline(style, count=engine.count_tokens, env={})
+    builder, post = dr.build_text_pipeline(style, count=engine.count_tokens, env=profile.get("env", {}))
     cells = json.loads((args.out / f"cells_{args.split}.json").read_text(encoding="utf-8"))
     for c in cells:
         audio = cb.load_wav(args.out / c["wav"])

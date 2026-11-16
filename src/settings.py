@@ -12,6 +12,7 @@ Environment variables still override the file (handy for testing):
   MYTRANSCRIBE_ENGINE                           whisper|medasr|parakeet|canary: the recogniser
   MYTRANSCRIBE_PAUSE_AWARE                      1|0: pause-aware dictation on/off
   MYTRANSCRIBE_SPOKEN_PUNCTUATION               1|0: convert dictated punctuation marks on/off
+  MYTRANSCRIBE_ONLY_DICTATED_COMMAS             1|0: keep only the commas that were dictated
   MYTRANSCRIBE_EXTRA_FIXES                      1|0: same-sound term correction and readings format on/off
 """
 
@@ -57,6 +58,7 @@ class Settings:
     autopaste: bool = False
     pause_aware: bool = False          # pause-aware dictation (see pause_flow.py); off = classic pipeline
     extra_fixes: bool = False          # same-sound drug-name correction + readings format (138/78, g/L)
+    only_dictated_commas: bool = False  # with spoken punctuation: drop commas the model added by itself
     spoken_punctuation: bool = False   # "period", "comma", "colon" ... -> the marks (voice_commands.py)
 
     def triggers(self) -> TriggerConfig:
@@ -75,6 +77,7 @@ class Settings:
         self.autopaste = bool(self.autopaste)
         self.pause_aware = bool(self.pause_aware)
         self.spoken_punctuation = bool(self.spoken_punctuation)
+        self.only_dictated_commas = bool(self.only_dictated_commas)
         self.extra_fixes = bool(self.extra_fixes)
         if self.key not in KEY_CHOICES and self.key != "none":
             self.key = d.key
@@ -122,7 +125,8 @@ def load(path: Optional[Path] = None, env: Optional[dict] = None) -> Settings:
         s.engine = forced_engine
     for attr, var in (("pause_aware", "MYTRANSCRIBE_PAUSE_AWARE"),
                       ("spoken_punctuation", "MYTRANSCRIBE_SPOKEN_PUNCTUATION"),
-                      ("extra_fixes", "MYTRANSCRIBE_EXTRA_FIXES")):
+                      ("extra_fixes", "MYTRANSCRIBE_EXTRA_FIXES"),
+                      ("only_dictated_commas", "MYTRANSCRIBE_ONLY_DICTATED_COMMAS")):
         forced = env.get(var, "").strip().lower()
         if forced:
             setattr(s, attr, forced in ("1", "true", "yes", "on"))

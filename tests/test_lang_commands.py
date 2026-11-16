@@ -150,3 +150,18 @@ def test_french_slips_and_invented_closing_lines():
     assert apply("Incomprimés matin et soir", FR) == "1 comprimés matin et soir"
     assert apply("Le sous-titrage du film est en cours. Repos.", FR) == "Le sous-titrage du film est en cours. Repos."[:0] or True
     assert apply("Reposo absoluto. Subtítulos realizados por la comunidad de Amara.org", ES) == "Reposo absoluto."
+
+
+def test_fair_scoring_treats_number_words_and_digits_alike():
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
+    import lang_reliability as lr
+    same = [("fr", "soixante-trois ans, quatre-vingt-neuf pour cent, deux cent cinquante milligrammes, soixante et onze",
+             "63 ans, 89 %, 250 mg, 71"),
+            ("fr", "quatre-vingts battements, cent vingt sur quatre-vingt", "80 battements, 120 sur 80"),
+            ("es", "treinta y cinco años, ciento veinte miligramos, dieciséis por ciento, doscientas unidades",
+             "35 años, 120 mg, 16 %, 200 unidades"),
+            ("es", "dos comprimidos cada ocho horas durante veintiún días", "2 comprimidos cada 8 horas durante veintiún días")]
+    for language, spelled, digits in same:
+        assert lr.fair_tokens(spelled, language) == lr.fair_tokens(digits, language), spelled
+    assert lr.fair_tokens("un comprimé", "fr") == ["un", "comprimé"]           # the article is not a number
+    assert lr.fair_tokens("trois", "fr") != lr.fair_tokens("4", "fr")

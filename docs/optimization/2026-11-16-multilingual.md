@@ -86,6 +86,20 @@ What the development recordings showed, all now handled in the French pack:
 
 What remains is mostly brand and generic names the model has not met ("praziquantel" → "prasicantel", "Deroxat" → "déoxyde"); the corpus's own spellings are annotators' ("efiline" for Euphylline), so some of those are not errors. The same prescription line was added to the Spanish prompt by analogy and checked only for doing no harm on the synthetic sets.
 
+## More real and synthetic sets (searched in Spanish and French too)
+
+| Set | Language | What it is | Result |
+|---|---|---|---|
+| [TEME-v1](https://zenodo.org/records/17280661) (CC BY 4.0) | Spanish | 90 synthetic doctor-patient dialogues, ten specialties, 37,000 words | 4.7% word errors as written; 4.3% with number words and units compared fairly |
+| Dictées médicales ultra complexes (no licence stated: evaluation only) | French | 107 synthetic medical dictations, 22 specialties, 5.5 hours | development part (30): 21.9% as written, 20.7% fair; held part (77) not run yet |
+
+- `lang_reliability.py files --fair` writes number words as digits (2 to 1000, French and Spanish tables in the script) and units as abbreviations on both sides before comparing, so "soixante-trois milligrammes" and "63 mg" count as the same.
+- **Spanish (TEME):** after fair scoring the commonest real errors are "tensión" heard as "atención", "TAC" as "tag", and a few drug names. No changes made from it yet.
+- **French dictations:** the errors that survive fair scoring are units read aloud and written wrongly ("mmHg" as "mg", "µmol/L" as "moll", "g/L" as "gl"), "créatininémie" shortened to "créatinine", "FEVG" to "FEV", and the letter opening "Cher confrère" written in the plural. These are fixable with prompt and term-list work on the development part; not done yet.
+- **Found but unusable:** the Kiswahili ASR challenge evaluation set (audio only, transcripts unpublished), PixVoice French healthcare speech (audio without its transcript files) and the WannaMedASR French benchmark (score reports only).
+- **Not found:** any open recording of clinicians dictating in Spanish. Two papers say the same; one built its audio by text-to-speech over Spanish clinical text.
+- **Waiting on access:** AfriSwitchCare (Swahili-English clinical conversations, non-commercial) and AfriVox-v2, requested by the owner.
+
 ## Limits
 
 - **Computer voices and one small real set.** The Corti French result is the only evidence from people dictating, and it is 7 notes from that dataset's speakers. Spanish and Swahili have none.

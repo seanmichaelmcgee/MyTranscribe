@@ -167,6 +167,16 @@ class OptionsDialog(QDialog):
         self.spoken_punctuation.setEnabled(settings.voice_commands)
         self.voice_commands.toggled.connect(self.spoken_punctuation.setEnabled)
         layout.addWidget(self.spoken_punctuation)
+        self.only_dictated_commas = QCheckBox("Only the commas I dictate (as Dragon does)")
+        self.only_dictated_commas.setToolTip("With spoken punctuation on: commas the model adds by itself are removed, "
+                                            "and only the ones you say stay. Use it if you dictate every comma.")
+        self.only_dictated_commas.setChecked(settings.only_dictated_commas)
+        self.only_dictated_commas.setEnabled(settings.voice_commands and settings.spoken_punctuation)
+        self.spoken_punctuation.toggled.connect(
+            lambda on: self.only_dictated_commas.setEnabled(on and self.voice_commands.isChecked()))
+        self.voice_commands.toggled.connect(
+            lambda on: self.only_dictated_commas.setEnabled(on and self.spoken_punctuation.isChecked()))
+        layout.addWidget(self.only_dictated_commas)
         self.extra_fixes = QCheckBox("Extra corrections: drug names that sound right, 138/78, g/L (new)")
         self.extra_fixes.setToolTip("Fixes a misspelled term when it sounds exactly like one vocabulary word "
                                    "and no other, and writes readings the chart way: 138 over 78 as 138/78, "
@@ -277,5 +287,6 @@ class OptionsDialog(QDialog):
                        live_insert=self.live_insert.isChecked(),
                        pause_aware=self.pause_aware.isChecked(),
                        spoken_punctuation=self.spoken_punctuation.isChecked(),
+                       only_dictated_commas=self.only_dictated_commas.isChecked(),
                        extra_fixes=self.extra_fixes.isChecked(),
                        chime_volume=self.chime_volume.value(), autopaste=self.autopaste.isChecked())

@@ -39,6 +39,7 @@ def test_settings_file_never_holds_text(tmp_path):
                                                               "start_compact", "accuracy", "voice_commands",
                                                               "keep_mic_ready", "live_insert", "chime_volume", "autopaste",
                                                               "pause_aware", "spoken_punctuation", "engine", "language",
+                                                              "only_dictated_commas",
                                                               "extra_fixes"}
 
 

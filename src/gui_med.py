@@ -877,7 +877,8 @@ class MedTranscriptionWindow(TranscriptionWindow):
             return text
         # MedASR writes dictated marks as words of its own accord: always convert those.
         marks = self._settings.spoken_punctuation or getattr(self._engine, "writes_marker_words", False)
-        return voice_commands.apply(text, lenient=self._settings.pause_aware, punctuation=marks)
+        return voice_commands.apply(text, lenient=self._settings.pause_aware, punctuation=marks,
+                                    only_dictated_commas=self._settings.only_dictated_commas)
 
     # ── Clipboard: verified copy, then (maybe) paste ──────────────────────────
     def _clipboard(self):

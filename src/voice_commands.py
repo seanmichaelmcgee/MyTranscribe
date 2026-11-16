@@ -174,7 +174,10 @@ def _is_noun(word: str, before: str, after: str) -> bool:
     return False
 
 
-def spoken_marks(text: str) -> str:
+_DICTATED_COMMA = "\x08"          # a comma that was said, while only-dictated-commas is sorting them out
+
+
+def spoken_marks(text: str, tag_commas: bool = False) -> str:
     """Dictated punctuation marks -> the marks (see the module docstring)."""
     text = _CLOSE_PAREN.sub(")", _OPEN_PAREN.sub(" (", text))
     text = _HYPHEN.sub("-", text)
@@ -189,7 +192,8 @@ def spoken_marks(text: str) -> str:
         out.append(left)
         written = "".join(out)
         if written and written[-1] not in PUNCT + _LINE_START + "(":
-            out.append(_MARKS[word])                  # nothing to attach to at a text or line start
+            mark = _MARKS[word]                       # nothing to attach to at a text or line start
+            out.append(_DICTATED_COMMA if tag_commas and mark == "," else mark)
         pos = m.end()
         while pos < len(text) and text[pos] in PUNCT + " \t":
             pos += 1
@@ -219,23 +223,31 @@ def _open_missing_quotes(text: str) -> str:
     return "".join(parts)
 
 
-def apply(text: str, lenient: bool = False, punctuation: bool = False) -> str:
+def apply(text: str, lenient: bool = False, punctuation: bool = False, only_dictated_commas: bool = False) -> str:
     """
     Return `text` with spoken formatting commands turned into formatting.
     lenient=True also accepts "new paragraph" / "new line" written without
     punctuation; punctuation=True also converts dictated marks ("period",
     "comma", ...). See the module docstring.
+
+    only_dictated_commas=True (with punctuation) is for people who say every
+    comma, as with Dragon: the commas the model adds by itself ("normal, with
+    no murmurs" when no comma was said) are removed and only spoken ones stay.
+    Commas inside numbers ("1,000") are kept.
     """
     if not text:
         return text
     for pattern, br in _BREAKS:
         text = _replace_commands(text, pattern, "\x03" if br == "\n\n" else "\x04", lenient)
+    strict = punctuation and only_dictated_commas
     if punctuation:
-        text = spoken_marks(text)
+        text = spoken_marks(text, tag_commas=strict)
     text = _replace_commands(text, _OPEN, "\x01")
     text = _replace_commands(text, _CLOSE, "\x02")
     if lenient:
         text = _open_missing_quotes(text)
+    if strict:
+        text = re.sub(r"(?<!\d),|,(?!\d)", "", text).replace(_DICTATED_COMMA, ",")
     text = text.replace("\x03", "\n\n").replace("\x04", "\n")
     text = re.sub(r"[ \t]*\x01[ \t]*", ' "', text)   # opening quote: space before, none after
     text = re.sub(r"[ \t]*\x02", '"', text)          # closing quote: hug the last word

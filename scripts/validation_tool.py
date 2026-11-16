@@ -655,7 +655,7 @@ def adjusted_errors(reference: str, text: str) -> int:
     return sum(op != "ok" for op, _i, _j in dr.align(ref, hyp))
 
 
-PROFILES = {"whisper": "candidate_full", "medasr": "classic_full", "parakeet": "classic_full", "canary": "classic_full"}
+PROFILES = {"whisper": "candidate_full", "whisper-personal": "personal", "whisper-topics": "personal_topics", "medasr": "classic_full", "parakeet": "classic_full", "canary": "classic_full"}
 
 
 def transcribe_all_language(items: list, out: Path, model=None) -> dict:
@@ -735,13 +735,13 @@ def transcribe_all(engine_name: str, items: list, out: Path, model=None) -> dict
     todo = [it for it in items if it["id"] not in done and (out / "items" / f"{it['id']}.wav").is_file()]
     if not todo:
         return done
-    if model and engine_name == "whisper":
+    if model and engine_name.startswith("whisper"):
         import os
         os.environ["MYTRANSCRIBE_MODEL"] = str(model)
-    engine = engines.build(engine_name)
+    engine = engines.build(engine_name.split("-")[0])
     profile = dr.PROFILES[PROFILES[engine_name]]
     style = dr.style_for(profile)
-    builder, post = dr.build_text_pipeline(style, count=getattr(engine, "count_tokens", None), env={})
+    builder, post = dr.build_text_pipeline(style, count=getattr(engine, "count_tokens", None), env=profile.get("env", {}))
     for it in todo:
         audio = load_wav(out / "items" / f"{it['id']}.wav")
         text = dr.run_pipeline(engine, audio, None, style, builder, post, profile)[0]
@@ -776,7 +776,7 @@ def cmd_score(args):
         systems["whisper"] = transcribe_all_language(items, args.out, args.model)
         return score_language(args, items, systems)
     for name in args.engines.split(","):
-        ok, why = engines.availability(name)
+        ok, why = engines.availability(name.split("-")[0])
         if not ok:
             print(f"skipping {name}: {why}")
             continue

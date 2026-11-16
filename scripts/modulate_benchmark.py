@@ -70,7 +70,7 @@ def cmd_run(args):
     profile = dr.PROFILES[args.profile]
     engine = dr.make_engine(args.engine, args.model, profile)
     style = dr.style_for(profile)
-    builder, post = dr.build_text_pipeline(style, count=getattr(engine, "count_tokens", None), env={})
+    builder, post = dr.build_text_pipeline(style, count=getattr(engine, "count_tokens", None), env=profile.get("env", {}))
     rows = json.loads((args.out / "refs.json").read_text(encoding="utf-8"))
     tag = args.profile if args.engine == "whisper" else f"{args.engine}_{args.profile}"
     saved = args.out / f"out_{tag}.json"

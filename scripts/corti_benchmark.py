@@ -42,7 +42,7 @@ def cmd_run(args):
     engine = dr.make_engine(args.engine, args.model, profile)
     cfg = engine.config
     style = dr.style_for(profile)
-    builder, post = dr.build_text_pipeline(style, count=getattr(engine, "count_tokens", None), env={})
+    builder, post = dr.build_text_pipeline(style, count=getattr(engine, "count_tokens", None), env=profile.get("env", {}))
     tag = args.profile if args.engine == "whisper" else f"{args.engine}_{args.profile}"
     rows, t0 = [], time.perf_counter()
     for wav in sorted(args.audio.glob("row*.wav")):

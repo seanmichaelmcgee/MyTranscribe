@@ -151,3 +151,12 @@ def test_lenient_opens_a_quote_the_model_dropped_after_a_break():
     assert '"Routine' not in apply(first_line, lenient=True)           # no break before it: left alone
     both = "Seen. New line. Open quote. Rest. Close quote."
     assert apply(both, lenient=True) == 'Seen.\n"Rest".'
+
+
+def test_only_dictated_commas_drops_the_ones_the_model_added():
+    raw = ("Heart sounds were normal, with no murmurs, period. He takes ramipril comma, metformin 1,000 mg, "
+           "and rosuvastatin period. New paragraph. Open quote, rest, close quote period")
+    kept = apply(raw, lenient=True, punctuation=True, only_dictated_commas=True)
+    assert kept == 'Heart sounds were normal with no murmurs. He takes ramipril, metformin 1,000 mg and rosuvastatin.\n\n"Rest".'
+    assert ", with no murmurs" in apply(raw, lenient=True, punctuation=True)          # the default keeps them
+    assert apply("stable, today", lenient=True, only_dictated_commas=True) == "stable, today"   # needs spoken punctuation

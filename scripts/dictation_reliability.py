@@ -89,6 +89,12 @@ PROFILES = {
     "candidate_marks": dict(_CANDIDATE, commands={"lenient": True, "punctuation": True}),
     # ... plus Options -> "Extra corrections".
     "candidate_full": dict(_CANDIDATE, commands={"lenient": True, "punctuation": True}, extra_fixes=True),
+    # The owner's way of dictating: every mark spoken, so only dictated commas are kept.
+    "personal": dict(_CANDIDATE, commands={"lenient": True, "punctuation": True, "only_dictated_commas": True},
+                     extra_fixes=True),
+    # ... with vocabulary topics assumed from the first word (short messages have no context to pick one from).
+    "personal_topics": dict(_CANDIDATE, commands={"lenient": True, "punctuation": True, "only_dictated_commas": True},
+                            extra_fixes=True, env={"MYTRANSCRIBE_VOCAB_TOPICS": "hypertension,diabetes,respiratory"}),
     # The text options without the pause-aware pipeline (for engines it does not suit).
     "classic_full": {"commands": {"lenient": True, "punctuation": True}, "extra_fixes": True},
     # Silence-handling variants tried on top of it (none was better; see the results note).
@@ -474,7 +480,7 @@ def main(argv=None):
     engine = make_engine(args.engine, args.model, profile)
     cfg = engine.config
     style = style_for(profile)
-    builder, post = build_text_pipeline(style, count=getattr(engine, "count_tokens", None), env={})
+    builder, post = build_text_pipeline(style, count=getattr(engine, "count_tokens", None), env=profile.get("env", {}))
     tag = args.profile if args.engine == "whisper" else f"{args.engine}_{args.profile}"
 
     rows, t_start = [], time.perf_counter()

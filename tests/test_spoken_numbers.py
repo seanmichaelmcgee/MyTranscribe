@@ -25,6 +25,8 @@ from text_fixes import format_readings  # noqa: E402
     ("two thousand and five", "2005"),
     ("saturation ninety eight percent", "saturation 98%"),
     ("twenty-five millimetres", "25 mm"),
+    ("after two blocks of walking, one flight of stairs, two falls and two beers a day",
+     "after 2 blocks of walking, 1 flight of stairs, 2 falls and 2 beers a day"),
 ])
 def test_numbers_and_units(raw, want):
     assert normalise(raw) == want
@@ -34,7 +36,7 @@ def test_numbers_and_units(raw, want):
     "No one else was present.",
     "One of the two options was chosen.",
     "She has three children and one brother.",
-    "The first of four visits.",
+    "The first of four options.",
     "Seen one time before.",
     "Type two diabetes is well controlled.",
     "Take one or two as needed.",

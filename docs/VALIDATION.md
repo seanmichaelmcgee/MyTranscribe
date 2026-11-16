@@ -106,6 +106,22 @@ Dragon has not been run on these clips yet (they can be played into it through t
 cable with `record --autoplay`). Getting the cut right mattered: before the clips were kept
 clear of the break words and of an abandoned false start, Whisper's figure read 4.3%.
 
+Reading every difference, punctuation included (50 in all), showed what matters for someone
+who dictates every mark:
+
+- **Commas nobody said.** A dozen were commas the model added by itself ("normal, with no
+  murmurs"). Options → "Only the commas I dictate" (`MYTRANSCRIBE_ONLY_DICTATED_COMMAS=1`, off
+  by default) removes those and keeps the spoken ones, as Dragon does.
+- **Small numbers as words** before nouns the number rule did not know ("two blocks", "one
+  flight", "two falls"); those nouns were added.
+- With both, the differences fall from 50 to 35; word error rate, which ignores punctuation
+  and number style, is unchanged at 3.00%.
+- What is left is recognition: surnames, three drug names ("Ram and Pearl" for ramipril,
+  "4-Motorol" for formoterol, "75 mg micrograms"), "I'd" for "I would", and one lost "Plan".
+  Starting with vocabulary topics switched on (`MYTRANSCRIBE_VOCAB_TOPICS`) fixed "A1c" but
+  not ramipril, and made no difference overall (3.08%): not adopted. A line in your personal
+  corrections file (`Ram and Pearl => ramipril`) is the direct fix for a slip that is yours.
+
 ### Self-test of the tool and the scorer (2026-11-16)
 
 Before anyone read the set, a Windows text-to-speech voice read all 28 items through
