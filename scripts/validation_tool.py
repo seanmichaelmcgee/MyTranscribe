@@ -556,8 +556,7 @@ def match_pieces(pieces: list, items: list) -> dict:
 def split_recording(path: Path, items: list, out: Path, engine) -> list:
     """Cut one long recording at each "break break" and save the pieces as <out>/items/<code>.wav."""
     import numpy as np
-    from faster_whisper import decode_audio
-    audio = decode_audio(str(path), sampling_rate=SR)
+    audio = load_audio(path)
     segments, _ = engine.model.transcribe(audio, language="en", word_timestamps=True, vad_filter=True,
                                           condition_on_previous_text=False,
                                           initial_prompt="Period. New paragraph. Break, break.")
@@ -573,10 +572,15 @@ def split_recording(path: Path, items: list, out: Path, engine) -> list:
     return sorted(chosen)
 
 
+def load_audio(path):
+    """Any common audio file as mono float32 at 16 kHz."""
+    from faster_whisper import decode_audio
+    return decode_audio(str(path), sampling_rate=SR)
+
+
 def cmd_import(args):
     """Recordings -> <out>/items/<code>.wav (16 kHz mono), with any <code>.dragon.txt."""
     import numpy as np
-    from faster_whisper import decode_audio
     items = load_set(args.set)
     codes = {it["id"] for it in items}
     (args.out / "items").mkdir(parents=True, exist_ok=True)
@@ -589,7 +593,7 @@ def cmd_import(args):
             if code not in codes:
                 long_files.append(path)                 # not an item code: one long recording to cut up
                 continue
-            audio = decode_audio(str(path), sampling_rate=SR)
+            audio = load_audio(path)
             save_wav(args.out / "items" / f"{code}.wav", (np.clip(audio, -1, 1) * 32767).astype("<i2").tobytes())
             taken.append(code)
         elif path.name.lower().endswith(".dragon.txt") and code in codes:
