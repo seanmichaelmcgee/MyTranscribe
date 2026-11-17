@@ -53,6 +53,9 @@ def test_hesitation_dots_kept_without_dictated_marks():
     ("We've stopped it.", "We have stopped it."),
     ("30-pack year smoking history.", "30-pack-year smoking history."),
     ("Hypertension on three agents.", "Hypertension on 3 agents."),
+    ("Her EGFR is 48 and creatinine 110.", "Her eGFR is 48 and creatinine 110."),
+    ("Hgb 118 g/L, EGFR 52.", "Hgb 118 g/L, eGFR 52."),
+    ("Tested for an EGFR mutation.", "Tested for an EGFR mutation."),
 ])
 def test_written_as_said(raw, want):
     assert format_readings(raw) == want

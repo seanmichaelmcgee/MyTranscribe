@@ -240,6 +240,10 @@ The recording reproduced the MyTranscribe slips through the same pipeline, which
 
 On v2 every drug name, brand and contraction is now right. The small moves on the other sets come from Whisper writing a few words differently with a different prompt: better ("Candace Hardin" → candesartan, "Calavulin" → Clavulin), worse ("tiotropium" → "teotroprim", now corrected back; "troponin" → "intraponin"; "dysphagia" → "dysphasia"), and some punctuation in undictated lists.
 
+### Letter mode: tried, not adopted (2026-11-17)
+
+Idea: notice automatically that a consult letter is being dictated (it opens "Thank you for seeing...", "Dear Dr..."), and from then on show Whisper a short letter in running prose instead of the general style example. First, every difference between the final text and the script was listed for the 10 letters of sets v1 and v2, punctuation and layout included: 30 in all, of which 3 were punctuation (two missing commas, one comma for "and"), and every paragraph break and heading was right. The full stops Whisper writes without a spoken "period" were mostly real ones (it heard "period" and wrote the mark only), so removing them would do harm. With the letter example the count stayed at 30; it fixed "EGFR" and added a nonsense phrase ("comma, he looked" as "comedy looks"). Not adopted. The one useful piece is a rule: "EGFR" followed by a value is written eGFR.
+
 ## Limitations
 
 - **Known regression:** with 4 s pauses one held-out letter lost four list commands that the classic pipeline kept (48/52 vs 52/52), and WER in that condition rose 5.81 → 6.06. Commands inside a numbered list ("new line, 2 period") are the weak spot.

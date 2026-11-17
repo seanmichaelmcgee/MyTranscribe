@@ -121,6 +121,8 @@ _S_IS = re.compile(r"\b(there|it|he|she|that|here)['’]s(?=\s+(?:a|an|the|no|no
 
 _HAVE = re.compile(r"\b(I|we|they|you)['’]ve\b", re.I)
 _PACK_YEAR = re.compile(r"\b(\d+)[- ]pack[- ]year\b(?!s)", re.I)
+# The kidney function is written eGFR; "EGFR" (the gene) is never followed by a value.
+_EGFR = re.compile(r"\bEGFR(?=\s+(?:is|was|of|at|=|has|had|now|today|down|up)?\s*(?:\d|>|<))")
 
 
 def expand_contractions(text: str) -> str:
@@ -151,6 +153,7 @@ def format_readings(text: str) -> str:
     text = spoken_numbers.normalise(text)
     text = drug_names.apply(text)                         # after the numbers: a dose marks where a drug name sits
     text = _PACK_YEAR.sub(r"\1-pack-year", text)          # "30-pack year smoking history" -> 30-pack-year
+    text = _EGFR.sub("eGFR", text)
     text = _OVER.sub(r"\1/\2", text)
     text = _UNIT_PER.sub(lambda m: f"{m.group(1)} {_UNIT[m.group(2).lower()]}/{_PER[m.group(3).lower()]}", text)
     return _DEGREES.sub(lambda m: f"{m.group(1)} °{m.group(2)[0].upper()}", text)
