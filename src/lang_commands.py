@@ -117,6 +117,9 @@ def _marks(text: str, pack: LanguagePack) -> str:
     return "".join(out)
 
 
+_DESCENDING_PAIR = re.compile(r"(?<![\w/.,-])(\d{2,3})-(\d{2,3})(?![\w/-]|[.,]\d)")
+
+
 def format_readings(text: str, pack: LanguagePack) -> str:
     """Blood pressures and unit ratios written the chart way; units after a digit abbreviated."""
     if pack.number_words and pack.counted:                # "cuatro años" -> 4 años, as the model usually writes it
@@ -125,6 +128,10 @@ def format_readings(text: str, pack: LanguagePack) -> str:
     for word in pack.over:
         text = re.sub(r"(?<![\w./])(\d{2,3})[ \t]+" + _phrase(word) + r"[ \t]+(\d{2,3})(?!\w|[./]\d)", r"\1/\2",
                       text, flags=re.I)
+    # "155-95", "875-125": a larger number before a smaller one is a pressure or a fixed
+    # combination, written with a slash; a range ("4-6", "10-15") goes upwards and keeps its hyphen.
+    text = _DESCENDING_PAIR.sub(lambda m: f"{m.group(1)}/{m.group(2)}" if int(m.group(1)) > int(m.group(2))
+                                else m.group(0), text)
     for spoken, abbr in sorted(pack.units.items(), key=lambda kv: -len(kv[0])):
         sep = "" if abbr.strip() == "%" and not abbr.startswith(" ") else " "
         text = re.sub(r"(?<=\d)[ \t]*" + _phrase(spoken) + r"(?![\w-])", sep + abbr.strip(), text, flags=re.I)
@@ -168,9 +175,13 @@ def prompt_for(pack: LanguagePack, punctuation: bool) -> str:
 
 
 def clean(text: str, pack: LanguagePack) -> str:
-    """Drop invented closing lines and apply the pack's one-reading fixes ("incomprimé" -> "1 comprimé")."""
+    """Drop invented subtitle lines and apply the pack's one-reading fixes ("incomprimé" -> "1 comprimé")."""
     for pattern in pack.phantoms:
-        text = re.sub(r"[ \t]*" + pattern + r"[ \t.!]*$", "", text, flags=re.I)
+        # Only the invented sentence goes. It usually closes the text, but it can turn up in the
+        # middle over a noise, and everything dictated after it must stay.
+        # It must open a sentence ("Le sous-titrage du film" is not one); "Amara.org" is one word.
+        sentence = pattern.replace(r"[^\n]*", r"(?:[^.!?\n]|[.](?=\w))*")
+        text = re.sub(r"(?:^|(?<=[.!?\n]))[ \t]*" + sentence + r"[.!?]*", "", text, flags=re.I | re.M)
     for pattern, replacement in pack.fixes:
         text = re.sub(pattern, replacement, text)
     return text

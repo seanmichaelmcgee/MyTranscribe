@@ -153,7 +153,11 @@ FRENCH = LanguagePack(
          "close": "fermez les guillemets"},
     titles=("M", "Dr", "Pr"),
     # PxCorpus development recordings: "un comprimé" is heard as "incomprimé" in about one prescription in ten.
-    fixes=((r"\b[iI]ncomprim(ée?s?|és?)\b", r"1 comprim\1"),),
+    fixes=((r"\b[iI]ncomprim(ée?s?|és?)\b", r"1 comprim\1"),
+           # Medical dictations, development part: after a pressure the unit is mmHg, whatever was written.
+           (r"(\d{2,3}/\d{2,3}) ?(?:mg|mhg|mgl|mrg|mlg|mmg)\b", r"\1 mmHg"),
+           # Units spelled letter by letter come out run together.
+           (r"(?<=\d) ?mgl\b", " mg/L"), (r"(?<=\d) ?gdl\b", " g/dL"), (r"(?<=\d) ?gl\b", " g/L")),
     phantoms=(r"sous[- ]titrage\b[^\n]*", r"sous[- ]titres?\s+(?:réalisés?|faits?)\b[^\n]*",
               r"merci d['’]avoir regardé[^\n]*"),
     vocab_file="medical_fr.txt",
@@ -168,14 +172,21 @@ FRENCH = LanguagePack(
     units={"milligrammes": "mg", "milligramme": "mg", "microgrammes": "µg", "microgramme": "µg",
            "grammes": "g", "gramme": "g", "millilitres": "mL", "millilitre": "mL", "kilogrammes": "kg",
            "kilogramme": "kg", "kilos": "kg", "millimoles": "mmol", "millimètres": "mm", "millimetres": "mm",
-           "centimètres": "cm", "centimetres": "cm", "pour cent": " %"},
+           "centimètres": "cm", "centimetres": "cm", "pour cent": " %",
+           "micromoles": "µmol", "micromole": "µmol", "nanogrammes": "ng", "nanogramme": "ng",
+           "picogrammes": "pg", "picogramme": "pg", "litres": "L", "litre": "L",
+           "millimètres de mercure": "mmHg", "millimetres de mercure": "mmHg"},
     per_units={"litre": "L", "décilitre": "dL", "decilitre": "dL", "millilitre": "mL", "kilo": "kg",
-               "kilogramme": "kg"},
-    prompt="Je vous remercie de recevoir Mme Lefèvre, 67 ans, pour une gonalgie droite évoluant depuis 6 semaines. "
-           "Antécédents : hypertension artérielle, diabète de type 2. Traitement : metformine 850 mg matin et soir, "
-           "ramipril 5 mg par jour. À l'examen : tension artérielle 14/8, fréquence cardiaque 74/min. "
+               "kilogramme": "kg", "minute": "min"},
+    # The opening, the ECG and the laboratory line come from the medical dictations' development part:
+    # without them "Cher confrère" is written in the plural, "créatininémie" is cut to "créatinine",
+    # "l'ECG" becomes "le CG" and units are written out or run together.
+    prompt="Cher confrère, je vous remercie de recevoir Mme Lefèvre, 67 ans. À l'examen : tension artérielle "
+           "140/85 mmHg, fréquence cardiaque 74/min. L'ECG est sinusal, la FEVG est à 60 %. Biologie : "
+           "créatininémie 80 µmol/L, kaliémie 4,2 mmol/L, hémoglobine 13 g/dL, CRP 8 mg/L. "
            # A prescription line: without it the model drops or mangles a brand name that opens the
-           # recording and hears "un comprimé" as "incomprimé" (PxCorpus development: 11.5% -> 9.1%).
+           # recording and hears "un comprimé" as "incomprimé" (PxCorpus development: 11.5% -> 9.1%;
+           # shortening it to make room cost a point there, so it stays whole).
            "Ordonnance : Kardégic 75 mg, 1 comprimé par jour pendant 1 mois. Doliprane 1 g, 1 comprimé "
            "3 fois par jour pendant 5 jours. Ventoline, 2 bouffées si besoin.",
 )

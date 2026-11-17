@@ -91,11 +91,26 @@ What remains is mostly brand and generic names the model has not met ("praziquan
 | Set | Language | What it is | Result |
 |---|---|---|---|
 | [TEME-v1](https://zenodo.org/records/17280661) (CC BY 4.0) | Spanish | 90 synthetic doctor-patient dialogues, ten specialties, 37,000 words | 4.7% word errors as written; 4.3% with number words and units compared fairly |
-| Dictées médicales ultra complexes (no licence stated: evaluation only) | French | 107 synthetic medical dictations, 22 specialties, 5.5 hours | development part (30): 21.9% as written, 20.7% fair; held part (77) not run yet |
+| Dictées médicales ultra complexes (no licence stated: evaluation only) | French | 107 synthetic medical dictations, 22 specialties, 5.5 hours | development part (30): 20.7% fair before the changes below, 18.0% after; held part (77), run once: 22.7% as written, 19.9% fair |
 
 - `lang_reliability.py files --fair` writes number words as digits (2 to 1000, French and Spanish tables in the script) and units as abbreviations on both sides before comparing, so "soixante-trois milligrammes" and "63 mg" count as the same.
 - **Spanish (TEME):** after fair scoring the commonest real errors are "tensión" heard as "atención", "TAC" as "tag", and a few drug names. No changes made from it yet.
-- **French dictations:** the errors that survive fair scoring are units read aloud and written wrongly ("mmHg" as "mg", "µmol/L" as "moll", "g/L" as "gl"), "créatininémie" shortened to "créatinine", "FEVG" to "FEV", and the letter opening "Cher confrère" written in the plural. These are fixable with prompt and term-list work on the development part; not done yet.
+- **French dictations, worked on 2026-11-17 (branch `dictation/french`):** on the development part the errors that survived fair scoring were the letter opening written in the plural ("Chers confrères"), "créatininémie" cut to "créatinine", "l'ECG" as "le CG", "FEVG" as "FEV", and units written out or run together ("mmHg" as "mg", "g/L" as "gl"). What changed in the French pack:
+  - the style prompt now opens "Cher confrère," and carries an ECG and a laboratory line with units as they are written (µmol/L, mmol/L, g/dL, mg/L, mmHg); the prescription line is kept whole, because shortening it cost a point on the real prescriptions (9.2% → 10.4%);
+  - units after a number: "micromoles", "nanogrammes", "picogrammes", "litres", "millimètres de mercure", and "par minute" as a rate (2 L/min); after a pressure the unit is mmHg whatever was written; "gl", "mgl", "gdl" after a number → g/L, mg/L, g/dL; "165-80" → 165/80;
+  - 17 terms added to the list (kaliémie, natrémie, créatininémie, ferritine, …).
+
+  | French, word error rate | Before | After |
+  |---|---|---|
+  | Medical dictations, development part (fair) | 20.7% | 18.0% |
+  | Medical dictations, held part (fair), run once | not run | 19.9% |
+  | Real prescriptions, PxCorpus development | 9.1% | 9.2% |
+  | Synthetic dictated speech, held-out (22) | 4.6% | 5.0% |
+  | Synthetic dictated speech, medical draft (20) | 4.9% | 5.3% |
+
+  The two synthetic sets are about 1,100 words each; the half-point is four or five words, all names and homophones that flip from run to run ("Carpanedo", "T-Rex", "débuter / débutez"), with nothing traceable to the new rules. The Corti French set was not run again (its runs are rationed).
+- **A bug found on the way, fixed for every language:** an invented subtitle line ("Sous-titrage ST' 501") in the middle of a text made the clean-up delete everything after it, hundreds of dictated words in two development recordings. Only the invented sentence is removed now, and only when it opens a sentence.
+- **Why the dictation figures stay near 20%:** the recordings are synthetic and several contain stretches of 8 to 10 s of loud noise where words should be; the model's voice filter rightly drops them and the reference words count as errors. A second listen to those stretches with the filter off was tried and produced invented subtitle lines, so it was not kept. The titles also differ by style ("Monsieur" written "M.", "Docteur" as "Dr"), which is how the app is asked to write them.
 - **Found but unusable:** the Kiswahili ASR challenge evaluation set (audio only, transcripts unpublished), PixVoice French healthcare speech (audio without its transcript files) and the WannaMedASR French benchmark (score reports only).
 - **Not found:** any open recording of clinicians dictating in Spanish. Two papers say the same; one built its audio by text-to-speech over Spanish clinical text.
 - **Waiting on access:** AfriSwitchCare (Swahili-English clinical conversations, non-commercial) and AfriVox-v2, requested by the owner.
