@@ -143,3 +143,10 @@ interconsulta
 anticoagulación
 pinzamiento
 interlínea
+escayola
+férula
+hinchazón
+glargina
+sitagliptina
+dapagliflozina
+trimebutina

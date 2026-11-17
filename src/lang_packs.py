@@ -97,6 +97,14 @@ SPANISH = LanguagePack(
     say={".": "punto", ",": "coma", ":": "dos puntos", ";": "punto y coma", "?": "cerrar interrogación",
          "\n\n": "nuevo párrafo", "\n": "nueva línea", "open": "abrir comillas", "close": "cerrar comillas"},
     titles=("Sr", "Sra", "Srta", "Dr", "Dra"),
+    # TEME dialogues, development half: the model writes the old accented adverb; the academy's
+    # spelling since 2010 is "solo" in every use.
+    fixes=((r"\b([sS])ólo\b", r"\1olo"),
+           # "la tensión" is heard as "la atención" after a verb of measuring (8 times in 45 dialogues).
+           (r"(?i)\b((?:tom|med|mid|control|vigil|mir)\w*) la atención\b", r"\1 la tensión"),
+           (r"(?i)\batención arterial\b", "tensión arterial"),
+           # "TAC" (a CT scan) is written "tag", which is not a Spanish word.
+           (r"\b([Ee]l|[Uu]n|[Dd]el|[Aa]l|[Ee]ste|[Ee]se|[Oo]tro) [Tt]ag\b", r"\1 TAC")),
     vocab_file="medical_es.txt",
     number_words={"dos": "2", "tres": "3", "cuatro": "4", "cinco": "5", "seis": "6", "siete": "7", "ocho": "8",
                   "nueve": "9", "diez": "10", "once": "11", "doce": "12", "quince": "15", "veinte": "20",
@@ -108,7 +116,8 @@ SPANISH = LanguagePack(
     units={"miligramos": "mg", "miligramo": "mg", "microgramos": "mcg", "microgramo": "mcg", "gramos": "g",
            "gramo": "g", "mililitros": "mL", "mililitro": "mL", "kilogramos": "kg", "kilogramo": "kg",
            "kilos": "kg", "milimoles": "mmol", "milímetros": "mm", "milimetros": "mm",
-           "centímetros": "cm", "centimetros": "cm", "por ciento": "%"},
+           "centímetros": "cm", "centimetros": "cm", "por ciento": "%",
+           "latidos por minuto": "lpm", "respiraciones por minuto": "rpm"},
     # Concentrations and weight-based doses only: "10 mg por día" stays words.
     per_units={"litro": "L", "decilitro": "dL", "mililitro": "mL", "kilo": "kg", "kilogramo": "kg"},
     prompt="Gracias por valorar a la Sra. Gómez, mujer de 67 años con dolor de rodilla derecha de 6 semanas de "

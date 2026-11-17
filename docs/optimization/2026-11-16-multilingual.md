@@ -94,7 +94,14 @@ What remains is mostly brand and generic names the model has not met ("praziquan
 | Dictées médicales ultra complexes (no licence stated: evaluation only) | French | 107 synthetic medical dictations, 22 specialties, 5.5 hours | development part (30): 21.9% as written, 20.7% fair; held part (77) not run yet |
 
 - `lang_reliability.py files --fair` writes number words as digits (2 to 1000, French and Spanish tables in the script) and units as abbreviations on both sides before comparing, so "soixante-trois milligrammes" and "63 mg" count as the same.
-- **Spanish (TEME):** after fair scoring the commonest real errors are "tensión" heard as "atención", "TAC" as "tag", and a few drug names. No changes made from it yet.
+- **Spanish (TEME), worked on 2026-11-16 (branch `dictation/spanish`):** the 90 dialogues were split in two by position. Errors were read on one half (45 dialogues, 17,800 words) and the other half kept for checking; the two recurring confusions below had already been seen across the whole set before the split, so the second half is not fully unseen.
+
+  | Fair word error rate | First half (read) | Second half | All 90 |
+  |---|---|---|---|
+  | Before | 4.10% | about 4.5% | 4.31% |
+  | After | 3.77% | 4.23% | 4.01% |
+
+  What changed in the Spanish pack: "sólo" is written "solo" (the academy's spelling since 2010); a larger number hyphenated to a smaller one is a pressure or a fixed combination and gets a slash ("155-95" → 155/95, "875-125" → 875/125; a range such as "4-6" keeps its hyphen, in every language); "latidos por minuto" after a number → lpm; "la atención" after a verb of measuring → "la tensión", and "atención arterial" → "tensión arterial"; "un tag" → "un TAC"; seven terms added to the list. What is left is not medical vocabulary: dropped fillers ("sí", "perfecto"), small words, and whole phrases skipped where the two synthetic speakers follow each other closely, which is a feature of dialogues rather than of one person dictating.
 - **French dictations:** the errors that survive fair scoring are units read aloud and written wrongly ("mmHg" as "mg", "µmol/L" as "moll", "g/L" as "gl"), "créatininémie" shortened to "créatinine", "FEVG" to "FEV", and the letter opening "Cher confrère" written in the plural. These are fixable with prompt and term-list work on the development part; not done yet.
 - **Found but unusable:** the Kiswahili ASR challenge evaluation set (audio only, transcripts unpublished), PixVoice French healthcare speech (audio without its transcript files) and the WannaMedASR French benchmark (score reports only).
 - **Not found:** any open recording of clinicians dictating in Spanish. Two papers say the same; one built its audio by text-to-speech over Spanish clinical text.
