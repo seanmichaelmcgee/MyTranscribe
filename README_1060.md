@@ -79,11 +79,12 @@ Compact view is 320 logical pixels wide: the light, status (shortened with "…"
 not fit; hover for all of it), Copy, Options, expand control, the level bar and Start/Stop.
 Options uses explicit light colours for readability even when Windows uses dark mode.
 
-## Pause-aware dictation (optional, off by default)
+## Pause-aware dictation (on by default)
 
-Options → Text → “Pause-aware dictation”. Try it if pausing to think puts full stops
-in the middle of your sentences, if “new paragraph” / “new line” are sometimes ignored,
-or if the last word goes missing when you release the key. With it on:
+Options → Text → “Pause-aware dictation”, on for new installs since 2026-11-17 (a settings
+file saved by an earlier version keeps its own choice). It deals with pausing to think
+putting full stops in the middle of sentences, “new paragraph” / “new line” being ignored,
+and the last word going missing when you release the key. With it on:
 
 - a sentence you paused in is kept together across the app's internal ~30 second pieces;
 - a spoken “new paragraph” or “new line” that the speech model skipped is put back, and
@@ -91,8 +92,8 @@ or if the last word goes missing when you release the key. With it on:
 - the microphone keeps listening for 0.3 seconds after Stop, so the last word is not cut.
 
 Untick it to return to the original behaviour at once (from the next recording). It
-was measured on fictional practice recordings with artificial pauses, not yet in daily
-use: results and known limits are in
+was measured on fictional practice recordings with artificial pauses and has been in the
+developer's daily use since: results and known limits are in
 [docs/optimization/2026-11-15-dictation-reliability.md](docs/optimization/2026-11-15-dictation-reliability.md).
 `MYTRANSCRIBE_PAUSE_AWARE=1` (or `0`) overrides the saved choice.
 
@@ -114,7 +115,7 @@ line, in `%APPDATA%\MyTranscribe\my_medications.txt` (it replaces the bundled
 `src\vocab\my_medications.txt`; about 25 names; "generic (Brand)" is fine).
 `MYTRANSCRIBE_MEDICATIONS=off` turns it off.
 
-**Medical clean-up** (Options, off by default; called "Extra corrections" in earlier versions
+**Medical clean-up** (Options, on by default; called "Extra corrections" in earlier versions
 and in the measurement reports) fixes a misspelled drug or term when it
 sounds exactly like one vocabulary word and no other ("prendipril" becomes perindopril), and
 writes readings the chart way: "138 over 78" as 138/78, "g per litre" as g/L, "degrees

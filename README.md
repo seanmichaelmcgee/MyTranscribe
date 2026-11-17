@@ -21,39 +21,32 @@ Word. Nothing you say leaves the computer.
 
 ## How accurate is it?
 
-Everything below is measured, with the method and the limits written down in
-[docs/VALIDATION.md](docs/VALIDATION.md) and
-[docs/optimization/2026-11-15-dictation-reliability.md](docs/optimization/2026-11-15-dictation-reliability.md).
+**In our testing, its word error rates are similar to or better than commercial-grade medical
+dictation**, and clearly ahead of the other open speech models we tried. The full scorecard,
+with every test set and condition, is in **[docs/BENCHMARKS.md](docs/BENCHMARKS.md)**.
+
 "Word errors" is the share of words wrong, missing or added compared with what was meant to be
-said (lower is better). For comparison, a leading commercial medical dictation product with
-a medical vocabulary heard the same recordings.
+said; lower is better.
 
-**The developer's own voice, ordinary headset, invented consult letters and messages read
-aloud (26 items, 8.5 minutes, every punctuation mark dictated):**
+| Same audio, word errors | **MyTranscribe Medical** | MedASR (Google) | Parakeet 0.6B (NVIDIA) | Canary 1B (NVIDIA) | Commercial medical dictation |
+|---|---|---|---|---|---|
+| Real clinicians dictating ([Corti Med-Dictate](https://huggingface.co/datasets/corti/med-dictate), 23 notes) | **7.2%** | 8.9% | 12.2% | 12.3% | 6.0% |
+| Developer's recordings, held out from tuning (23) | **3.3%** | 7.2% | 6.9% | 6.9% | 5.7% |
+| Developer reading invented letters, every mark dictated (26) | **2.1%** | 5.8% | | | 4.8% |
 
-| | Word errors | Drug names right | Doses right | Paragraphs, lists and commands right |
-|---|---|---|---|---|
-| MyTranscribe Medical | **2.1%** | **24 / 24** | **15 / 15** | 37 / 37 |
-| Commercial medical dictation (same recording) | 4.8% | 23 / 24 | 14 / 15 | 37 / 37 |
+- **Drug names:** 24 of 24 right on the developer's reading (commercial: 23 of 24); 88% across
+  462 synthetic recordings in [Modulate's medical dictation set](https://huggingface.co/datasets/modulate/synthetic-medical-dictation).
+- **Many voices and conditions** (Modulate, 28 voices, 5.6 hours): 86% of clinical terms
+  right overall, 92% over telephone-quality audio, 81% in a simulated busy ward.
+- **On voices it was not tuned to** (Corti), it is about one point behind the commercial
+  system; on the developer's own voice it makes fewer than half the errors.
 
-A second reading of two consult letters with medications in running prose came out at 1.2%
-word errors, every drug name right.
-
-**Other clinicians' real dictation** (Corti Med-Dictate, 24 English notes, 66 minutes,
-used for evaluation only and never for tuning): **7.0%** word
-errors. The commercial product's figure on 23 of those notes was 6.0%. On voices it was not
-tuned to, MyTranscribe is close to, but about one point behind, a commercial system.
-
-**Many voices and conditions** ([Modulate synthetic medical dictation](https://huggingface.co/datasets/modulate/synthetic-medical-dictation),
-462 recordings, 28 computer voices, 5.6 hours): **86% of clinical terms** (drugs, doses, lab
-values, findings, dates of birth, chart numbers) came out right overall, 92% over telephone-quality
-audio, 81% in a simulated busy ward. Drug names: 88%.
 
 ### Why we think it is fit for clinical dictation, and what is not yet shown
 
-- **It is accurate where it matters most.** On the developer's recordings it makes fewer than
-  half the errors of a commercial medical dictation product, and it got every drug name and
-  dose right.
+- **It is accurate where it matters most.** Its word error rates are in the range of
+  commercial-grade medical dictation, and on the developer's recordings it got every drug name
+  and dose right.
 - **It is built not to make things up.** A misheard drug name is only ever changed to a real,
   approved drug, and only when the misheard word sounds like it and sits where a drug belongs
   (before a dose, in a medication list). It can still pick a similar-sounding real drug, usually
@@ -128,21 +121,21 @@ also raises background noise: aim for the lowest setting that keeps the bar gree
 
 Open with the **⚙** button. Everything is saved for the next start.
 
-| Option | What it does | Suggested |
+| Option | What it does | Default |
 |---|---|---|
 | Keyboard key / Mouse button, hold or toggle | Which key and mouse button start and stop dictation, and whether you hold them while talking or press once to start and once to stop. Ctrl+Alt+Q and Space (window focused) always work. | F9 hold, mouse toggle |
-| Microphone gain | Makes the microphone louder or quieter (see above). | 50, then adjust |
+| Microphone gain | Makes the microphone louder or quieter (see above). | 50; adjust once for your microphone |
 | Keep microphone ready | Keeps the microphone open between dictations so your first word is not clipped. Windows shows the microphone as in use while the app is open. | On |
-| Start / stop sounds | Volume of the start and stop chimes; 0 mutes them. | |
+| Start / stop sounds | Volume of the start and stop chimes; 0 mutes them. | 100% |
 | Recogniser | The speech model. Whisper large-v3 is the default and recommended. MedASR (Google) is a faster alternative that each user must request from Google. | Whisper |
 | Accuracy | Best = large-v3; Fast = large-v3-turbo, quicker and a little less accurate (for slower cards). | Best |
 | Dictation language | English. Spanish and French are experimental (see below). | English |
 | Pause-aware dictation | Keeps a sentence together when you pause to think, puts back a spoken "new paragraph" the model skipped, and listens a moment after you stop so the last word is not cut off. | **On** |
 | Spoken formatting | "New line", "new paragraph", "open quote … close quote". | On |
-| Spoken punctuation | For people who say the marks ("period", "comma"…). Leave off if you let the app punctuate. | On if you dictate marks |
-| Only the commas I dictate | With spoken punctuation: removes the commas the model adds by itself. For people who dictate every comma. | On if you dictate every comma |
+| Spoken punctuation | For people who say the marks ("period", "comma"…). Leave off if you let the app punctuate. | Off; turn on if you dictate the marks |
+| Only the commas I dictate | With spoken punctuation: removes the commas the model adds by itself. For people who dictate every comma. | Off; turn on if you dictate every comma |
 | Medical clean-up | Writes readings the chart way (138/78, g/L, °C, mg/day), puts a misheard drug name right when it sits where a drug belongs, capitalises brand names, writes "I would" where "I'd" was written for it. | **On** |
-| Paste automatically after stopping | When you stop with the key or mouse button, the text is pasted for you. The on-screen button only copies. Some remote (Citrix) EMRs block this; then paste with Ctrl+V. | Your choice |
+| Paste automatically after stopping | When you stop with the key or mouse button, the text is pasted for you. The on-screen button only copies. Some remote (Citrix) EMRs block this; then paste with Ctrl+V. | Off |
 | Type into my document while I dictate | Pastes each finished piece (about every 30 seconds) at the cursor while you keep talking. | Off |
 | Start in compact view | Opens with the button only. | On |
 

@@ -101,16 +101,16 @@ def test_chime_volume_and_autopaste_round_trip(tmp_path):
 
 def test_pause_aware_default_file_env_and_dialog(qapp, tmp_path):
     from options_dialog import OptionsDialog
-    assert st.Settings().pause_aware is False                 # existing behaviour unless chosen
+    assert st.Settings().pause_aware is True                  # on for new installs since 2026-11-17
     p = tmp_path / "settings.json"
-    st.save(st.Settings(pause_aware=True), p)
-    assert st.load(p, env={}).pause_aware is True
-    assert st.load(p, env={"MYTRANSCRIBE_PAUSE_AWARE": "0"}).pause_aware is False
-    assert st.load(tmp_path / "none.json", env={"MYTRANSCRIBE_PAUSE_AWARE": "1"}).pause_aware is True
+    st.save(st.Settings(pause_aware=False), p)
+    assert st.load(p, env={}).pause_aware is False            # an earlier saved choice is kept
+    assert st.load(p, env={"MYTRANSCRIBE_PAUSE_AWARE": "1"}).pause_aware is True
+    assert st.load(tmp_path / "none.json", env={"MYTRANSCRIBE_PAUSE_AWARE": "0"}).pause_aware is False
     d = OptionsDialog(st.Settings())
-    assert not d.pause_aware.isChecked()
-    d.pause_aware.setChecked(True)
-    assert d.result_settings().pause_aware is True
+    assert d.pause_aware.isChecked()
+    d.pause_aware.setChecked(False)
+    assert d.result_settings().pause_aware is False
 
 
 def test_spoken_punctuation_default_file_env_and_dialog(qapp, tmp_path):
@@ -128,9 +128,9 @@ def test_spoken_punctuation_default_file_env_and_dialog(qapp, tmp_path):
 
 def test_extra_fixes_default_file_env_and_dialog(qapp, tmp_path):
     from options_dialog import OptionsDialog
-    assert st.Settings().extra_fixes is False
-    assert st.load(tmp_path / "none.json", env={"MYTRANSCRIBE_EXTRA_FIXES": "1"}).extra_fixes is True
+    assert st.Settings().extra_fixes is True                  # on for new installs since 2026-11-17
+    assert st.load(tmp_path / "none.json", env={"MYTRANSCRIBE_EXTRA_FIXES": "0"}).extra_fixes is False
     d = OptionsDialog(st.Settings())
-    assert not d.extra_fixes.isChecked()
-    d.extra_fixes.setChecked(True)
-    assert d.result_settings().extra_fixes is True
+    assert d.extra_fixes.isChecked()
+    d.extra_fixes.setChecked(False)
+    assert d.result_settings().extra_fixes is False

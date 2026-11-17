@@ -536,11 +536,12 @@ def test_options_change_applies_and_saves(qapp, make_window, tmp_path):
     assert finish(w, qapp)
 
 
-def test_pause_aware_is_off_by_default_and_follows_options(qapp, make_window):
+def test_pause_aware_is_on_by_default_and_follows_options(qapp, make_window):
     from dataclasses import replace
     from chunked_transcriber import POST_ROLL_S
     from settings import Settings
-    w = make_window()
+    assert Settings().pause_aware
+    w = make_window(settings=Settings(start_compact=False, pause_aware=False))
     assert not w._settings.pause_aware
     assert not w._transcriber.pause_aware and w._transcriber.post_roll_s == 0   # classic pipeline
     w.apply_settings(replace(w._settings, pause_aware=True))

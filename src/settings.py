@@ -57,8 +57,10 @@ class Settings:
     chime_volume: int = 100           # percent of the original chime level; zero mutes
     mic_gain: int = 50                # 0..100; 50 = as the microphone sends it, 0 = -20 dB, 100 = +20 dB
     autopaste: bool = False
-    pause_aware: bool = False          # pause-aware dictation (see pause_flow.py); off = classic pipeline
-    extra_fixes: bool = False          # same-sound drug-name correction + readings format (138/78, g/L)
+    # On by default since 2026-11-17 (measured gains; see docs/BENCHMARKS.md). A settings file
+    # saved by an earlier version keeps its own choice.
+    pause_aware: bool = True           # pause-aware dictation (see pause_flow.py); off = classic pipeline
+    extra_fixes: bool = True           # "Medical clean-up": drug names, readings format (138/78, g/L)
     only_dictated_commas: bool = False  # with spoken punctuation: drop commas the model added by itself
     spoken_punctuation: bool = False   # "period", "comma", "colon" ... -> the marks (voice_commands.py)
 
