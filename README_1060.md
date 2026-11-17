@@ -99,7 +99,10 @@ who dictate every comma. `MYTRANSCRIBE_ONLY_DICTATED_COMMAS=1` (or `0`) override
 **Extra corrections** (Options, off by default) fixes a misspelled drug or term when it
 sounds exactly like one vocabulary word and no other ("prendipril" becomes perindopril), and
 writes readings the chart way: "138 over 78" as 138/78, "g per litre" as g/L, "degrees
-Celsius" as °C. Check drug names as you always would.
+Celsius" as °C. It also puts a misheard drug name right where the sentence says a drug
+belongs ("renew Ram and Pearl 5 mg" becomes ramipril, "caprigolin 0.5 mg weekly" becomes
+cabergoline), using a list of 2,400 approved drug names. On synthetic dictation it fixed 162
+names and made 4 wrong changes, so check drug names as you always would.
 `MYTRANSCRIBE_EXTRA_FIXES=1` (or `0`) overrides the saved choice.
 
 ## Starting without a console window

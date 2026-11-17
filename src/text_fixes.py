@@ -112,9 +112,11 @@ def format_readings(text: str) -> str:
     becomes "5 mg/day", "3 times per day" and "2 over the counter" are left alone.
     """
     import dictation_fixes
+    import drug_names
     import spoken_numbers
     text = dictation_fixes.apply(text)                    # spelled names, dates of birth, chart numbers
     text = spoken_numbers.normalise(text)
+    text = drug_names.apply(text)                         # after the numbers: a dose marks where a drug name sits
     text = _OVER.sub(r"\1/\2", text)
     text = _UNIT_PER.sub(lambda m: f"{m.group(1)} {_UNIT[m.group(2).lower()]}/{_PER[m.group(3).lower()]}", text)
     return _DEGREES.sub(lambda m: f"{m.group(1)} °{m.group(2)[0].upper()}", text)

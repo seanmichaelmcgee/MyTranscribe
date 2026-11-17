@@ -180,7 +180,9 @@ class OptionsDialog(QDialog):
         self.extra_fixes = QCheckBox("Extra corrections: drug names that sound right, 138/78, g/L (new)")
         self.extra_fixes.setToolTip("Fixes a misspelled term when it sounds exactly like one vocabulary word "
                                    "and no other, and writes readings the chart way: 138 over 78 as 138/78, "
-                                   "g per litre as g/L, degrees Celsius as \u00b0C. Check drug names as always.")
+                                   "g per litre as g/L, degrees Celsius as \u00b0C. Also puts a misheard drug name "
+                                   "right where a drug belongs (before a dose, in a medication list). "
+                                   "Check drug names as always.")
         self.extra_fixes.setChecked(settings.extra_fixes)
         layout.addWidget(self.extra_fixes)
         self.pause_aware = QCheckBox("Pause-aware dictation (new: try it, switch off to go back)")

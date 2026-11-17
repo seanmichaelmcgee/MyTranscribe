@@ -97,14 +97,29 @@ The owner read the set in one 8.5-minute recording with spoken breaks (26 of 28 
 first two were not on the recording). It was cut into 26 clips, all matched, including one
 item restarted after "sorry, break break".
 
-| | WER | Adjusted WER | Format ok | Commands | Last words ok |
-|---|---|---|---|---|---|
-| Whisper large-v3, all options | 3.00% | 2.92% | 9/10 | 36/37 | 26/26 |
-| MedASR, text options | 5.92% | 5.33% | 10/10 | 37/37 | 25/26 |
+| | WER | Adjusted WER | Format ok | Commands | Last words ok | Drug names | Doses |
+|---|---|---|---|---|---|---|---|
+| Dragon Medical One | 4.83% | 4.50% | 10/10 | 37/37 | 25/26 | 23/24 | 14/15 |
+| Whisper large-v3, all options | 2.50% | 2.42% | 9/10 | 36/37 | 26/26 | 24/24 | 15/15 |
+| MedASR, text options | 5.83% | 5.25% | 10/10 | 37/37 | 25/26 | 24/24 | 14/15 |
 
-Dragon has not been run on these clips yet (they can be played into it through the virtual
-cable with `record --autoplay`). Getting the cut right mattered: before the clips were kept
-clear of the break words and of an abandoned false start, Whisper's figure read 4.3%.
+- **Dragon** heard the same 26 clips, played through the virtual cable into its microphone
+  input with Notepad in front; its text was read from Notepad after each clip. It is the
+  owner's own Dragon profile, but a recording played back, not the live microphone.
+- **Where Dragon's errors are:** about a third are surnames ("Verhoeven" as "very hoven",
+  "Kowalczyk" as "cholecystic"), plus "formoterol" as "for what to roll" and dropped or
+  changed small words. Whisper's are small words and two surnames.
+- **About nine differences are shared by Dragon and Whisper** ("131" as "113", "with" as
+  "but", "symptoms" as "sweats", "day" as "night"). Two systems agreeing against the script
+  means the reader most likely said it that way, so both true rates are a little lower.
+- **Before the drug-name correction** (`src/drug_names.py`, part of Extra corrections) Whisper
+  stood at 3.00% with 22/24 drug names and 14/15 doses: "Ram and Pearl" for ramipril,
+  "4-Motorol" for formoterol, and "75 mg micrograms". All three are now right.
+- **How the Dragon run was made to work:** Dragon typed nothing into the tool's own window or
+  into its Dictation Box on this day; after Dragon was restarted it typed into Notepad. The
+  microphone was switched on once and left on, so no key was sent between clips.
+- Getting the cut right mattered: before the clips were kept clear of the break words and of
+  an abandoned false start, Whisper's figure read 4.3%.
 
 Reading every difference, punctuation included (50 in all), showed what matters for someone
 who dictates every mark:
@@ -115,12 +130,11 @@ who dictates every mark:
 - **Small numbers as words** before nouns the number rule did not know ("two blocks", "one
   flight", "two falls"); those nouns were added.
 - With both, the differences fall from 50 to 35; word error rate, which ignores punctuation
-  and number style, is unchanged at 3.00%.
-- What is left is recognition: surnames, three drug names ("Ram and Pearl" for ramipril,
-  "4-Motorol" for formoterol, "75 mg micrograms"), "I'd" for "I would", and one lost "Plan".
-  Starting with vocabulary topics switched on (`MYTRANSCRIBE_VOCAB_TOPICS`) fixed "A1c" but
-  not ramipril, and made no difference overall (3.08%): not adopted. A line in your personal
-  corrections file (`Ram and Pearl => ramipril`) is the direct fix for a slip that is yours.
+  and number style, was unchanged by these two at 3.00%.
+- What was left then was recognition: surnames, three drug names (since fixed, see above),
+  "I'd" for "I would", and one lost "Plan". Starting with vocabulary topics switched on
+  (`MYTRANSCRIBE_VOCAB_TOPICS`) fixed "A1c" but not ramipril, and made no difference overall
+  (3.08%): not adopted.
 
 ### Self-test of the tool and the scorer (2026-11-16)
 
