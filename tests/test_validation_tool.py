@@ -1,4 +1,4 @@
-"""validation_tool: the reading set and its dictated form (no microphone, Dragon or model)."""
+"""validation_tool: the reading set and its dictated form (no microphone, other dictation software or model)."""
 
 import sys
 from pathlib import Path
@@ -69,13 +69,13 @@ def test_import_takes_recordings_named_by_item_code(tmp_path, capsys, monkeypatc
             w.setsampwidth(2)
             w.setframerate(44100)                               # not the app's rate: must be converted
             w.writeframes(tone.tobytes())
-    (src / "s01.dragon.txt").write_text("Please let her know.", encoding="utf-8")
+    (src / "s01.other.txt").write_text("Please let her know.", encoding="utf-8")
     (src / "holiday.wav").rename(src / "holiday.txt")       # not audio: ignored (a long recording needs a model)
     vt.cmd_import(argparse.Namespace(**{"set": vt.DEFAULT_SET, "from": src, "out": out, "model": None}))
     with wave.open(str(out / "items" / "s01.wav")) as w:
         assert (w.getframerate(), w.getnchannels()) == (16000, 1) and w.getnframes() > 10000
     assert (out / "items" / "c03.wav").is_file() and not (out / "items" / "holiday.wav").exists()
-    assert (out / "items" / "s01.dragon.txt").read_text(encoding="utf-8") == "Please let her know."
+    assert (out / "items" / "s01.other.txt").read_text(encoding="utf-8") == "Please let her know."
     printed = capsys.readouterr().out
     assert "2 of 28 items imported" in printed and "still missing" in printed
 

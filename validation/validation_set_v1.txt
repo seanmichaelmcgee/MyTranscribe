@@ -2,7 +2,7 @@
 #
 # Every person, result and detail here is invented; no real patient is described.
 # Each item is the text as it should finally appear. The validation tool shows it
-# with the punctuation and formatting spelled out as you would dictate it to Dragon
+# with the punctuation and formatting spelled out as you would dictate it to desktop dictation software
 # ("period", "comma", "new paragraph", "open quote" ...).
 #
 # Format:  "## <id> | <kind>" starts an item (kind: short | consult); the lines up

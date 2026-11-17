@@ -14,10 +14,10 @@ Follow [instructions.md](instructions.md) and [project SOP](../docs/PROJECT_SOP.
 | `lang_reliability.py` | Dictated punctuation in Spanish, French, Swahili: synthetic speech sets, pipeline run and scoring |
 | `convert_whisper_model.py` | Download a fine-tuned Whisper (e.g. Swahili) and convert it for the app |
 | `fleurs_benchmark.py` | Baseline word error rate in other languages on the public FLEURS test sets |
-| `validation_tool.py` | Read a fictional set while Dragon types; scores Dragon, Whisper and MedASR (docs/VALIDATION.md) |
+| `validation_tool.py` | Read a fictional set while your other dictation software types; scores it, Whisper and MedASR (docs/VALIDATION.md) |
 | `live_app_trial.py` | Plays recordings through the virtual cable into the real app window; accuracy and Stop-to-text time, and switching recogniser while running |
 | `corti_benchmark.py` | Corti Med-Dictate benchmark (evaluation only), any engine, scored with the frozen October metric |
-| `dragon_replay.py` | Plays recordings into Dragon Medical One through the cable and scores what it types |
+| `cable_audio.py` | Plays 16 kHz recordings into the VB-CABLE virtual cable in real time (used by the live app trial) |
 | `spoken_punctuation_tts.py` | Synthetic set with dictated punctuation marks (Windows voices) for the spoken-punctuation rules |
 | `make_shortcut.ps1` | Desktop shortcut that starts the app with no console window |
 | `dictation_reliability.py` | Thinking pauses, spoken commands and early Stop on the headset corpus, classic vs pause-aware pipeline; [results note](../docs/optimization/2026-11-15-dictation-reliability.md) |

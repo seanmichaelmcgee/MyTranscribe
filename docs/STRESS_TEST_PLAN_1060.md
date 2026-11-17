@@ -228,7 +228,7 @@ Meanwhile run `nvidia-smi -l 10` in a second window and note the highest "MiB" u
       EMR. If the EMR runs over Citrix/RDP, note whether the paste arrives.
 - [ ] **Hotkey while the EMR has focus**, including when the EMR runs as administrator
       (Windows blocks simulated keys into elevated apps from non-elevated ones).
-- [ ] **Side-by-side with Dragon:** dictate the same 10 short letters with each; count
+- [ ] **Side-by-side with your current dictation software:** dictate the same 10 short letters with each; count
       the corrections you had to make. This is the number that matters.
 - [ ] **Length:** one real 10–15 minute letter; note the wait after Stop.
 
@@ -244,7 +244,7 @@ Meanwhile run `nvidia-smi -l 10` in a second window and note the highest "MiB" u
 - [ ] Win+L lock during "[Finishing transcription…]": text is on the clipboard after
       unlocking.
 - [ ] Sleep/hibernate mid-recording: app recovers or fails cleanly (note which).
-- [ ] Dragon running at the same time (VRAM and mic contention).
+- [ ] Other dictation software running at the same time (VRAM and mic contention).
 - [ ] 16 GB RAM with many browser tabs open: no "falling behind" warnings.
 
 ### Results to send back
@@ -262,5 +262,5 @@ Meanwhile run `nvidia-smi -l 10` in a second window and note the highest "MiB" u
 | B2 long 30 min: max queue / final latency / RSS start→end / max VRAM | |
 | B2 misc + gui: all passed? worst UI gap | |
 | B3 clipboard history hidden? auto-paste works in EMR? | |
-| B3 Dragon vs MyTranscribe corrections (10 letters) | |
+| B3 Other software vs MyTranscribe corrections (10 letters) | |
 | Anything odd | |

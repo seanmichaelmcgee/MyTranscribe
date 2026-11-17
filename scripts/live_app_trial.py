@@ -32,7 +32,7 @@ sys.path.insert(0, str(HERE.parent / "src"))
 sys.path.insert(0, str(HERE.parent / "tests"))
 
 import dictation_reliability as dr  # noqa: E402
-import dragon_replay  # noqa: E402
+import cable_audio  # noqa: E402
 
 CABLE_CAPTURE_PREFIX = "CABLE Output"
 OPTIONS = ("pause_aware", "spoken_punctuation", "extra_fixes", "only_dictated_commas")
@@ -135,11 +135,11 @@ def run_engine(args, app, window, entries, engine_name, on):
     rows, waits = [], []
     for n, e in enumerate(entries, 1):
         audio = dr.load_wav(e["wav"])
-        pcm = dragon_replay.pcm16(audio)
+        pcm = cable_audio.pcm16(audio)
         window._copied_text = None
         window.on_hotkey()                             # Start, as the hotkey does it
         pump(app, lambda: False, 0.3)
-        player = threading.Thread(target=dragon_replay.play, args=(pcm,), daemon=True)
+        player = threading.Thread(target=cable_audio.play, args=(pcm,), daemon=True)
         player.start()
         pump(app, lambda: not player.is_alive(), len(audio) / dr.SR + 30)
         pump(app, lambda: False, args.tail_s)

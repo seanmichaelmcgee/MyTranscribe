@@ -52,7 +52,7 @@ git checkout claude/festive-einstein-lb2tk9
 - [ ] Power: the test runner keeps the PC awake while it runs, but to be safe set
       Settings → System → Power → "When plugged in, put my device to sleep after" → **Never**.
 - [ ] Stay **logged in**. Locking the screen (Win+L) is fine; signing out or restarting is not.
-- [ ] **Close Dragon**, games and anything else using the GPU or the microphone.
+- [ ] **Close other dictation software**, games and anything else using the GPU or the microphone.
 - [ ] The Tenor mic isn't needed tonight; the run uses simulated microphones.
 
 ### 4. Start the local Claude session
@@ -157,7 +157,7 @@ Replace `<N>` with the hours you'll be away (e.g. 7).
   to 3 s.
 - Button stops never paste.
 
-**Wanted later (Dragon-like):**
+**Wanted later (as in desktop dictation software):**
 - **Live insert mode:** paste each finished ~30 s chunk at the cursor as it completes,
   instead of everything at the end.
 - **Constraints:** the user may move focus mid-dictation, so only paste while focus is

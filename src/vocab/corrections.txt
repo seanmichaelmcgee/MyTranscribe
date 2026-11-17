@@ -1,6 +1,6 @@
 # corrections.txt — "heard => correct" rules applied to every transcribed chunk.
 #
-# Like Dragon's vocabulary editor: when Whisper keeps writing the same wrong
+# Like a dictation vocabulary editor: when Whisper keeps writing the same wrong
 # thing for something you say, add a line. Whole words/phrases only,
 # case-insensitive; hyphens and spaces in the "heard" side are interchangeable.
 # Keep rules specific: a rule fires everywhere, so never map a real everyday

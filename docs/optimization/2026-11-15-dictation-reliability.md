@@ -54,11 +54,11 @@ Compute for the as-recorded set: 46.9 s → 46.6 s. (One development recording o
 
 Variants tried on top of the candidate and not adopted (development split): VAD padding 150 ms and 100 ms, and VAD off. None improved breaks without costing accuracy or commands; VAD off was worse on every pause measure.
 
-## Dragon Medical One on the same audio (held-out split)
+## A commercial reference on the same audio (held-out split)
 
-`scripts/dragon_replay.py` plays each held-out recording, and the same derived conditions, through a virtual audio cable (VB-CABLE) into Dragon Medical One 26.3 dictating into Notepad, one play per cell (98 cells, 62 minutes of audio). Dragon recognises in the cloud; only the owner's fictional recordings were sent. Scoring is the same code as above.
+A replay script (kept in the development repository) plays each held-out recording, and the same derived conditions, through a virtual audio cable (VB-CABLE) into a widely used commercial medical dictation product, dictating into Notepad, one play per cell (98 cells, 62 minutes of audio). It recognises in the cloud; only the owner's fictional recordings were sent. Scoring is the same code as above.
 
-| Condition | WER % base / cand / Dragon | Commands found | Format ok | Last words ok |
+| Condition | WER % base / cand / commercial | Commands found | Format ok | Last words ok |
 |---|---|---|---|---|
 | as recorded | 4.52 / 4.45 / 5.73 | 54/56, 56/56, 56/56 | 11/12, 12/12, 12/12 | 21/23, 21/23, 20/23 |
 | 1.5 s pauses | 5.81 / 5.39 / 8.50 | 48/52, 52/52, 52/52 (+1 extra) | 8/10, 10/10, 9/10 | 9/10, 9/10, 9/10 |
@@ -69,24 +69,24 @@ Variants tried on top of the candidate and not adopted (development split): VAD 
 
 How to read it:
 
-- Dragon writes sentence punctuation only when it is dictated. Against the script it leaves out about 130 sentence ends in every condition and adds none, so it never produces a spurious sentence break at a pause; that measure is not comparable and is left out of the table. WER ignores punctuation.
-- Part of Dragon's WER rise under spliced pauses is an artefact of the splice: several pause sites fall inside a word ("recorded" split in two), which Dragon transcribes as two words and Whisper mostly repairs. The 1.5 s and 4 s results are nearly the same errors. Treat the pause rows as a stress test, not as how Dragon handles a natural pause.
-- For Dragon, "Stop 0.15 s early" means the audio ends there and the microphone is switched off at once; the cable adds latency, so the timing is approximate.
+- The commercial reference writes sentence punctuation only when it is dictated. Against the script it leaves out about 130 sentence ends in every condition and adds none, so it never produces a spurious sentence break at a pause; that measure is not comparable and is left out of the table. WER ignores punctuation.
+- Part of the commercial reference's WER rise under spliced pauses is an artefact of the splice: several pause sites fall inside a word ("recorded" split in two), which it transcribes as two words and Whisper mostly repairs. The 1.5 s and 4 s results are nearly the same errors. Treat the pause rows as a stress test, not as how it handles a natural pause.
+- For the commercial reference, "Stop 0.15 s early" means the audio ends there and the microphone is switched off at once; the cable adds latency, so the timing is approximate.
 - One play per cell, no repeat; a virtual cable, not a live microphone; script-relative scoring with no listen-back.
 
 ## Corti Med-Dictate (English, 24 notes, 66 minutes)
 
-Run once on the finished candidate with `scripts/corti_benchmark.py`; nothing was tuned against it (the dataset licence allows benchmarking existing systems, not developing them). Dataset revision `2a840558`, file hash checked against the October acquisition receipt. Scored with the metric module frozen for the October benchmark ("conservative" view: case and punctuation marks ignored, number spellings kept). The spoken track is the text before command conversion against the verbatim reference; the formatted track is the final text against the publisher's formatted note. Dragon was not replayed: its figures are the saved October captures (23 notes; one capture failed then).
+Run once on the finished candidate with `scripts/corti_benchmark.py`; nothing was tuned against it (the dataset licence allows benchmarking existing systems, not developing them). Dataset revision `2a840558`, file hash checked against the October acquisition receipt. Scored with the metric module frozen for the October benchmark ("conservative" view: case and punctuation marks ignored, number spellings kept). The spoken track is the text before command conversion against the verbatim reference; the formatted track is the final text against the publisher's formatted note. The commercial reference was not replayed: its figures are the saved October captures (23 notes; one capture failed then).
 
-| 23 notes scored for all three | Existing | Candidate | Dragon (October) |
+| 23 notes scored for all three | Existing | Candidate | Commercial (October) |
 |---|---|---|---|
 | Spoken track WER | 15.19% | 15.24% | 39.04% |
 | Formatted track WER | 24.20% | 24.48% | 6.04% |
 
 On all 24 notes: spoken 14.87% → 14.90%, formatted 23.97% → 24.23%; neither difference is distinguishable from zero (paired bootstrap over notes: −0.6 to +0.7 and −0.8 to +1.3 points). Compute 184 s → 213 s for 3,949 s of audio on the RTX 4070 Ti SUPER.
 
-- These speakers dictate every punctuation mark. Of the 1,175 inserted words on the formatted track (existing pipeline), 1,027 are "period", "comma", "colon", "hyphen", "parenthesis" and similar, left in the text as words. Without those the formatted WER would be about 8.2% (8.4% candidate) against Dragon's 6.0%; that is arithmetic on the alignment, not a measured result.
-- The spoken track mirrors it: Dragon turns the spoken marks into punctuation, so it scores badly against a verbatim reference, and the local pipelines lose about 590 reference words the same way where Whisper writes the mark instead of the word.
+- These speakers dictate every punctuation mark. Of the 1,175 inserted words on the formatted track (existing pipeline), 1,027 are "period", "comma", "colon", "hyphen", "parenthesis" and similar, left in the text as words. Without those the formatted WER would be about 8.2% (8.4% candidate) against the commercial reference's 6.0%; that is arithmetic on the alignment, not a measured result.
+- The spoken track mirrors it: the commercial reference turns the spoken marks into punctuation, so it scores badly against a verbatim reference, and the local pipelines lose about 590 reference words the same way where Whisper writes the mark instead of the word.
 - The pause-aware changes do not address spoken punctuation marks, so no gain was expected here and none was found. No pause, command or early-Stop conditions were derived from this set.
 
 ## Spoken punctuation (added after the first Corti run)
@@ -103,10 +103,10 @@ The owner's recordings contain almost no dictated marks, so the rules were writt
 | Synthetic held-out: WER | 14.62% | 2.95% |
 | Real recordings (398 saved transcripts, all conditions): transcripts changed | - | 0 |
 | Corti formatted track, 24 notes | 24.23% | 8.14% |
-| Corti formatted track, the 23 notes with a Dragon capture (Dragon 6.04%) | 24.48% | 8.36% |
+| Corti formatted track, the 23 notes with a commercial capture (commercial 6.04%) | 24.48% | 8.36% |
 
 - Corti was run once with the option on. A spacing bug found afterwards on the owner's recordings was fixed and the saved Corti text re-converted without new recognition; one note's text changed and the totals did not. The Corti spoken track is unaffected (14.90%).
-- The remaining gap to Dragon on Corti is not broken down here, deliberately: reading those errors to design the next change would be developing against the benchmark.
+- The remaining gap to the commercial reference on Corti is not broken down here, deliberately: reading those errors to design the next change would be developing against the benchmark.
 - A computer voice pauses and pronounces the marks more regularly than a person. The real evidence that a human's dictated marks are handled is the Corti result; the owner's own voice dictating marks is untested.
 - False conversions are the risk: zero on the owner's recordings, which rarely contain "period" or "colon" as nouns, so that check is weak. The unit tests list the noun phrases that are protected.
 
@@ -124,11 +124,11 @@ Recognition settings were tried on the development recordings and changed nothin
 | Own development recordings, WER | 11.33% | 10.48% |
 | Own held-out recordings, WER (run once) | 4.45% | 3.54% |
 | Corti formatted track, 24 notes | 8.14% | 7.16% |
-| Corti formatted track, 23 Dragon-matched notes (Dragon 6.04%) | 8.36% | 7.34% |
+| Corti formatted track, 23 commercially matched notes (commercial 6.04%) | 8.36% | 7.34% |
 
 - This was the first of two further authorised Corti runs; the second has not been used. On Corti the whole gain came from the readings format (substitutions 353 → 294); the same-sound correction changed nothing measurable there.
 - Every change the two rules make across the 934 saved transcript pieces of the owner's recordings was listed and read: blood pressures, units and four drug or term spellings, no wrong conversion.
-- What is left on the owner's held-out recordings (47 word errors in 1,327) is mostly ordinary misrecognition (short function words, a few rare terms) and reference spelling variants, with no further pattern to fix in text. Closing the remaining 1.3 points to Dragon on Corti would take a better recogniser, not more rules, or rules fitted to that dataset's style, which was not done.
+- What is left on the owner's held-out recordings (47 word errors in 1,327) is mostly ordinary misrecognition (short function words, a few rare terms) and reference spelling variants, with no further pattern to fix in text. Closing the remaining 1.3 points to the commercial reference on Corti would take a better recogniser, not more rules, or rules fitted to that dataset's style, which was not done.
 
 ## Other recognisers: MedASR, Parakeet, Canary (third round)
 
@@ -141,15 +141,15 @@ Recognition settings were tried on the development recordings and changed nothin
 
 As recorded, text options on (Whisper also pause-aware):
 
-| | Own development | Own held-out (once) | Corti formatted, 23 Dragon-matched notes | Compute for Corti's 66 min |
+| | Own development | Own held-out (once) | Corti formatted, 23 commercially matched notes | Compute for Corti's 66 min |
 |---|---|---|---|---|
 | Whisper large-v3 | 10.48% | 3.32% | 7.18% | 209 s |
 | MedASR | 13.33% | 7.23% | 8.90% | 20 s |
 | Parakeet 0.6B v2 | 12.91% | 6.86% | 12.16% | 32 s |
 | Canary 1B v2 | 13.12% | 6.93% | 12.29% | 99 s |
-| Dragon Medical One | - | 5.73% | 6.04% | - |
+| Commercial reference | - | 5.73% | 6.04% | - |
 
-- Corti was used twice in this round as authorised: once for the three alternatives, once at the end for the Whisper build (7.34% → 7.18% on the 23 notes, 7.16% → 7.01% on all 24, from the number normaliser). Dragon's Corti figure is the saved October capture; its own-recordings figure is the replay above. Compute is on the RTX 4070 Ti SUPER; relative speed should carry to the 6 GB card but was not measured there. All three alternatives fit in 6 GB (about 2.3 GB whole-card with Parakeet or Canary loaded).
+- Corti was used twice in this round as authorised: once for the three alternatives, once at the end for the Whisper build (7.34% → 7.18% on the 23 notes, 7.16% → 7.01% on all 24, from the number normaliser). The commercial reference's Corti figure is the saved October capture; its own-recordings figure is the replay above. Compute is on the RTX 4070 Ti SUPER; relative speed should carry to the 6 GB card but was not measured there. All three alternatives fit in 6 GB (about 2.3 GB whole-card with Parakeet or Canary loaded).
 - On the owner's recordings without the two inconsistent development scripts, word errors were 3.1% (Whisper), 5.8% (MedASR), 6.8% (Canary), 7.6% (Parakeet). MedASR's errors are names and openings ("Dear Dr. ..." lost); Parakeet's and Canary's are drug and clinical terms.
 - **Tried and dropped:** using MedASR's word to repair a Whisper non-word at the same place. On the held-out recordings it fixed one error (two spellings of telmisartan) and also swapped dysphasia for dysphagia, two real and different terms. Not worth a second model in memory.
 - So Whisper large-v3 stays the default. MedASR is a credible fast alternative for dictation-style notes with few names; the app can now switch to it in Options.
@@ -186,7 +186,7 @@ The file-based figures for the same recordings were 3.32% and 4.52%, so the opti
 | Negated finding | 70.6% | 69.5% | 63.9% |
 
 - **What the development notes led to** (`src/dictation_fixes.py`, part of Extra corrections): a date of birth or chart number read digit by digit is written in one piece ("0-8-1-2-19-84" → 08/12/1984, digits in the order said; "8, 8-0-7-2-9" → 880729). Development recall 83.9% → 88.7%.
-- **Tried and dropped:** correcting a name from the letters spelled after it. The model's letters were wrong more often than its word; the repair lost 25 names for 4 gained. Names are a low priority for the owner (Dragon is weak on them too).
+- **Tried and dropped:** correcting a name from the letters spelled after it. The model's letters were wrong more often than its word; the repair lost 25 names for 4 gained. Names are a low priority for the owner (the commercial reference is weak on them too).
 - **Drug names (added 2026-11-16, `src/drug_names.py`, part of Extra corrections):** 73% was the weak spot. A drug name sits in a recognisable place ("takes ___ 5 mg daily", "medications include ___"), so a looser match is safe there than anywhere else. Three bands: a non-word within a letter or two of a drug name, anywhere; a non-word that is clearly closest to one drug name, in a drug position; and ordinary words that together sound exactly like one drug name, in a drug position ("Ram and Pearl 5 mg" → ramipril, "dorsal amide" → dorzolamide; a leading digit is read as a syllable, "4-Motorol" → formoterol). Similarity is 60% spelling and 40% consonant skeleton (Metaphone); the best name must beat the next by a margin. Names: 2,364 from the FDA Orange Book and RxNorm biologics (both public domain) plus a few international spellings, in `src/vocab/drug_names.txt`; another 999 RxNorm ingredients that are not approved drugs (thymol, creatine) are only protected from being changed.
 
   | Modulate, drug names found | Before | After | Right changes | Wrong changes |
@@ -219,10 +219,10 @@ Four things, each checked on the owner's reading (26 clips), the older held-out 
 
 ## Owner's dictated letters (2026-11-17)
 
-The owner dictated two fictional consult letters and three short messages with drug names (validation set v2) at the desk into MyTranscribe and Dragon at once, and recorded the same reading. Comparing the two desk transcripts:
+The owner dictated two fictional consult letters and three short messages with drug names (validation set v2) at the desk into MyTranscribe and the commercial reference at once, and recorded the same reading. Comparing the two desk transcripts:
 
 - **MyTranscribe:** wrote "metoprolol" for bisoprolol, "glucoside" for gliclazide twice, "tolerate... dulaglutide", "ozempic" and "I've" (said "I have"). An earlier letter had "it turns out, It was" (a capital after a dictated comma).
-- **Dragon:** wrote "glipizide" for gliclazide, "8.1-9 0.4" for "8.1 to 9.4", "heart rate was has settled", "the pain" for "knee pain", and "Right break" from the spoken separator.
+- **Commercial reference:** wrote "glipizide" for gliclazide, "8.1-9 0.4" for "8.1 to 9.4", "heart rate was has settled", "the pain" for "knee pain", and "Right break" from the spoken separator.
 
 The recording reproduced the MyTranscribe slips through the same pipeline, which showed where they came from:
 

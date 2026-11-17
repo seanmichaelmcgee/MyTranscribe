@@ -107,7 +107,7 @@ What remains is mostly brand and generic names the model has not met ("praziquan
 - **Drafts by an AI assistant:** the packs, the Spanish and French term lists and the reading sets. They need a clinician who dictates in the language; regional usage (Spain / Latin America, France / Canada) is not considered. The Swahili pack has not been reviewed by a Swahili speaker; one phrase was added from how the model heard the voice ("haya mpya").
 - **The Swahili voice is Congolese Swahili, the tuned model Kenyan,** and the held-out set is 5 readings.
 - **French homophones** (débuter / débutez, serais / serai) are the largest remaining French word errors; they are grammar, not vocabulary, and nothing here addresses them.
-- **No Dragon comparison** in any of the three languages.
+- **No commercial comparison** in any of the three languages.
 - **Licences to read before use at work:** the Swahili model (Apache 2.0), FLEURS (CC BY 4.0), Piper voices (each has its own; used here only to make test audio), Corti (evaluation only).
 
 ## Reproduce

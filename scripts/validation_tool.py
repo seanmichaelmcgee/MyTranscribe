@@ -1,8 +1,8 @@
 """
-Side-by-side validation against Dragon on a fictional reading set.
+Side-by-side validation against the dictation software you use now, on a fictional reading set.
 
-You read each item of validation/validation_set_v1.txt aloud once. Dragon types
-what it hears into this tool's window while the tool records the same
+You read each item of validation/validation_set_v1.txt aloud once. Your other
+dictation software types what it hears into this tool's window while the tool records the same
 microphone. Afterwards the saved audio is run through each local recogniser in
 turn, and all of them are scored against the text you were asked to read.
 
@@ -17,15 +17,16 @@ turn, and all of them are scored against the text you were asked to read.
                                                   its item by what was said. Files named by item code
                                                   (s01.m4a, c03.wav) are also accepted.
 
-Everything stays in --out on this PC: one WAV and one Dragon text per item, then
+Everything stays in --out on this PC: one WAV and one text from the other software per item, then
 results.json and results.csv. Nothing is sent anywhere; the recognisers run
 with the Hugging Face hub offline. The set is invented text, so the recordings
 hold no patient information. Do NOT point this at real dictation: that needs
 the counts-only mode described in docs/VALIDATION.md.
 
-Reading tips: click Start (or press F8), switch Dragon's microphone on, read the
-item including the words in CAPITALS, switch Dragon's microphone off, wait for
-Dragon to finish typing, then Stop (F8). Redo an item if you stumbled.
+Reading tips: click Start (or press F8), switch the other software's microphone on,
+read the item including the words in CAPITALS, switch its microphone off, wait for
+it to finish typing, then Stop (F8). Redo an item if you stumbled. Without other
+software, just read: only the local recognisers are then scored.
 """
 
 import argparse
@@ -174,9 +175,9 @@ class Recorder:
 
 class NativeEdit:
     """
-    A standard Windows multi-line EDIT control placed over a Qt widget. Dragon
-    only types into controls it recognises; a Qt text box is not one of them,
-    the plain Windows edit control is.
+    A standard Windows multi-line EDIT control placed over a Qt widget. Desktop
+    dictation software often types only into controls it recognises; a Qt text
+    box may not be one of them, the plain Windows edit control is.
     """
     WS_CHILD, WS_VISIBLE, WS_VSCROLL, WS_BORDER = 0x40000000, 0x10000000, 0x00200000, 0x00800000
     ES_MULTILINE, ES_AUTOVSCROLL, ES_WANTRETURN = 0x0004, 0x0040, 0x1000
@@ -198,7 +199,7 @@ class NativeEdit:
                  | self.ES_AUTOVSCROLL | self.ES_WANTRETURN)
         self.hwnd = self.u.CreateWindowExW(0, "EDIT", "", style, 0, 0, 100, 100, int(host.winId()), None, None, None)
         if not self.hwnd:
-            raise RuntimeError("could not create the Windows edit control for Dragon")
+            raise RuntimeError("could not create the Windows edit control")
         gdi = ctypes.windll.gdi32
         gdi.CreateFontW.restype = w.HFONT
         self._font = gdi.CreateFontW(-22, 0, 0, 0, 400, 0, 0, 0, 1, 0, 0, 5, 0, "Segoe UI")
@@ -245,7 +246,7 @@ def cmd_record(args):
     class Window(QWidget):
         def __init__(self):
             super().__init__()
-            self.setWindowTitle("MyTranscribe validation: read, Dragon types here")
+            self.setWindowTitle("MyTranscribe validation: read; other dictation software types here")
             self.resize(900, 720)
             self.index = next((i for i, it in enumerate(items) if not self.done(it)), len(items))
             self.recording = False
@@ -257,12 +258,12 @@ def cmd_record(args):
             self.script.setReadOnly(True)
             self.script.setFont(QFont("Segoe UI", 15))
             layout.addWidget(self.script, 3)
-            layout.addWidget(QLabel("Dragon types here (keep the cursor in this box while you dictate):"))
-            self.dragon_host = QWidget()
-            self.dragon_host.setAttribute(Qt.WidgetAttribute.WA_NativeWindow)
-            self.dragon_host.setMinimumHeight(170)
-            layout.addWidget(self.dragon_host, 2)
-            self.dragon = None                              # the native control, made once the window exists
+            layout.addWidget(QLabel("Your other dictation software types here (keep the cursor in this box while you dictate):"))
+            self.text_host = QWidget()
+            self.text_host.setAttribute(Qt.WidgetAttribute.WA_NativeWindow)
+            self.text_host.setMinimumHeight(170)
+            layout.addWidget(self.text_host, 2)
+            self.typed = None                              # the native control, made once the window exists
             self._f8_down = False
             row = QHBoxLayout()
             self.toggle = QPushButton()
@@ -280,7 +281,7 @@ def cmd_record(args):
             self.status.setWordWrap(True)
             layout.addWidget(self.status)
             QShortcut(QKeySequence("F8"), self, activated=self.on_toggle)
-            self.keys = QTimer(self)                        # F8 while the cursor is in Dragon's (native) box
+            self.keys = QTimer(self)                        # F8 while the cursor is in the native text box
             self.keys.setInterval(30)
             self.keys.timeout.connect(self.poll_f8)
             self.keys.start()
@@ -290,27 +291,27 @@ def cmd_record(args):
             self.tick.start()
         def showEvent(self, event):
             super().showEvent(event)
-            if self.dragon is None:
-                self.dragon = NativeEdit(self.dragon_host)
+            if self.typed is None:
+                self.typed = NativeEdit(self.text_host)
                 self.show_item()
 
         def resizeEvent(self, event):
             super().resizeEvent(event)
-            if self.dragon is not None:
-                self.dragon.fit()
+            if self.typed is not None:
+                self.typed.fit()
 
         def poll_f8(self):
             import ctypes
             down = bool(ctypes.windll.user32.GetAsyncKeyState(0x77) & 0x8000)
-            fired = down and not self._f8_down and self.isActiveWindow() and self.dragon is not None \
-                and ctypes.windll.user32.GetFocus() == self.dragon.hwnd
+            fired = down and not self._f8_down and self.isActiveWindow() and self.typed is not None \
+                and ctypes.windll.user32.GetFocus() == self.typed.hwnd
             self._f8_down = down
             if fired:
                 self.on_toggle()
 
         @staticmethod
         def paths(item):
-            return out / "items" / f"{item['id']}.wav", out / "items" / f"{item['id']}.dragon.txt"
+            return out / "items" / f"{item['id']}.wav", out / "items" / f"{item['id']}.other.txt"
 
         def done(self, item):
             return all(p.is_file() for p in self.paths(item))
@@ -321,14 +322,14 @@ def cmd_record(args):
                 self.show_item()
 
         def show_item(self):
-            if self.dragon is None:
+            if self.typed is None:
                 return
             finished = sum(self.done(it) for it in items)
             if self.index >= len(items):
                 self.header.setText(f"All items shown. {finished} of {len(items)} recorded.")
                 self.script.setPlainText("Finished. Close this window, then run:\n\n"
                                          f"    validation_tool.py score --out {out}")
-                self.dragon.set_text("")
+                self.typed.set_text("")
                 self.toggle.setEnabled(False)
                 return
             item = items[self.index]
@@ -337,9 +338,9 @@ def cmd_record(args):
                                 f"   recorded so far: {finished}")
             self.script.setPlainText(spoken_form(item["reference"], shout=True, language=item["language"]))
             wav, txt = self.paths(item)
-            self.dragon.set_text(txt.read_text(encoding="utf-8") if txt.is_file() else "")
+            self.typed.set_text(txt.read_text(encoding="utf-8") if txt.is_file() else "")
             self.toggle.setText("Start (F8)")
-            self.dragon.focus()
+            self.typed.focus()
 
         def on_redo(self):
             if self.recording or self.index >= len(items):
@@ -353,11 +354,11 @@ def cmd_record(args):
                 return
             item = items[self.index]
             if not self.recording:
-                self.dragon.set_text("")
+                self.typed.set_text("")
                 recorder.start()
                 self.recording, self.started = True, time.monotonic()
                 self.toggle.setText("Stop (F8)")
-                self.dragon.focus()
+                self.typed.focus()
                 return
             pcm = recorder.stop()
             self.recording = False
@@ -367,93 +368,21 @@ def cmd_record(args):
                 self.toggle.setText("Start (F8)")
                 return
             save_wav(wav, pcm)
-            txt.write_text(self.dragon.text(), encoding="utf-8")
+            txt.write_text(self.typed.text(), encoding="utf-8")
             self.go(self.index + 1)
 
         def refresh_status(self):
             if self.recording:
-                self.status.setText(f"RECORDING {time.monotonic() - self.started:4.0f} s. Dragon microphone on, read the "
-                                    "item with the words in CAPITALS, Dragon microphone off, wait for Dragon to "
+                self.status.setText(f"RECORDING {time.monotonic() - self.started:4.0f} s. Other software's microphone on, read "
+                                    "the item with the words in CAPITALS, its microphone off, wait for it to "
                                     "finish typing, then Stop (F8).")
             elif not self.status.text().startswith("Recording failed"):
-                self.status.setText("Not recording. Start (F8) clears the Dragon box and begins the item.")
+                self.status.setText("Not recording. Start (F8) clears the text box and begins the item.")
 
     window = Window()
     window.show()
-    if args.autoplay:
-        _autoplay(app, window, items, Path(args.autoplay))
-    else:
-        app.exec()
+    app.exec()
 
-
-def _autoplay(app, window, items, audio_dir: Path):
-    """Self-test: play <audio_dir>/<id>.wav through the virtual cable with Dragon's microphone on."""
-    import numpy as np
-    from pynput.keyboard import Controller, Key, KeyCode
-    import dragon_replay as dg
-    keys, mic = Controller(), KeyCode.from_vk(dg.MIC_VK)
-
-    def pump(seconds):
-        end = time.monotonic() + seconds
-        while time.monotonic() < end:
-            app.processEvents()
-            time.sleep(0.01)
-
-    def front():
-        """Keys go out only while this window is the foreground one, with the cursor in Dragon's box."""
-        dg.desktop_ready()
-        u, own = dg._user32(), int(window.winId())
-        for _ in range(3):
-            u.SetForegroundWindow(own)
-            pump(0.3)
-            if int(u.GetForegroundWindow() or 0) == own:
-                window.dragon.focus()
-                pump(0.2)
-                return
-            keys.press(Key.alt)
-            keys.release(Key.alt)
-        raise SystemExit("could not bring the validation window to the front; no keys sent")
-
-    def press(want):
-        if dg.mic_state() == want:
-            raise SystemExit(f"Dragon microphone is already {want}; stopping")
-        front()
-        keys.press(mic)
-        time.sleep(0.08)
-        keys.release(mic)
-        for _ in range(12):
-            pump(0.5)
-            if dg.mic_state() == want:
-                return
-        raise SystemExit(f"Dragon microphone did not switch {want}")
-
-    pump(1.0)
-    for item in items:
-        source = audio_dir / f"{item['id']}.wav"
-        if window.done(item) or not source.is_file():
-            continue
-        window.go(items.index(item))
-        with wave.open(str(source)) as w:
-            pcm = w.readframes(w.getnframes())
-        window.on_toggle()
-        press("on")
-        player = threading.Thread(target=dg.play, args=(pcm,), daemon=True)
-        player.start()
-        while player.is_alive():
-            pump(0.1)
-        pump(5.0)
-        press("off")
-        last = None
-        for _ in range(20):                               # wait for Dragon to finish typing
-            pump(1.0)
-            now = window.dragon.text()
-            if now == last:
-                break
-            last = now
-        window.on_toggle()
-        words = len(window.paths(item)[1].read_text(encoding="utf-8").split())
-        print(f"{item['id']} recorded, Dragon wrote {words} words", flush=True)
-    window.close()
 
 
 # ── import ───────────────────────────────────────────────────────────────────
@@ -579,7 +508,7 @@ def load_audio(path):
 
 
 def cmd_import(args):
-    """Recordings -> <out>/items/<code>.wav (16 kHz mono), with any <code>.dragon.txt."""
+    """Recordings -> <out>/items/<code>.wav (16 kHz mono), with any <code>.other.txt."""
     import numpy as np
     items = load_set(args.set)
     codes = {it["id"] for it in items}
@@ -596,8 +525,8 @@ def cmd_import(args):
             audio = load_audio(path)
             save_wav(args.out / "items" / f"{code}.wav", (np.clip(audio, -1, 1) * 32767).astype("<i2").tobytes())
             taken.append(code)
-        elif path.name.lower().endswith(".dragon.txt") and code in codes:
-            (args.out / "items" / f"{code}.dragon.txt").write_text(path.read_text(encoding="utf-8-sig"), encoding="utf-8")
+        elif path.name.lower().endswith(".other.txt") and code in codes:
+            (args.out / "items" / f"{code}.other.txt").write_text(path.read_text(encoding="utf-8-sig"), encoding="utf-8")
     if long_files:
         import dictation_reliability as dr
         engine = dr.make_engine("whisper", args.model)
@@ -763,14 +692,14 @@ def cmd_score(args):
     items = [it for it in load_set(args.set) if (args.out / "items" / f"{it['id']}.wav").is_file()]
     if not items:
         raise SystemExit(f"no recorded items in {args.out}; run 'record' or 'import' first")
-    dragon = {it["id"]: (args.out / "items" / f"{it['id']}.dragon.txt").read_text(encoding="utf-8")
-              for it in items if (args.out / "items" / f"{it['id']}.dragon.txt").is_file()}
-    systems = {"dragon": dragon} if dragon else {}         # recordings made without Dragon have no Dragon text
-    if dragon and len(dragon) < len(items):
-        print(f"note: Dragon text exists for {len(dragon)} of {len(items)} items; its totals cover only those")
-        items_dragon = [it for it in items if it["id"] in dragon]
+    other = {it["id"]: (args.out / "items" / f"{it['id']}.other.txt").read_text(encoding="utf-8")
+             for it in items if (args.out / "items" / f"{it['id']}.other.txt").is_file()}
+    systems = {"other": other} if other else {}           # recordings made without other software have none
+    if other and len(other) < len(items):
+        print(f"note: other software's text exists for {len(other)} of {len(items)} items; its totals cover only those")
+        items_other = [it for it in items if it["id"] in other]
     else:
-        items_dragon = items
+        items_other = items
     if items[0]["language"] != "en":                      # only Whisper understands the other languages
         print(f"running whisper ({items[0]['language']}) on {len(items)} recordings ...", flush=True)
         systems["whisper"] = transcribe_all_language(items, args.out, args.model)
@@ -785,7 +714,7 @@ def cmd_score(args):
 
     result, table = {"items": len(items), "systems": {}}, []
     for name, texts in systems.items():
-        scored = items_dragon if name == "dragon" else items
+        scored = items_other if name == "other" else items
         rows = [dr.score_row({"id": it["id"], "split": "validation", "category": it["category"],
                               "reference": it["reference"], "spoken": it["spoken"]},
                              "orig", texts.get(it["id"], ""), texts.get(it["id"], ""), audio_s=0.0)
@@ -835,7 +764,6 @@ def main(argv=None):
             p.add_argument("--model", help="local Whisper model folder (used to find the breaks)")
         if name == "record":
             p.add_argument("--input", default="microphone", choices=["microphone", "cable"])
-            p.add_argument("--autoplay", help="self-test: folder of <id>.wav to play through the virtual cable")
         if name == "score":
             p.add_argument("--engines", default="whisper,medasr")
             p.add_argument("--model", help="local Whisper model folder")
