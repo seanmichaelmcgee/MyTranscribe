@@ -99,13 +99,32 @@ def rms_int16(data: bytes) -> float:
     return float(np.sqrt(np.mean(np.square(a.astype(np.float32)))))
 
 
+GAIN_DB_PER_STEP = 0.4            # mic gain slider 0..100: 50 = unchanged, 0 = -20 dB, 100 = +20 dB
+
+
+def gain_from_slider(value) -> float:
+    """Options -> Microphone gain (0..100, 50 = as the microphone sends it) as a factor."""
+    try:
+        v = max(0, min(100, int(value)))
+    except (TypeError, ValueError, OverflowError):
+        v = 50
+    return 10 ** ((v - 50) * GAIN_DB_PER_STEP / 20)
+
+
+def apply_gain(data: bytes, gain: float) -> bytes:
+    """int16 PCM bytes times `gain`, clipped to the int16 range. Gain 1 returns the bytes untouched."""
+    if gain == 1.0 or not data:
+        return data
+    a = np.frombuffer(data, dtype=np.int16).astype(np.float32) * gain
+    return np.clip(np.rint(a), -32768, 32767).astype(np.int16).tobytes()
+
+
 @dataclass(frozen=True)
 class InputLevel:
     """Latest captured frame's normalized RMS and peak, before speech filtering.
 
-    The capture PCM is converted with the same scaling used for inference.
-    No application gain is applied. If gain is added, measure its output here.
-    This immutable snapshot contains no audio and can be read by the GUI.
+    Measured after the microphone gain (Options), on exactly the audio that is
+    transcribed. This immutable snapshot contains no audio and can be read by the GUI.
     """
     rms: float = 0.0
     peak: float = 0.0
@@ -294,6 +313,7 @@ class ChunkedTranscriber:
         self.cut_search_s = min(cut_search_s, chunk_target_s / 2)
         self.max_session_s = max_session_s
         self.level_threshold_rms = level_threshold_rms
+        self.gain = 1.0                 # microphone gain factor (Options); 1 = unchanged
         self._carry_limit_s = max(0.0, min(carry_max_s, chunk_target_s / 2))
         self.pause_aware = False
         self.carry_max_s = 0.0
@@ -456,6 +476,7 @@ class ChunkedTranscriber:
                 self.auto_stopped = True
                 self._running = False
                 break
+            data = apply_gain(data, self.gain)   # the meter, the silence check and the model all hear this
             self._update_level(data)
             self._buffer.extend(data)
             self._captured_samples += len(data) // BYTES_PER_SAMPLE

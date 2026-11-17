@@ -214,9 +214,12 @@ def test_options_offers_languages_and_explains_what_changes(qapp, monkeypatch):
     from options_dialog import OptionsDialog
     monkeypatch.setattr(engines, "availability", lambda name, **k: (True, ""))
     d = OptionsDialog(st.Settings())
-    assert [d.language.itemData(i) for i in range(d.language.count())] == ["en", "es", "fr", "sw"]
+    assert [d.language.itemData(i) for i in range(d.language.count())] == ["en", "es", "fr"]   # Swahili not offered
+    assert "(experimental)" in d.language.itemText(1) and "(experimental)" not in d.language.itemText(0)
     assert "spelling correction are off" not in d.engine_note.text()
-    d.language.setCurrentIndex(d.language.findData("sw"))
+    d.language.setCurrentIndex(d.language.findData("fr"))
+    assert "experimental" in d.engine_note.text() and "spelling correction are off" in d.engine_note.text()
+    d = OptionsDialog(st.Settings(language="sw"))           # chosen by MYTRANSCRIBE_LANGUAGE: shown
     assert "NOT reviewed" in d.engine_note.text() and "spelling correction are off" in d.engine_note.text()
     d.engine.setCurrentIndex(d.engine.findData("medasr"))
     assert "Only Whisper understands this language" in d.engine_note.text()

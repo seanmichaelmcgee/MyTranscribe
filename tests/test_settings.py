@@ -37,6 +37,7 @@ def test_settings_file_never_holds_text(tmp_path):
     st.save(st.Settings(), p)
     assert set(json.loads(p.read_text(encoding="utf-8"))) == {"key", "key_mode", "mouse", "mouse_mode",
                                                               "start_compact", "accuracy", "voice_commands",
+                                                              "mic_gain",
                                                               "keep_mic_ready", "live_insert", "chime_volume", "autopaste",
                                                               "pause_aware", "spoken_punctuation", "engine", "language",
                                                               "only_dictated_commas",

@@ -44,8 +44,8 @@ from typing import Callable, Optional
 
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtWidgets import (
-    QApplication, QFrame, QHBoxLayout, QLabel, QMessageBox, QProgressBar, QPushButton, QTextEdit, QVBoxLayout,
-    QWidget,
+    QApplication, QFrame, QHBoxLayout, QLabel, QMessageBox, QProgressBar, QPushButton, QSizePolicy, QTextEdit,
+    QVBoxLayout, QWidget,
 )
 
 _SRC_DIR = Path(__file__).parent
@@ -54,7 +54,7 @@ sys.path.insert(0, str(_SRC_DIR))
 from fw_engine import register_cuda_dll_dirs                 # noqa: E402
 from hw_profile import choose_config, detect_hardware        # noqa: E402
 from chunked_transcriber import (                            # noqa: E402
-    ERROR_PREFIX, LEVEL_THRESHOLD_RMS, POST_ROLL_S, ChunkedTranscriber, InputLevel,
+    ERROR_PREFIX, LEVEL_THRESHOLD_RMS, POST_ROLL_S, ChunkedTranscriber, InputLevel, gain_from_slider,
 )
 from prompt_loader import load_prompt                        # noqa: E402
 from vocab import build_text_pipeline                        # noqa: E402
@@ -84,7 +84,7 @@ LIVE_INSERT_GAP_MS = 300        # let the target app read the clipboard before t
 LOADING_TEXT = "Loading speech model…"
 TRANSCRIBING_SUFFIX = "\n\n[Finishing transcription…]"
 NORMAL_SIZE = (560, 300)
-COMPACT_WIDTH = 300
+COMPACT_WIDTH = 320
 
 # Recording light: always visible, green = recording, red = not recording.
 REC_ON_COLOUR = "#2E9E4F"
@@ -126,8 +126,8 @@ QPushButton#copyButton:hover, QPushButton#compactButton:hover, QPushButton#optio
 QPushButton#copyButton:disabled { color: #B4B2A9; border-color: #E6E4DA; }
 QPushButton#copyButton[attention="true"] { background: #FCEFE6; color: #93370D; border-color: #E9B48F; }
 QFrame#audioIndicator { background: #C96442; border-radius: 2px; border: none; }
-QProgressBar#micLevel { background: #E3E1D7; border: none; border-radius: 3px; }
-QProgressBar#micLevel::chunk { background: #2E9E4F; border-radius: 3px; }
+QProgressBar#micLevel { background: #E3E1D7; border: none; border-radius: 2px; }
+QProgressBar#micLevel::chunk { background: #2E9E4F; border-radius: 2px; }
 QProgressBar#micLevel[levelKind="low"]::chunk { background: #B98500; }
 QProgressBar#micLevel[levelKind="clipping"]::chunk { background: #C8322B; }
 """
@@ -139,6 +139,43 @@ def meter_display(level: InputLevel) -> tuple[int, str]:
     kind = ("clipping" if level.peak >= 0.999 else
             "low" if level.rms * 32768 <= LEVEL_THRESHOLD_RMS else "signal")
     return value, kind
+
+
+class _StatusLabel(QLabel):
+    """
+    One-line status that ends in "…" when the window is too narrow (compact
+    view) instead of wrapping or being cut off; the tooltip shows all of it.
+    text() returns the full text.
+    """
+
+    def __init__(self, text: str = "") -> None:
+        super().__init__()
+        self._full = ""
+        self.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
+        self.setText(text)
+
+    def setText(self, text: str) -> None:       # noqa: N802 (Qt name)
+        self._full = text
+        self.setToolTip(text)
+        self._elide()
+
+    def text(self) -> str:
+        return self._full
+
+    def resizeEvent(self, event) -> None:       # noqa: N802 (Qt name)
+        super().resizeEvent(event)
+        self._elide()
+
+    def changeEvent(self, event) -> None:       # noqa: N802 (Qt name): font set by a style sheet
+        super().changeEvent(event)
+        self._elide()
+
+    def _elide(self) -> None:
+        full = getattr(self, "_full", "")
+        width = self.width()
+        shown = full if width <= 0 else self.fontMetrics().elidedText(full, Qt.TextElideMode.ElideRight, width)
+        if super().text() != shown:
+            super().setText(shown)
 
 
 def env_flag(name: str, env: Optional[dict] = None) -> bool:
@@ -326,7 +363,7 @@ class MedTranscriptionWindow(TranscriptionWindow):
             self._text_area.setPlainText(
                 f"Could not load the speech model:\n{self._load_error}\n\n"
                 "Options → Show log has the details; Options → Recogniser lets you pick another model. "
-                "See README_1060.md → Troubleshooting."
+                "See README.md → Troubleshooting."
             )
             self._set_status("Model failed to load", "warn")
             return
@@ -337,6 +374,7 @@ class MedTranscriptionWindow(TranscriptionWindow):
         )
         self._apply_pause_mode()
         self._apply_language()
+        self._apply_mic_gain()
         logger.info("Topic prompts %s, spelling correction %s",
                     "on" if builder else "off", "on" if corrector else "off")
         self._device = getattr(getattr(self._engine, "config", None), "device", None)
@@ -390,6 +428,13 @@ class MedTranscriptionWindow(TranscriptionWindow):
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
         return answer == QMessageBox.StandardButton.Yes
 
+    def _apply_mic_gain(self) -> None:
+        """Options -> Microphone gain; takes effect from the next recording."""
+        if self._transcriber is not None:
+            self._transcriber.gain = gain_from_slider(self._settings.mic_gain)
+            if self._settings.mic_gain != 50:
+                logger.info("Microphone gain %d (x%.2f)", self._settings.mic_gain, self._transcriber.gain)
+
     def _apply_pause_mode(self) -> None:
         """Classic or pause-aware pipeline (Options); takes effect from the next recording."""
         if self._transcriber is not None:
@@ -434,25 +479,15 @@ class MedTranscriptionWindow(TranscriptionWindow):
         self._rec_light = QLabel()
         self._rec_light.setObjectName("recLight")
         self._rec_light.setFixedSize(18, 18)
-        self._status_text = QLabel("Loading…")
+        self._status_text = _StatusLabel("Loading…")
         self._status_text.setObjectName("statusText")
-        self._status_text.setWordWrap(True)
         top.addWidget(self._rec_light)
         top.addSpacing(2)
-        top.addWidget(self._status_text)
-        top.addStretch(1)
-        self._mic_level = QProgressBar()
-        self._mic_level.setObjectName("micLevel")
-        self._mic_level.setRange(0, 100)
-        self._mic_level.setTextVisible(False)
-        self._mic_level.setFixedSize(56, 8)
-        self._mic_level.setAccessibleName("Microphone input level")
-        top.addWidget(self._mic_level)
-        self._update_mic_meter()
+        top.addWidget(self._status_text, stretch=1)
         self._copy_btn = self._small_button("Copy", "copyButton", self._on_copy_clicked,
                                             "Copy the transcript again")
         self._options_btn = self._small_button("⚙", "optionsButton", self._open_options,
-                                               "Options: keys, hold-to-talk, help")
+                                               "Options: keys, microphone gain, text, help")
         self._compact_btn = self._small_button("–", "compactButton", self._toggle_compact,
                                                "Compact view (button only)")
         for b in (self._copy_btn, self._options_btn, self._compact_btn):
@@ -471,6 +506,17 @@ class MedTranscriptionWindow(TranscriptionWindow):
         self._audio_indicator.setFixedSize(40, 4)
         self._audio_indicator.setVisible(False)
         self._reposition_indicator()
+
+        # Microphone level: a thin full-width bar just above the Start button, in
+        # every view, so the gain in Options can be set by watching it.
+        self._mic_level = QProgressBar()
+        self._mic_level.setObjectName("micLevel")
+        self._mic_level.setRange(0, 100)
+        self._mic_level.setTextVisible(False)
+        self._mic_level.setFixedHeight(5)
+        self._mic_level.setAccessibleName("Microphone input level")
+        layout.addWidget(self._mic_level)
+        self._update_mic_meter()
 
         row = QHBoxLayout()
         row.setSpacing(8)
@@ -701,10 +747,11 @@ class MedTranscriptionWindow(TranscriptionWindow):
             bar.style().unpolish(bar)
             bar.style().polish(bar)
         description = ("Not recording" if level is None else
-                       "Too loud: lower the microphone level or move back" if kind == "clipping" else
-                       "Low input: move closer or check the microphone level" if kind == "low" else
+                       "Too loud: lower the microphone gain or move back" if kind == "clipping" else
+                       "Low input: move closer or raise the microphone gain" if kind == "low" else
                        "Receiving microphone audio")
-        bar.setToolTip(description + ". This shows captured input; speech recognition may filter silence.")
+        bar.setToolTip(description + ". Microphone level: green while you speak is right; "
+                       "amber = too quiet, red = too loud. Options → Microphone gain adjusts it.")
         bar.setAccessibleDescription(description)
 
     def _finalize(self, text: str, from_hotkey: bool) -> None:
@@ -1028,6 +1075,7 @@ class MedTranscriptionWindow(TranscriptionWindow):
         self._apply_mic_mode()
         self._apply_pause_mode()
         self._apply_language()
+        self._apply_mic_gain()
         if ((old.engine, old.accuracy, engines.tuned_model(old.language))
                 != (self._settings.engine, self._settings.accuracy, engines.tuned_model(self._settings.language))):
             self._reload_engine()                 # also when the language has its own tuned model

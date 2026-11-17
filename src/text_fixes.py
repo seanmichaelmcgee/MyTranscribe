@@ -7,7 +7,7 @@ text_fixes.py — small deterministic clean-ups applied to every transcribed chu
    the result is a known abbreviation from the vocabulary, so a real list like
    "A, B, C" is left alone.
 
-2. Personal corrections ("heard => correct"), like Dragon's vocabulary editor:
+2. Personal corrections ("heard => correct"), like a dictation vocabulary editor:
    one rule per line in plain-text files; whole words/phrases, case-insensitive.
      anti-Rho => anti-Ro
    Bundled file: vocab/corrections.txt. Your own: %APPDATA%\\MyTranscribe\\corrections.txt

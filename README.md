@@ -1,478 +1,221 @@
-# MyTranscribe
+# MyTranscribe Medical
 
-Real-time, GPU-accelerated speech transcription for Linux and Windows.
+**Accurate English medical dictation that runs entirely on your own Windows PC, with an
+ordinary headset.** Dictate a letter or a note, stop, and paste the text into your EMR or
+Word. Nothing you say leaves the computer.
 
-![Version](https://img.shields.io/badge/version-0.10-blue)
-![Python](https://img.shields.io/badge/python-3.11-green)
-![License](https://img.shields.io/badge/license-MIT-orange)
+> **Status: early testing.** It is used daily by one physician and is now being opened to
+> a small group of clinician testers. It is a dictation tool, not a medical device: like any
+> dictation, **you read and correct the text before it goes into a record.**
 
----
+- **Built for clinical dictation:** consult letters, referral notes, results messages. It
+  knows about 2,400 drug names and 1,100 primary-care terms, writes readings the way a chart
+  does (138/78, 124 g/L, 37.2 °C), and understands spoken formatting and punctuation ("new
+  paragraph", "comma", "period").
+- **Private by design:** speech recognition runs on your PC with no internet connection. Audio
+  is kept in memory only, never written to disk; the log never contains what you dictated; and
+  each copy is kept out of Windows clipboard history and cloud sync.
+- **No special microphone:** the results below were dictated through an ordinary headset, and
+  the speech model was also tested on telephone-quality and noisy-ward recordings.
+- **Free and open source** (MIT licence). The speech model is OpenAI's Whisper large-v3 (MIT).
 
-## Overview
+## How accurate is it?
 
-MyTranscribe is a lightweight desktop application that transcribes spoken audio in
-real time using OpenAI's Whisper model. It runs in a small always-on-top window at
-0.9 opacity, staying out of the way while remaining visible. Transcribed text is
-copied to the clipboard automatically after each segment.
+Everything below is measured, with the method and the limits written down in
+[docs/VALIDATION.md](docs/VALIDATION.md) and
+[docs/optimization/2026-11-15-dictation-reliability.md](docs/optimization/2026-11-15-dictation-reliability.md).
+"Word errors" is the share of words wrong, missing or added compared with what was meant to be
+said (lower is better). For comparison, a leading commercial medical dictation product with
+a medical vocabulary heard the same recordings.
 
-The app is optimized for English — Whisper is multilingual, but accuracy on other
-languages has not been systematically tested in this configuration.
+**The developer's own voice, ordinary headset, invented consult letters and messages read
+aloud (26 items, 8.5 minutes, every punctuation mark dictated):**
 
-Normal mode processes audio in rolling 5-minute chunks for continuous, low-latency
-transcription. Long recording mode captures an extended utterance as one segment
-before processing. GPU acceleration (NVIDIA CUDA) cuts per-segment inference to
-under a second on a mid-range card.
+| | Word errors | Drug names right | Doses right | Paragraphs, lists and commands right |
+|---|---|---|---|---|
+| MyTranscribe Medical | **2.1%** | **24 / 24** | **15 / 15** | 37 / 37 |
+| Commercial medical dictation (same recording) | 4.8% | 23 / 24 | 14 / 15 | 37 / 37 |
 
-Linux (GTK3) and Windows (PyQt6) are both first-class targets sharing the same
-transcription engine (`src/transcriber_v12.py`). Built primarily through iterative
-work with consumer-level LLMs: OpenAI o3-mini-high, GPT-4o, and Claude 3.7 Thinking.
+A second reading of two consult letters with medications in running prose came out at 1.2%
+word errors, every drug name right.
 
-> **New: Medical / GTX 1060 edition.** For long dictation (letters) on older NVIDIA
-> cards, with background transcription, no temp files, a medical vocabulary prompt and
-> optional auto-paste, see **[README_1060.md](README_1060.md)** (`run_1060.bat`,
-> `src/gui_med.py`). The app described below is unchanged.
+**Other clinicians' real dictation** (Corti Med-Dictate, 24 English notes, 66 minutes,
+used for evaluation only and never for tuning): **7.0%** word
+errors. The commercial product's figure on 23 of those notes was 6.0%. On voices it was not
+tuned to, MyTranscribe is close to, but about one point behind, a commercial system.
 
----
+**Many voices and conditions** ([Modulate synthetic medical dictation](https://huggingface.co/datasets/modulate/synthetic-medical-dictation),
+462 recordings, 28 computer voices, 5.6 hours): **86% of clinical terms** (drugs, doses, lab
+values, findings, dates of birth, chart numbers) came out right overall, 92% over telephone-quality
+audio, 81% in a simulated busy ward. Drug names: 88%.
 
-## Features
+### Why we think it is fit for clinical dictation, and what is not yet shown
 
-- Real-time transcription powered by OpenAI Whisper, with results copied to the
-  clipboard after every segment
-- GPU acceleration via NVIDIA CUDA; CPU fallback is automatic when no GPU is present
-- Model selection from `tiny` to `large-v3`, plus the `turbo` distilled model
-  (~8x faster than `large-v3` at comparable quality) — configurable via the
-  `MYTRANSCRIBE_MODEL` environment variable on both platforms
-- Two recording modes: **Normal** (continuous 5-minute auto-chunking) and **Long**
-  (single extended capture up to 3 minutes, processed on Stop)
-- Global hotkey **Ctrl+Alt+Q** — triggers Start/Stop from any application
-- **Spacebar** shortcut when the MyTranscribe window is focused
-- Always-on-top window at 0.9 opacity for unobtrusive monitoring
-- Audio activity indicator (green status bar) and chime feedback so you can tell
-  when transcription starts or stops without watching the window
-- Technical-vocabulary prompt primes Whisper with programming and ML terminology to
-  improve accuracy on code-heavy speech
-- Cross-platform: GTK3 interface on Linux (`src/gui-v0.8.py`), PyQt6 interface on
-  Windows (`src/gui_qt.py`)
+- **It is accurate where it matters most.** On the developer's recordings it makes fewer than
+  half the errors of a commercial medical dictation product, and it got every drug name and
+  dose right.
+- **It is built not to make things up.** A misheard drug name is only ever changed to a real,
+  approved drug, and only when the misheard word sounds like it and sits where a drug belongs
+  (before a dose, in a medication list). It can still pick a similar-sounding real drug, usually
+  one of the same class, so **drug names must be checked**, as with any dictation. Words the
+  app cannot place are highlighted for you to check. Known Whisper "phantom" phrases (such as
+  "Thank you for watching") are removed.
+- **Nothing leaves the PC.** See [Privacy](#privacy).
+- **Not yet shown:** accuracy on many real clinicians' voices and accents, in real clinic
+  noise, and in day-to-day use by anyone but the developer. Names of people are its weakest
+  point (as for every system tested). Gathering that evidence is what the testing phase is for.
 
----
+## What you need
 
-## Hardware Expectations
+- **Windows 10 or 11.**
+- **An NVIDIA graphics card with at least 6 GB of memory** (GTX 1060 6 GB, GTX 1660, any RTX).
+  The app uses about 3.7 GB of it. A recent NVIDIA driver (any 2024 or later Game Ready or
+  Studio driver).
+- **Python 3.11** from [python.org](https://www.python.org/downloads/) (tick "Add python.exe to PATH").
+- About **10 GB of free disk space** (the speech models are 3 GB to 6 GB).
+- **A headset or microphone.** An ordinary USB or Bluetooth headset is fine.
+- **No graphics card?** Running on the processor alone is being tested; see [Computers without
+  an NVIDIA card](#computers-without-an-nvidia-card).
 
-Whisper model weights are loaded entirely onto the GPU. The table below gives
-approximate VRAM requirements and a rough quality/speed characterisation. All VRAM
-figures are approximate at fp16 precision; actual reservation may be higher due to
-PyTorch memory pooling.
+## Install
 
-| Model | Approx. VRAM | Relative speed | Notes |
-|---|---|---|---|
-| `tiny` | ~1 GB | Fastest | Acceptable for clear speech; degrades on accented or noisy audio |
-| `base` | ~1 GB | Very fast | Better than `tiny`; good starting point for weak GPUs |
-| `small` | ~2 GB | Fast | Default on Linux; solid accuracy for most technical speech |
-| `medium` | ~5 GB | Moderate | Good accuracy step-up over `small` |
-| `large-v3` | ~6–9 GB† | Slower | Default on Windows; best accuracy for complex vocabulary |
-| `turbo` | ~6 GB | ~8x faster than `large-v3` | Distilled large-v3; near-large accuracy at much lower latency |
+1. Download this project (green **Code** button → **Download ZIP**) and unzip it, for example
+   to `C:\MyTranscribe`.
+2. Double-click **`scripts\setup_1060.bat`**. It creates a private Python environment, installs
+   what the app needs, downloads the speech model (one time, about 6 GB) and checks that your
+   graphics card works. This takes 10 to 30 minutes.
+3. Start the app with **`MyTranscribe.bat`**. For a desktop icon, run
+   `scripts\make_shortcut.ps1` once (right-click → Run with PowerShell).
 
-† On an RTX 4070 Ti Super (16 GB), `large-v3` measured ~5.88 GB allocated /
-9.15 GB reserved at steady state.
+The first start takes a few seconds while the model loads ("Loading speech model…"); the
+button unlocks when it is ready. If antivirus software blocks the downloads with a certificate
+error, see [README_1060.md](README_1060.md#install-windows).
 
-**CPU fallback:** When no GPU is detected, Whisper runs on the CPU. Expect roughly
-5–10x real-time (a 30-second recording may take 3–5 minutes on a modern desktop
-CPU). CPU mode is functional but not recommended for interactive use; if this is
-your constraint, choose `tiny` or `base` to keep turnaround tolerable.
+## Dictating
 
-**Tested configurations:**
+1. Click into your EMR or document where the text should go.
+2. **Hold F9** and talk, then release. (Or press the **mouse forward/thumb button** once to start
+   and again to stop, or click **Start dictation**, or press **Ctrl+Alt+Q** anywhere.)
+3. Start talking when the light turns **green**. It is **red** when not recording.
+4. When the status says **Copied**, paste with **Ctrl+V**.
 
-- Ubuntu 24.04 — NVIDIA GeForce GTX 1660 Ti (6 GB VRAM) + Intel Core i7-9xxx —
-  `small` model
-- Windows 11 — NVIDIA GeForce RTX 4070 Ti Super (16 GB VRAM) — `large-v3` model
+The window stays on top and small (compact view); **+** shows the transcript, **–** hides it.
+The keys never pull the window to the front, so your cursor stays in your EMR. One recording
+can last up to an hour; long dictation is transcribed in the background while you talk, so
+the text is usually ready within one to three seconds of stopping.
 
----
+**Say formatting and punctuation out loud:** "new paragraph", "new line", "open quote … close
+quote", and (with Spoken punctuation on) "period", "comma", "colon", "question mark", "open
+parenthesis". "Her last period" and "the sigmoid colon" stay words. Numbered lists work: "new
+line, 1 period, dry eyes" gives a new line starting "1. Dry eyes".
 
-## Installation — Linux
+**Always read the text before signing**, especially drug names, doses, numbers and left/right.
 
-### System dependencies
+## Setting the microphone level
 
-Install GTK3, PortAudio, and Cairo development headers before creating the venv.
-On Ubuntu/Debian one command covers all required libraries:
+The thin bar above the Start button shows how much sound the app is getting:
 
-```bash
-sudo apt-get update
-sudo apt-get install libcairo2-dev pkg-config python3-dev \
-    libgirepository1.0-dev portaudio19-dev ffmpeg \
-    python3-gi python3-gi-cairo gir1.2-gtk-3.0
-```
+- **green and moving while you speak:** right;
+- **mostly amber while you speak:** too quiet. Raise **Options (⚙) → Microphone → Gain**;
+- **red:** too loud. Lower the gain, or move the microphone away from your mouth.
 
-On macOS, use `brew install pygobject3 gtk+3 portaudio ffmpeg`.
+Gain 50 leaves the sound as the microphone sends it; each step either way is 0.4 dB, so 100 is
+about ten times louder and 0 ten times quieter. A very quiet microphone is best raised first in
+Windows (Settings → System → Sound → Input → Volume), then fine-tuned here. Raising the gain
+also raises background noise: aim for the lowest setting that keeps the bar green while you talk.
 
-See `System_dependencies.md` for a description of each library's role and for
-ALSA/JACK troubleshooting if your microphone is not detected after install.
+## Options
 
-### Python environment
+Open with the **⚙** button. Everything is saved for the next start.
 
-```bash
-python3 -m venv venv
-source venv/bin/activate
-pip install --upgrade pip "setuptools<81" wheel
-pip install -r requirements.txt
-```
-
-The `requirements.txt` includes `openai-whisper`, `PyAudio`, `pynput`, `numpy`,
-`pycairo`, and `PyGObject`, plus all CUDA-linked `nvidia-*-cu12` packages.
-PyTorch (CUDA 12.4 build) is listed directly in `requirements.txt` for Linux.
-
----
-
-## Installation — Windows
-
-### Prerequisites
-
-Before running the install commands, confirm these are in place:
-
-| Requirement | Check command | Minimum |
+| Option | What it does | Suggested |
 |---|---|---|
-| Python 3.11.x | `python --version` | 3.11.0 |
-| ffmpeg on PATH | `ffmpeg -version` | any recent build |
-| NVIDIA driver | `nvidia-smi` | 528.xx (591.74 confirmed with CUDA 12.4) |
-
-Install ffmpeg with winget if needed: `winget install Gyan.FFmpeg`
-
-### Install steps
-
-Run these in Git Bash from the repository root:
-
-```bash
-py -3.11 -m venv venv
-./venv/Scripts/python.exe -m pip install --upgrade pip "setuptools<81" wheel
-
-# torch must be installed separately with the pytorch.org index URL
-./venv/Scripts/python.exe -m pip install torch==2.6.0 \
-    --index-url https://download.pytorch.org/whl/cu124
-
-# setuptools<81 note: openai-whisper's build backend requires pkg_resources;
-# --no-build-isolation is the companion guard
-./venv/Scripts/python.exe -m pip install -r requirements-windows.txt \
-    --no-build-isolation
-```
-
-For PowerShell, replace `./` with `.\` in all paths above.
-
-### Verify the install
-
-Run the environment audit script (11 checks, exits 0 on full pass):
-
-```bash
-source venv/Scripts/activate   # Git Bash
-python scripts/audit.py
-```
-
-Every line should print `[ PASS ]`. See
-`docs/port-plan/05-install-runbook.md` for the full runbook including manual
-smoke-test commands and a detailed troubleshooting section (§F).
-
----
-
-## First Run and Model Download
-
-Whisper downloads model weights on first use and caches them locally:
-
-- Linux / macOS: `~/.cache/whisper`
-- Windows: `%USERPROFILE%\.cache\whisper`
-
-`large-v3` weights are approximately 2.9 GB; `turbo` is similar. The download
-is one-time; subsequent launches load from the cache.
-
-On first start, expect a log sequence similar to:
-
-```
-CUDA device: NVIDIA GeForce RTX 4070 Ti SUPER
-Loading Whisper model 'large-v3' on cuda:0 ...
-Model loaded in 8.2 s
-CUDA warmup complete — first inference ready
-```
-
-After the warmup, the first real inference typically completes in 0.5–1 second
-on an RTX 4070 Ti Super. A longer initial pause (up to 10 seconds) on first
-`Start` is normal and is not a hang — CUDA JIT-compiles the model kernels on
-first use.
-
----
-
-## Launch Workflows
-
-With install complete, here is the recommended way to launch on each platform.
-
-### Linux
-
-Add a single alias to `~/.bashrc` or `~/.zshrc`:
-
-```bash
-alias MyTranscribe='cd /path/to/MyTranscribe && source venv/bin/activate && python src/gui-v0.8.py'
-```
-
-Replace `/path/to/MyTranscribe` with the absolute path of your clone. Then reload the file once:
-
-```bash
-source ~/.bashrc   # or source ~/.zshrc
-```
-
-From that point on, typing `MyTranscribe` in any terminal activates the venv and
-launches the app. The alias lives entirely outside the repo, so `git pull` will
-never clobber it.
-
-For desktop-menu integration (GNOME Activities, KDE application launcher), create
-a `.desktop` file at `~/.local/share/applications/mytranscribe.desktop`:
-
-```ini
-[Desktop Entry]
-Name=MyTranscribe
-Exec=bash -c "cd /path/to/MyTranscribe && source venv/bin/activate && python src/gui-v0.8.py"
-Type=Application
-Comment=Real-time speech transcription
-Terminal=false
-Categories=Utility;AudioVideo;
-```
-
-### Windows
-
-1. Open File Explorer and navigate to the project root.
-2. Right-click `run.bat` and choose **Show more options → Send to → Desktop (create shortcut)**
-   (or **Create shortcut** and then drag it to the Desktop).
-3. Double-click the shortcut. `run.bat` activates the venv and starts `src\gui_qt.py`;
-   the console window is unobtrusive and can be minimized.
-
-`run.bat` content for reference:
-
-```bat
-@echo off
-cd /d "%~dp0"
-call venv\Scripts\activate.bat
-python src\gui_qt.py
-```
-
-The `cd /d "%~dp0"` line means the shortcut's "Start in" field is irrelevant —
-`run.bat` always resolves paths relative to its own location.
-
-Optional polish — give the shortcut a recognizable icon:
-
-1. Right-click the new desktop shortcut → **Properties**.
-2. Click **Change Icon...**.
-3. Browse to `C:\Windows\System32\shell32.dll` and pick an audio- or microphone-looking
-   icon (index 168 is a speaker).
-4. Click **OK → Apply**.
-
-For a terminal-friendly launch that mirrors the Linux alias, add a function to your
-PowerShell `$PROFILE` — see Microsoft's documentation for the `$PROFILE` variable.
-
----
-
-## Usage — Controls
-
-### Buttons
-
-| Button | State when active | Action |
-|---|---|---|
-| **Start** (green) | Idle | Begins normal recording. Audio is transcribed in rolling 5-minute chunks. |
-| **Long Record** (blue) | Idle | Begins a long-format recording session. Processes up to 3 minutes of audio in a single pass. |
-| **Stop** (red) | Normal Recording or Long Recording | Ends the active session, finalises transcription, and copies the result to the clipboard. |
-
-### Keyboard shortcuts
-
-| Input | Condition | Effect |
-|---|---|---|
-| **Spacebar** | Window focused, Idle | Start normal recording |
-| **Spacebar** | Window focused, Normal Recording | Stop normal recording |
-| **Spacebar** | Window focused, Long Recording | No-op — see note below |
-| **Ctrl+Alt+Q** | Any focused app, Idle | Start normal recording; brings MyTranscribe window forward |
-| **Ctrl+Alt+Q** | Any focused app, Normal Recording | Stop normal recording |
-| **Ctrl+Alt+Q** | Any focused app, Long Recording | No-op — see note below |
-
-> **Long Recording safety guard**
->
-> While Long Recording is active, Spacebar and Ctrl+Alt+Q are deliberately inert.
-> Only the **Stop button** can end a long session. This prevents a stray keypress
-> (or the hotkey combo appearing in a meeting transcript) from silently discarding
-> a long recording. Bring the MyTranscribe window to the foreground and click **Stop**.
-
-### Clipboard and audio feedback
-
-When a recording stops, the full transcription is copied to the clipboard
-automatically — paste with **Ctrl+V**. If the recording captures no speech
-(silent input or RMS below threshold), the clipboard is not overwritten; the last
-successful transcription remains available.
-
-A short chime plays on start and stop so you can work in another app and still
-hear state changes. A dark-green activity indicator pulses in the text-area corner
-while speech above the RMS threshold is detected.
-
----
-
-## Model Selection
-
-The Whisper model is controlled by the `MYTRANSCRIBE_MODEL` environment variable.
-This works on **both Linux and Windows** as of commit `832a697`.
-
-### Available models
-
-```
-tiny   tiny.en   base   base.en   small   small.en
-medium   medium.en   large-v1   large-v2   large-v3
-large   large-v3-turbo   turbo
-```
-
-The `.en` variants are English-only; they are slightly faster and more accurate for
-English-only use.
-
-### Defaults
-
-| Platform | Default model | Rationale |
-|---|---|---|
-| Linux (`gui-v0.8.py`) | `small` | Original hardware sweet spot (NVIDIA 1660 Ti / 6 GB VRAM) |
-| Windows (`gui_qt.py`) | `large-v3` | Tuned for the 4070 Ti Super (16 GB VRAM); falls back to CPU if CUDA is unavailable |
-
-### Setting the model
-
-**Linux:**
-
-```bash
-MYTRANSCRIBE_MODEL=turbo MyTranscribe
-```
-
-**Windows (PowerShell, per-session):**
-
-```powershell
-$env:MYTRANSCRIBE_MODEL = 'turbo'; .\run.bat
-```
-
-**Windows (persistent, via shortcut Target field):**
-
-Open the shortcut's Properties and change the **Target** field to:
-
-```batch
-cmd /c "set MYTRANSCRIBE_MODEL=turbo && C:\path\to\MyTranscribe\run.bat"
-```
-
-### Choosing a model
-
-- **tiny / base** — Use on weak GPUs (4 GB VRAM or less) or when CPU fallback is
-  your only option. Accuracy is lower; latency is minimal.
-- **small / medium** — Balanced trade-off. `small` covers the tested 1660 Ti
-  configuration. `medium` gives noticeably better accuracy if you have 5+ GB VRAM free.
-- **large-v3** — Highest accuracy. Requires approximately 8–10 GB VRAM (measured
-  7–9 GB at fp16 on the 4070 Ti Super). Recommended if you have the hardware.
-- **turbo** — A distilled large-v3 that is approximately 8x faster with a minor
-  accuracy cost. Good choice when you want large-v3 quality on less VRAM (~6 GB)
-  or when transcription latency matters more than marginal accuracy.
-
----
+| Keyboard key / Mouse button, hold or toggle | Which key and mouse button start and stop dictation, and whether you hold them while talking or press once to start and once to stop. Ctrl+Alt+Q and Space (window focused) always work. | F9 hold, mouse toggle |
+| Microphone gain | Makes the microphone louder or quieter (see above). | 50, then adjust |
+| Keep microphone ready | Keeps the microphone open between dictations so your first word is not clipped. Windows shows the microphone as in use while the app is open. | On |
+| Start / stop sounds | Volume of the start and stop chimes; 0 mutes them. | |
+| Recogniser | The speech model. Whisper large-v3 is the default and recommended. MedASR (Google) is a faster alternative that each user must request from Google. | Whisper |
+| Accuracy | Best = large-v3; Fast = large-v3-turbo, quicker and a little less accurate (for slower cards). | Best |
+| Dictation language | English. Spanish and French are experimental (see below). | English |
+| Pause-aware dictation | Keeps a sentence together when you pause to think, puts back a spoken "new paragraph" the model skipped, and listens a moment after you stop so the last word is not cut off. | **On** |
+| Spoken formatting | "New line", "new paragraph", "open quote … close quote". | On |
+| Spoken punctuation | For people who say the marks ("period", "comma"…). Leave off if you let the app punctuate. | On if you dictate marks |
+| Only the commas I dictate | With spoken punctuation: removes the commas the model adds by itself. For people who dictate every comma. | On if you dictate every comma |
+| Medical clean-up | Writes readings the chart way (138/78, g/L, °C, mg/day), puts a misheard drug name right when it sits where a drug belongs, capitalises brand names, writes "I would" where "I'd" was written for it. | **On** |
+| Paste automatically after stopping | When you stop with the key or mouse button, the text is pasted for you. The on-screen button only copies. Some remote (Citrix) EMRs block this; then paste with Ctrl+V. | Your choice |
+| Type into my document while I dictate | Pastes each finished piece (about every 30 seconds) at the cursor while you keep talking. | Off |
+| Start in compact view | Opens with the button only. | On |
+
+**Show log…** (Options → Troubleshooting) opens the recent log: timings and errors, never what
+you dictated.
+
+### Your usual medications
+
+Before each piece of speech the model is shown a short list of the drugs you prescribe most, so
+it hears them right ("bisoprolol", not "mesoprolol"). Put your own list, one drug per line
+(about 25; "empagliflozin (Jardiance)" is fine), in `%APPDATA%\MyTranscribe\my_medications.txt`.
+It replaces the bundled example list. Colleagues' names and local services can go in a
+vocabulary file: see [README_1060.md → Medical vocabulary](README_1060.md#medical-vocabulary).
+
+## Languages
+
+English is the language this version is built and validated for. **Spanish and French** are
+offered as experimental: they use the same model, with commands and punctuation in that
+language and draft medical term lists that no Spanish- or French-dictating clinician has
+checked yet. They were tested on public read-speech sets (2.3% and 5.5% word errors) and
+computer voices and, for French only, on seven real dictated notes (8.7%). Swahili is not offered in this version until it has been validated. Details:
+[docs/optimization/2026-11-16-multilingual.md](docs/optimization/2026-11-16-multilingual.md).
+
+## Computers without an NVIDIA card
+
+The app falls back to the processor when it finds no NVIDIA card, but this has not yet been
+tested as a supported setup, and Whisper large-v3 is a large model to run on a processor. How
+we plan to test and support it (processor-only, then other graphics cards through Vulkan, then
+Apple computers) is in [docs/CPU_AND_OTHER_HARDWARE_PLAN.md](docs/CPU_AND_OTHER_HARDWARE_PLAN.md).
+
+## Privacy
+
+- Speech recognition runs on your PC. The app does not connect to the internet, except to
+  download a speech model, and then only after asking you.
+- Audio is held in memory and discarded; it is never written to disk.
+- The log records timings, lengths and errors, never what you dictated.
+- Each copy to the clipboard is marked so Windows clipboard history and cloud sync do not keep it.
+- **Your side:** use full-disk encryption (BitLocker), a login password with auto-lock, and turn
+  off Windows Settings → System → Clipboard → Clipboard history and Sync across devices. Check
+  with whoever handles privacy for your practice. This is not legal advice.
 
 ## Troubleshooting
 
-Full troubleshooting detail is in `docs/port-plan/05-install-runbook.md` §F. The
-items below cover the issues most likely to surface in a fresh install.
+| Problem | What to do |
+|---|---|
+| "Could not load the speech model" | The model is not downloaded yet, or the download was declined. Start again and answer Yes, or run `scripts\setup_1060.bat`. Options → Show log has the details. |
+| Words missing, especially quiet ones | Watch the level bar while you speak and raise Options → Microphone → Gain until it is green. |
+| Text very slow to appear, "falling behind" in the log | Options → Accuracy → Fast. |
+| Status says "Not copied" | Another program was using the clipboard: click **Copy**, then paste. |
+| Auto-paste does nothing in the EMR | Remote/Citrix sessions can block it; paste with Ctrl+V. |
+| The log says `device=cpu` although you have an NVIDIA card | Update the NVIDIA driver and check that `nvidia-smi` works in a terminal. More in [README_1060.md → Troubleshooting](README_1060.md#troubleshooting). |
 
-**`torch.cuda.is_available()` returns `False` (driver mismatch)**
+## Testers: how to help
 
-Run `nvidia-smi` and check the driver version. Drivers older than 528.xx produce a
-silent CPU fallback or a `no kernel image` error. Update via GeForce Experience or
-[nvidia.com/drivers](https://www.nvidia.com/drivers). Also confirm torch was
-installed from the pytorch.org wheel index (version string must end in `+cu124`).
+Use it for real dictation alongside your usual method and tell us what went wrong: a word or
+drug name it got wrong (described in invented words, never a real patient's details), a
+command it missed, anything confusing in the window or Options. **Never send real dictation,
+audio or patient information.** A structured way to measure accuracy on your own voice with an
+invented reading script, without sharing anything real, is in [docs/VALIDATION.md](docs/VALIDATION.md).
 
-**PyAudio cannot find the microphone (`-9996 Invalid input device`)**
+## More detail
 
-On Windows, check **Settings → Privacy & security → Microphone** → "Let apps access
-your microphone". Verify the device is not muted in **System → Sound → Input**. If
-Discord, Teams, or Zoom holds the mic in exclusive mode, close it and retry. On
-Linux, run `arecord -l` to list ALSA devices; see `System_dependencies.md` for
-ALSA/JACK guidance.
+- [README_1060.md](README_1060.md): full reference: every option, environment variables,
+  vocabulary files, recognisers and their licences, older and 6 GB graphics cards.
+- [docs/VALIDATION.md](docs/VALIDATION.md): how accuracy is measured on your own voice.
+- [docs/optimization/](docs/optimization/): each round of measurements and what was changed.
+- [NOTICE.md](NOTICE.md): third-party models, word lists and their licences.
+- Developers: `venv1060\Scripts\python.exe -m pytest -q tests` runs the tests (no microphone,
+  graphics card or model needed). The app is `src/gui_med.py`.
+- The original general-purpose MyTranscribe app is described in
+  [docs/ORIGINAL_APP.md](docs/ORIGINAL_APP.md).
 
-**`ffmpeg: FileNotFoundError`**
+## Licence
 
-Install ffmpeg (`sudo apt-get install ffmpeg` on Ubuntu; `winget install Gyan.FFmpeg`
-on Windows), verify with `ffmpeg -version` in a fresh terminal, then relaunch.
-
-**Ctrl+Alt+Q global hotkey not firing**
-
-On Windows: (1) antivirus/EDR may block `pynput` — add the project folder to
-Defender exclusions; (2) if the foreground app is elevated (Task Manager, regedit),
-pynput running unelevated cannot intercept it — run MyTranscribe as admin or switch
-focus to a non-elevated window; (3) another app has claimed the combo; (4) Focus
-Assist is active. On Linux: pynput on Wayland requires XWayland — set
-`GDK_BACKEND=x11` or switch to an X11 session.
-
-**Transcription silent despite speech (RMS threshold)**
-
-The startup log shows an RMS value per chunk. If it is consistently below 80, lower
-the threshold in `transcriber_v12.py`. Also confirm the correct input device is
-selected — the Windows device index can shift when USB devices are plugged in.
-
-**DLL load error on Windows PyQt6 (`ImportError: DLL load failed`)**
-
-Install the Microsoft Visual C++ 2015–2022 Redistributable (x64):
-
-```powershell
-winget install Microsoft.VCRedist.2015+.x64
-```
-
-**OneDrive tempdir**
-
-If `%TEMP%` resolves to a OneDrive-synced path, Whisper's temporary files may
-trigger sync conflicts. Verify with `python scripts/audit.py` (check C7) and
-redirect `%TEMP%` to a local path in your shortcut's environment if needed.
-
----
-
-## Project Structure
-
-```
-MyTranscribe/
-├── src/
-│   ├── gui-v0.8.py              # Linux entry point (GTK3 / PyGObject)
-│   ├── gui_qt.py                # Windows entry point (PyQt6)
-│   ├── transcriber_v12.py       # Shared audio capture + Whisper backend
-│   ├── sound_utils.py           # Chime generator and player
-│   ├── gui_med.py               # Medical / GTX 1060 edition entry point (README_1060.md)
-│   ├── chunked_transcriber.py   #   background in-memory chunked transcription
-│   ├── fw_engine.py             #   faster-whisper wrapper
-│   ├── hw_profile.py            #   GPU detection + model/compute-type choice
-│   ├── phi_clipboard.py         #   clipboard privacy flags + auto-paste
-│   ├── prompt_loader.py         #   vocabulary prompt loader
-│   └── prompts/medical_prompt.txt
-├── scripts/
-│   ├── audit.py                 # Windows environment verification (11 checks)
-│   ├── bench_engine.py          # 1060 edition: speed / memory / WER benchmark
-│   ├── stress_pipeline.py       # 1060 edition: stress scenarios
-│   └── make_random_whisper.py   # random-weight test model (sandbox stress tests)
-├── tests/                       # pytest suite for the 1060 edition
-├── docs/
-│   └── port-plan/               # Windows port design, risk register, verification docs
-│       ├── 01-architecture.md
-│       ├── 02-ux-contract.md
-│       ├── 05-install-runbook.md
-│       └── 07-human-verification.md
-├── requirements.txt             # Linux Python dependencies
-├── requirements-windows.txt     # Windows Python dependencies
-├── requirements-1060.txt        # Medical / 1060 edition dependencies (no PyTorch)
-├── run.bat                      # Windows double-click launcher
-├── run_1060.bat                 # Medical / 1060 edition launcher
-├── System_dependencies.md       # Linux system packages + ALSA/JACK guidance
-└── WINDOWS_PORT_PLAN_DETAILED.md
-```
-
-The two entry points share `transcriber_v12.py` (audio recording, VAD, Whisper
-inference) and `sound_utils.py` (chime synthesis). All UI and hotkey code lives
-in the platform-specific entry point.
-
----
-
-## License
-
-This project is licensed under the MIT License — see the LICENSE file for details.
-
-## Acknowledgements
-
-- [OpenAI Whisper](https://github.com/openai/whisper) — speech recognition model
-- [PyTorch](https://pytorch.org/) — GPU acceleration and tensor operations
-- [GTK](https://www.gtk.org/) — user interface framework (Linux entry point)
-- [PyQt6](https://riverbankcomputing.com/software/pyqt/) / [Qt](https://www.qt.io/) — user interface framework (Windows entry point)
-- [pynput](https://github.com/moses-palmer/pynput) — global keyboard listener (Ctrl+Alt+Q hotkey)
-- [PyAudio](https://people.csail.mit.edu/hubert/pyaudio/) — cross-platform audio I/O
+MIT (see [LICENSE.txt](LICENSE.txt)). Third-party models and data keep their own licences
+([NOTICE.md](NOTICE.md)).

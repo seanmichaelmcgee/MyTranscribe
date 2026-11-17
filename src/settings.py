@@ -3,7 +3,7 @@ settings.py — the few user options for gui_med.py, saved as a small JSON file.
 
 Location: %APPDATA%\\MyTranscribe\\settings.json on Windows
           (~/.config/mytranscribe/settings.json elsewhere).
-Holds only key bindings, view and accuracy preferences: never transcript text.
+Holds only key bindings, view, microphone and accuracy preferences: never transcript text.
 
 Environment variables still override the file (handy for testing):
   MYTRANSCRIBE_KEY / MYTRANSCRIBE_KEY_MODE      e.g. f9 / hold|toggle, or none
@@ -51,10 +51,11 @@ class Settings:
     language: str = "en"               # dictation language: en | es | fr | sw (lang_packs.py)
     engine: str = "whisper"            # recogniser: whisper | medasr | parakeet | canary (engines.py)
     voice_commands: bool = True        # "new line", "new paragraph", "open/close quote"
-    keep_mic_ready: bool = True        # mic open between dictations + 0.5 s pre-roll (like Dragon)
+    keep_mic_ready: bool = True        # mic open between dictations + 0.5 s pre-roll
     live_insert: bool = False          # paste each ~30 s piece at the cursor while dictating
 
     chime_volume: int = 100           # percent of the original chime level; zero mutes
+    mic_gain: int = 50                # 0..100; 50 = as the microphone sends it, 0 = -20 dB, 100 = +20 dB
     autopaste: bool = False
     pause_aware: bool = False          # pause-aware dictation (see pause_flow.py); off = classic pipeline
     extra_fixes: bool = False          # same-sound drug-name correction + readings format (138/78, g/L)
@@ -74,6 +75,10 @@ class Settings:
             self.chime_volume = max(0, min(100, int(self.chime_volume)))
         except (ValueError, TypeError, OverflowError):
             self.chime_volume = d.chime_volume
+        try:
+            self.mic_gain = max(0, min(100, int(self.mic_gain)))
+        except (ValueError, TypeError, OverflowError):
+            self.mic_gain = d.mic_gain
         self.autopaste = bool(self.autopaste)
         self.pause_aware = bool(self.pause_aware)
         self.spoken_punctuation = bool(self.spoken_punctuation)

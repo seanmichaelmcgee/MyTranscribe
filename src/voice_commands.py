@@ -281,7 +281,7 @@ def apply(text: str, lenient: bool = False, punctuation: bool = False, only_dict
     "comma", ...). See the module docstring.
 
     only_dictated_commas=True (with punctuation) is for people who say every
-    comma, as with Dragon: the commas the model adds by itself ("normal, with
+    comma: the commas the model adds by itself ("normal, with
     no murmurs" when no comma was said) are removed and only spoken ones stay.
     Commas inside numbers ("1,000") are kept.
     """

@@ -1,8 +1,11 @@
-# MyTranscribe Medical: GTX 1060 edition
+# MyTranscribe Medical: reference guide
 
-A separate version of MyTranscribe for **long dictation (letters, notes) on older NVIDIA
-cards**, built around a GTX 1060 6 GB. The original app (`src/gui_qt.py`, `run.bat`) is
-unchanged and still works; this one lives alongside it.
+The full reference for MyTranscribe Medical (`src/gui_med.py`). Start with
+[README.md](README.md) (what it is, accuracy, install, options); this page has the details:
+every option, environment variables, vocabulary files, the recognisers and their licences, and
+older 6 GB graphics cards (it was first built around a GTX 1060 6 GB). The original app
+(`src/gui_qt.py`, `run.bat`, [docs/ORIGINAL_APP.md](docs/ORIGINAL_APP.md)) is unchanged and
+still works; this one lives alongside it.
 
 | | Original (`gui_qt.py`) | Medical / 1060 (`gui_med.py`) |
 |---|---|---|
@@ -56,17 +59,25 @@ store, append it to a copy of pip's `cacert.pem`, and point `venv1060\pip.ini`
 (`[global] cert = ...`) and `REQUESTS_CA_BUNDLE` at that file for the install and the
 first model download.
 
-## Window and sound options
+## Window, microphone and sound options
 
-The Options gear includes a start/stop sound volume slider (0% mutes both sounds)
-and “Paste automatically after stopping dictation”. Save applies these immediately
-and remembers them for the next launch. Auto-paste requires stopping with a hotkey;
-the on-screen Stop button copies only. An explicit MYTRANSCRIBE_AUTOPASTE environment
-variable overrides the saved choice; remove it to control auto-paste in Options.
+Every option in Options has a one-line explanation under it. Save applies the changes
+immediately and remembers them for the next launch.
 
-Compact view now targets 300 logical pixels wide with tighter spacing. The light,
-input meter, Copy, Options, expand control and Start/Stop remain available. Options
-uses explicit light colours for readability even when Windows uses dark mode.
+- **Microphone → Gain** (0 to 100, default 50): 50 leaves the audio as the microphone sends
+  it; each step is 0.4 dB (100 = +20 dB, 0 = −20 dB). It is applied to the audio as it is read
+  from the microphone, so the level bar, the silence check and the speech model all get the
+  adjusted sound, at no measurable cost. Set it by watching the level bar above the Start
+  button while you dictate: green while you speak is right, amber too quiet, red too loud.
+  Takes effect from the next recording.
+- **Start / stop sounds**: volume of the two chimes; 0 mutes them.
+- **Paste automatically after stopping**: requires stopping with a key or the mouse button;
+  the on-screen Stop button copies only. An explicit `MYTRANSCRIBE_AUTOPASTE` environment
+  variable overrides the saved choice; remove it to control auto-paste in Options.
+
+Compact view is 320 logical pixels wide: the light, status (shortened with "…" when it does
+not fit; hover for all of it), Copy, Options, expand control, the level bar and Start/Stop.
+Options uses explicit light colours for readability even when Windows uses dark mode.
 
 ## Pause-aware dictation (optional, off by default)
 
@@ -93,7 +104,7 @@ list and can be wrong on an unusual phrase, so read the result. Leave it off if 
 app punctuate for you. `MYTRANSCRIBE_SPOKEN_PUNCTUATION=1` (or `0`) overrides the saved choice.
 
 **Only the commas I dictate** (Options, off by default; needs Spoken punctuation) removes the
-commas the model adds by itself and keeps the ones you say, the way Dragon behaves. For people
+commas the model adds by itself and keeps the ones you say. For people
 who dictate every comma. `MYTRANSCRIBE_ONLY_DICTATED_COMMAS=1` (or `0`) overrides the saved choice.
 
 **Usual medications.** Whisper is shown a short list of the drugs you prescribe most before each
@@ -103,7 +114,8 @@ line, in `%APPDATA%\MyTranscribe\my_medications.txt` (it replaces the bundled
 `src\vocab\my_medications.txt`; about 25 names; "generic (Brand)" is fine).
 `MYTRANSCRIBE_MEDICATIONS=off` turns it off.
 
-**Extra corrections** (Options, off by default) fixes a misspelled drug or term when it
+**Medical clean-up** (Options, off by default; called "Extra corrections" in earlier versions
+and in the measurement reports) fixes a misspelled drug or term when it
 sounds exactly like one vocabulary word and no other ("prendipril" becomes perindopril), and
 writes readings the chart way: "138 over 78" as 138/78, "g per litre" as g/L, "degrees
 Celsius" as °C. It also puts a misheard drug name right where the sentence says a drug
@@ -121,8 +133,8 @@ meaning certain ("I'd be grateful" as "I would be grateful", "There's no" as "Th
 For everyday use:
 
 - `MyTranscribe-personal.bat` is the same start with the owner's dictation options on for
-  that start, whatever is saved in Options: pause-aware dictation, spoken punctuation, Extra
-  corrections and only-dictated commas, in English with Whisper.
+  that start, whatever is saved in Options: pause-aware dictation, spoken punctuation, Medical
+  clean-up and only-dictated commas, in English with Whisper.
 - `MyTranscribe.bat` starts the app and closes its own window at once, or
 - run `scripts\make_shortcut.ps1` once (PowerShell) for a desktop shortcut that shows no
   console at all.
@@ -167,8 +179,9 @@ marks as words by itself.
 
 ## Other languages (experimental)
 
-**Options → Speech model → Dictation language** switches between English, Spanish, French and
-Swahili (or `MYTRANSCRIBE_LANGUAGE=es`). It is the same Whisper model: no extra download for
+**Options → Speech model → Dictation language** switches between English and, marked
+experimental, Spanish and French (or `MYTRANSCRIBE_LANGUAGE=es`). Swahili is no longer offered
+in Options until it is validated; `MYTRANSCRIBE_LANGUAGE=sw` still selects it. It is the same Whisper model: no extra download for
 Spanish or French. All the options work in each language: spoken formatting and punctuation
 in that language's own words ("punto y aparte", "coma", "à la ligne", "virgule", "aya mpya",
 "nukta"), pause-aware dictation, and extra corrections (readings, units, and for Spanish and
@@ -191,12 +204,12 @@ Details and limits: [docs/optimization/2026-11-16-multilingual.md](docs/optimiza
 The window starts small (compact view) and stays on top of other windows:
 
 - The **round light** at the top left is **green while recording, red when not**.
-- The **small microphone level bar** stays visible in compact view. It shows the
-  captured input, before speech filtering: amber means low input, red means nearly
-  clipped input. The recording light stays green even during a silent pause.
-  No automatic gain is applied; Windows or microphone hardware may apply their own
-  processing before audio reaches the app. Very quiet or whispered speech needs
-  testing with your own microphone.
+- The **microphone level bar**, a thin bar above the Start button, stays visible in
+  compact view. It shows the captured input after the gain in Options, before speech
+  filtering: amber means low input, red means nearly clipped input. The recording light
+  stays green even during a silent pause. There is no automatic gain; set Options →
+  Microphone → Gain once for your microphone. Windows or the microphone may apply their
+  own processing before audio reaches the app. Whispered speech has not been tested.
 - **F9**: hold to talk; release to stop. **Mouse forward (thumb) button**: press to start,
   press again to stop. These presses are swallowed, so your EMR never sees them.
 - **Ctrl+Alt+Q** from any app, or **Space** with the window focused: start/stop.
@@ -212,16 +225,17 @@ The window starts small (compact view) and stays on top of other windows:
   at your cursor while you keep talking, only into the window you started in (never into
   MyTranscribe, held if you click elsewhere), and the full text is on the clipboard when
   you stop.
-- **Microphone kept ready** (Options, on by default): like Dragon, the mic stays open
+- **Microphone kept ready** (Options, on by default): the mic stays open
   and the last half-second is kept in memory, so a word spoken as you press Start isn't
   clipped (Bluetooth headsets otherwise drop ~0.3 s). Windows shows the mic as in use
   while the app is open. Turn it off and the light shows amber until the mic is live.
 - **+** shows the transcript (live while you talk), **–** hides it again.
-- **⚙ Options**: change the key, the mouse button, hold-to-talk vs toggle, accuracy
-  (Best = large-v3, Fast = large-v3-turbo; applies next start) and the start-up view.
-  Saved in `%APPDATA%\MyTranscribe\settings.json` (bindings and view only, never text).
+- **⚙ Options**: keys and mouse button, hold-to-talk vs toggle, microphone gain, sounds,
+  recogniser, accuracy (Best = large-v3, Fast = large-v3-turbo), language, the text options
+  and the start-up view. Saved in `%APPDATA%\MyTranscribe\settings.json` (preferences only,
+  never text).
 - One recording can run up to an hour. Longer speech uses ~30 s pieces for context;
-  a short recording is sent immediately when you stop, without waiting for 30 s.
+  a short recording is transcribed immediately when you stop, without waiting for 30 s.
   On this GTX 1660 Ti, large-v3 finishing delay in the paced saved-voice trial was
   typically ~1.0–1.5 s for short workflows and ~2.6 s for the three letters.
   These exclude GUI/clipboard time and are observations, not latency guarantees

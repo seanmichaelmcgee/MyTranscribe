@@ -1,5 +1,5 @@
 """
-mic_ready.py — keep the microphone open between dictations (like Dragon), with pre-roll.
+mic_ready.py — keep the microphone open between dictations, with pre-roll.
 
 Opening a microphone per recording loses the start of speech on some devices:
 Bluetooth headsets deliver ~0.3 s of near-silence after the stream opens
