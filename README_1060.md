@@ -96,6 +96,13 @@ app punctuate for you. `MYTRANSCRIBE_SPOKEN_PUNCTUATION=1` (or `0`) overrides th
 commas the model adds by itself and keeps the ones you say, the way Dragon behaves. For people
 who dictate every comma. `MYTRANSCRIBE_ONLY_DICTATED_COMMAS=1` (or `0`) overrides the saved choice.
 
+**Usual medications.** Whisper is shown a short list of the drugs you prescribe most before each
+piece of audio, which makes it hear them right ("bisoprolol", not "mesoprolol"); the correctors
+also prefer them when a misheard word is close to two drugs. Put your own list, one drug per
+line, in `%APPDATA%\MyTranscribe\my_medications.txt` (it replaces the bundled
+`src\vocab\my_medications.txt`; about 25 names; "generic (Brand)" is fine).
+`MYTRANSCRIBE_MEDICATIONS=off` turns it off.
+
 **Extra corrections** (Options, off by default) fixes a misspelled drug or term when it
 sounds exactly like one vocabulary word and no other ("prendipril" becomes perindopril), and
 writes readings the chart way: "138 over 78" as 138/78, "g per litre" as g/L, "degrees

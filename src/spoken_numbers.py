@@ -34,6 +34,7 @@ _COUNTED = re.compile(
     r"puffs?|drops?|doses?|weeks?|days?|months?|years?|hours?|minutes?|seconds?|percent|pounds?|kilos?|"
     r"packs?|pack[- ]years?|beats|breaths|degrees|times|refills?|litres?|cups?|drinks?|cigarettes?|episodes?|"
     r"blocks?|flights?|falls?|beers?|glasses|colou?rs?|pillows?|stairs|steps|visits?|courses?|nights?|"
+    r"agents|medications|drugs|antihypertensives|"
     r"years?[- ]old|weeks?[- ]old|months?[- ]old|days?[- ]old)\b", re.I)
 _ABBREVIATE = [(re.compile(r"(?<=\d)\s*(?:" + words + r")\b", re.I), abbr) for words, abbr in (
     (r"milligrams?", " mg"), (r"micrograms?", " mcg"), (r"millilit(?:re|er)s?", " mL"), (r"kilograms?", " kg"),

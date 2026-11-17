@@ -217,6 +217,29 @@ Four things, each checked on the owner's reading (26 clips), the older held-out 
 - **Live app window** with all four options, older held-out recordings played in real time through the audio cable: 3.01% word errors, commands 56/56, layout 12/12, text 0.8 s after Stop (median; 1.8 s at most).
 - **Start it this way:** `MyTranscribe-personal.bat` switches the four options on for that start.
 
+## Owner's dictated letters (2026-11-17)
+
+The owner dictated two fictional consult letters and three short messages with drug names (validation set v2) at the desk into MyTranscribe and Dragon at once, and recorded the same reading. Comparing the two desk transcripts:
+
+- **MyTranscribe:** wrote "metoprolol" for bisoprolol, "glucoside" for gliclazide twice, "tolerate... dulaglutide", "ozempic" and "I've" (said "I have"). An earlier letter had "it turns out, It was" (a capital after a dictated comma).
+- **Dragon:** wrote "glipizide" for gliclazide, "8.1-9 0.4" for "8.1 to 9.4", "heart rate was has settled", "the pain" for "knee pain", and "Right break" from the spoken separator.
+
+The recording reproduced the MyTranscribe slips through the same pipeline, which showed where they came from:
+
+- **The wrong drug was the app's own correction.** Whisper heard a non-word, "mesoprolol"; the spelling corrector took the closest drug, metoprolol. The vocabulary topics never put bisoprolol or gliclazide in front of Whisper, because the prompt was full before reaching them.
+- **Usual medications** (`src/vocab/my_medications.txt`, or the user's own in `%APPDATA%\MyTranscribe`): the prompt now shows as many of the user's drugs as fit after the style example and the recent text, generic names only, rotating, starting from the top of the list with each dictation. A first version that put the whole list in (144 tokens) pushed out half the style example and changed the writing elsewhere (lost list numbers, "40mg", "EGFR"); the list now gets only the room that is left. Both correctors prefer a usual medication when a word is close to two drugs.
+- **Close calls in a drug position now go to a real drug** (the owner: a drug name should always be a real one, a drug of the same class is not much of a risk in a letter the consultant checks against the attached list). Modulate test: drug names found 85.6% → 87.9%; 193 right changes, 11 wrong, every wrong one a garbled word turned into a different real drug.
+- **Polish:** a capital after a dictated comma is lowered (ordinary words only; "I", "Dr.", abbreviations and names keep theirs); a "..." in the middle of a sentence is dropped when marks are dictated; brand names get their capital; "I've" → "I have"; "3 agents"; "30-pack-year"; "C attached" → "see attached", "medications is below" → "medications as below".
+
+| Personal profile, word error rate | Before | After |
+|---|---|---|
+| Letters with drug names (v2, 5 items) | 2.44% | 1.22% |
+| Owner's reading (v1, 26 items) | 2.08% | 2.17% |
+| Older held-out recordings (23) | 3.24% | 3.09% |
+| Older development recordings (24) | 10.54% | 10.64% |
+
+On v2 every drug name, brand and contraction is now right. The small moves on the other sets come from Whisper writing a few words differently with a different prompt: better ("Candace Hardin" → candesartan, "Calavulin" → Clavulin), worse ("tiotropium" → "teotroprim", now corrected back; "troponin" → "intraponin"; "dysphagia" → "dysphasia"), and some punctuation in undictated lists.
+
 ## Limitations
 
 - **Known regression:** with 4 s pauses one held-out letter lost four list commands that the classic pipeline kept (48/52 vs 52/52), and WER in that condition rose 5.81 → 6.06. Commands inside a numbered list ("new line, 2 period") are the weak spot.

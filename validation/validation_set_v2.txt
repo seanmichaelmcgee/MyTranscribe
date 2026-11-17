@@ -1,0 +1,33 @@
+# MyTranscribe validation set v2: fictional text to read aloud (about 5 minutes).
+#
+# Every person, result and detail here is invented; no real patient is described.
+# Written in the owner's consult-letter style, with drug names in running prose
+# (generic and brand names, doses said naturally), which set v1 had little of.
+# Format as in validation_set_v1.txt: "## <id> | <kind>" starts an item.
+
+## d01 | consult
+Thank you for seeing Mr. Raymond Okafor, a 71-year-old man with new atrial fibrillation and worsening shortness of breath over the past month. He was started on apixaban 5 mg twice daily and bisoprolol 2.5 mg daily in the emergency department, and his heart rate has settled since.
+
+He has type 2 diabetes on metformin and empagliflozin, with an A1c of 7.8. He also takes rosuvastatin 20 mg and perindopril 4 mg. We stopped the ibuprofen he had been using for knee pain and switched him to acetaminophen.
+
+On examination, his pulse was irregular at 88 and his blood pressure was 134/82. There was mild ankle edema. An echocardiogram showed an ejection fraction of 40%.
+
+I would appreciate your thoughts on whether he should switch from perindopril to sacubitril-valsartan, and whether spironolactone is reasonable with a potassium of 4.9. Thank you.
+
+## d02 | consult
+Thank you for seeing Mrs. Margaret Lindqvist, a 64-year-old woman with type 2 diabetes that has been difficult to control this year. Her A1c has risen from 8.1 to 9.4 over 6 months.
+
+She takes metformin 1000 mg twice daily, gliclazide 60 mg daily and Ozempic 1 mg weekly. She did not tolerate dulaglutide because of nausea. I have been reluctant to start insulin glargine because she lives alone and has had 2 episodes of hypoglycemia on gliclazide.
+
+Her other medications include levothyroxine, pantoprazole and pregabalin for neuropathy. Her eGFR is 48 and her urine albumin-to-creatinine ratio is 12.
+
+I should note that she is keen to avoid more injections. I would be grateful for your advice on the next step. Please see the attached medication list.
+
+## m01 | short
+Okay to renew Jardiance 10 mg and Synthroid 88 mcg for 6 months.
+
+## m02 | short
+Please stop the hydrochlorothiazide and start amlodipine 5 mg daily. Recheck electrolytes in 2 weeks.
+
+## m03 | short
+Prescription sent for prednisone 40 mg daily for 5 days, then colchicine 0.6 mg twice daily as needed.

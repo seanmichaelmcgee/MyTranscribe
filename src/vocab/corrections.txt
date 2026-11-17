@@ -15,3 +15,8 @@ anti Rho antibodies => anti-Ro antibodies
 # Fictional personal sample, read as written: this recurring non-word has one
 # explicitly confirmed intended spelling. Do not generalize to real abbreviations.
 dysthyatokinesia => dysdiadochokinesia
+
+# Owner's dictation, 2026-11-17 (fictional letters): "see attached" and "medications as below"
+# are heard as a letter and a verb.
+C attached => see attached
+medications is below => medications as below

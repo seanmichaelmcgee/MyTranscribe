@@ -80,8 +80,16 @@ def load_corrections(paths: Iterable[Path]) -> List[Tuple[re.Pattern, str]]:
 
 
 def apply_corrections(text: str, rules: List[Tuple[re.Pattern, str]]) -> str:
+    def keep_capital(m, correct):
+        # "medications is below => medications as below": when the rule keeps the first word,
+        # that word keeps the capital it had in the text. A rule that changes the first word
+        # ("C attached => see attached", "anti-Rho => anti-Ro") is written exactly as given.
+        same_first = m.group(0).split()[0].lower() == correct.split()[0].lower() if correct.split() else False
+        if same_first and m.group(0)[:1].isupper() and correct[:1].islower():
+            return correct[0].upper() + correct[1:]
+        return correct
     for pat, correct in rules:
-        text = pat.sub(correct, text)
+        text = pat.sub(lambda m, c=correct: keep_capital(m, c), text)
     return text
 
 
@@ -111,6 +119,10 @@ _S_IS = re.compile(r"\b(there|it|he|she|that|here)['’]s(?=\s+(?:a|an|the|no|no
                    r"likely|unlikely|possible|\w+ing)\b)", re.I)
 
 
+_HAVE = re.compile(r"\b(I|we|they|you)['’]ve\b", re.I)
+_PACK_YEAR = re.compile(r"\b(\d+)[- ]pack[- ]year\b(?!s)", re.I)
+
+
 def expand_contractions(text: str) -> str:
     """
     A letter dictated as "I would be grateful" or "There is no history" is
@@ -118,6 +130,7 @@ def expand_contractions(text: str) -> str:
     whose meaning is certain from the next word are written out; "didn't" and
     the like are left as said.
     """
+    text = _HAVE.sub(lambda m: m.group(1) + " have", text)          # "I've" is always "I have"
     text = _ID_WOULD.sub(lambda m: m.group(1) + " would", text)
     text = _S_HAS.sub(lambda m: m.group(1) + " has", text)
     return _S_IS.sub(lambda m: m.group(1) + " is", text)
@@ -137,6 +150,7 @@ def format_readings(text: str) -> str:
     text = expand_contractions(text)
     text = spoken_numbers.normalise(text)
     text = drug_names.apply(text)                         # after the numbers: a dose marks where a drug name sits
+    text = _PACK_YEAR.sub(r"\1-pack-year", text)          # "30-pack year smoking history" -> 30-pack-year
     text = _OVER.sub(r"\1/\2", text)
     text = _UNIT_PER.sub(lambda m: f"{m.group(1)} {_UNIT[m.group(2).lower()]}/{_PER[m.group(3).lower()]}", text)
     return _DEGREES.sub(lambda m: f"{m.group(1)} °{m.group(2)[0].upper()}", text)

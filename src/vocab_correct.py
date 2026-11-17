@@ -42,6 +42,10 @@ NEAR_PHONETIC_MARGIN = 15
 # perindopril, "respiradone" -> risperidone, "remapril" -> ramipril. Spelling
 # similarity may then be lower and the runner-up closer, because the rival does
 # not sound the same. Owner's development recordings, 2026-11-15.
+# Usual medications (TermCorrector.preferred): when a misheard word is close to two
+# terms, one of them on the user's list, the listed one is preferred by this much.
+PREFERRED_BONUS = 12
+PREFERRED_FLOOR = 70        # ... but only for a term that is already this similar
 SAME_SOUND_SCORE = 70
 SAME_SOUND_MIN_KEY = 5      # consonant skeleton long enough to be distinctive
 MAX_SPAN = 3                # also try joining up to 3 split words ("licen opril")
@@ -105,6 +109,7 @@ class TermCorrector:
         for key in self._phon.values():
             self._phon_count[key] = self._phon_count.get(key, 0) + 1
         self.same_sound = False                # opt-in band, see SAME_SOUND_SCORE
+        self.preferred = set()                 # lower-case usual medications, see PREFERRED_BONUS
         self._word_re = _WORD_RE               # make_corrector switches to _WORD_RE_ANY for other languages
         self.total_corrections = 0
 
@@ -117,6 +122,9 @@ class TermCorrector:
             hits = sorted(((c, self.ratio(word, c)) for c in self.choices), key=lambda x: -x[1])[:6]
         if not hits:
             return []
+        if self.preferred:
+            hits = sorted(((c, s + PREFERRED_BONUS if c in self.preferred and s >= PREFERRED_FLOOR else s)
+                           for c, s in hits), key=lambda x: -x[1])
         best = hits[0]
         rivals = [h for h in hits[1:] if not _same_lexeme(best[0], h[0])]
         return [best] + rivals[:1]

@@ -142,6 +142,14 @@ who dictates every mark:
   (`MYTRANSCRIBE_VOCAB_TOPICS`) fixed "A1c" but not ramipril, and made no difference overall
   (3.08%): not adopted.
 
+### Second reading: letters with drug names (2026-11-17)
+
+Set v2 (`validation/validation_set_v2.txt`, about 5 minutes): two consult letters and three short
+messages with drugs in running prose. The owner dictated it at the desk into MyTranscribe and
+Dragon while recording; the recording was split and scored as before. Whisper, personal profile:
+2.44% before the fixes it led to, 1.22% after, with every drug name right. What was found and
+changed is in `docs/optimization/2026-11-15-dictation-reliability.md` ("Owner's dictated letters").
+
 ### Self-test of the tool and the scorer (2026-11-16)
 
 Before anyone read the set, a Windows text-to-speech voice read all 28 items through

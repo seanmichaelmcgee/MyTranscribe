@@ -18,6 +18,7 @@ that topic's whole list.
 import logging
 import os
 import re
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, Dict, Iterable, List, Optional, Tuple
@@ -153,6 +154,57 @@ def load_lexicon(files: Optional[Iterable[Path]] = None, env: Optional[dict] = N
     return lex
 
 
+# ── Usual medications ────────────────────────────────────────────────────────
+BUNDLED_MEDICATIONS = VOCAB_DIR / "my_medications.txt"
+
+
+def default_user_medications_path() -> Path:
+    env = os.environ.get("MYTRANSCRIBE_MEDICATIONS_FILE", "").strip()
+    if env:
+        return Path(env)
+    if sys.platform == "win32":
+        base = Path(os.environ.get("APPDATA") or Path.home() / "AppData" / "Roaming")
+        return base / "MyTranscribe" / "my_medications.txt"
+    return Path.home() / ".config" / "mytranscribe" / "my_medications.txt"
+
+
+def parse_medications(text: str) -> List[str]:
+    """One drug per line; "generic (Brand)" stays as written (Whisper sees both)."""
+    out = []
+    for line in text.splitlines():
+        line = line.split("#", 1)[0].strip().strip(",")
+        if line and line.lower() not in (m.lower() for m in out):
+            out.append(line)
+    return out
+
+
+def load_medications(env: Optional[dict] = None, paths: Optional[Iterable[Path]] = None) -> List[str]:
+    """
+    The usual-medications list: the user's own file if it exists, else the bundled
+    one. MYTRANSCRIBE_MEDICATIONS=off gives an empty list.
+    """
+    env = os.environ if env is None else env
+    if env.get("MYTRANSCRIBE_MEDICATIONS", "").strip().lower() in ("0", "off", "false", "no"):
+        return []
+    for p in (list(paths) if paths is not None else [default_user_medications_path(), BUNDLED_MEDICATIONS]):
+        try:
+            return parse_medications(Path(p).read_text(encoding="utf-8"))
+        except OSError:
+            continue
+    return []
+
+
+def medication_words(medications: Iterable[str]) -> set:
+    """Lower-case single names in the list ("empagliflozin (Jardiance)" -> empagliflozin, jardiance)."""
+    out = set()
+    for m in medications:
+        for w in re.split(r"[\s()/,]+", m.lower()):
+            for piece in [w] + w.split("-"):
+                if len(piece) >= 4 and piece.isalpha():
+                    out.add(piece)
+    return out
+
+
 # ── Prompt building ──────────────────────────────────────────────────────────
 def _contains(haystack: str, needle: str) -> bool:
     """Whole-word, case-insensitive containment (haystack already lower-cased)."""
@@ -193,8 +245,17 @@ class PromptBuilder:
                  count: Optional[Callable[[str], int]] = None,
                  is_common: Optional[Callable[[str], bool]] = None,
                  budget: int = PROMPT_TOKEN_BUDGET,
-                 default_topics: Iterable[str] = ()) -> None:
+                 default_topics: Iterable[str] = (),
+                 medications: Iterable[str] = ()) -> None:
         self.style = style.strip()
+        # Usual medications get the room left after the style example and the recent text,
+        # never the style's own: drug names cost 4 to 6 tokens each, and a list that pushed
+        # out the style example changed how everything else was written (lost list numbers,
+        # "40mg", "EGFR"). Generic names only; the list rotates so all of it gets shown.
+        self.medications = [re.sub(r"\s*\([^)]*\)", "", m).strip() for m in medications]
+        self.medications = [m for m in self.medications if m]
+        self._med_start = 0
+        self.last_medications: List[str] = []
         self.lexicon = lexicon
         self.count = count or estimate_tokens
         self.is_common = is_common or (lambda term: False)
@@ -224,6 +285,28 @@ class PromptBuilder:
             ranked = [t for t in self.default_topics if t in self.lexicon.topics]
         return ranked
 
+    def _medications_line(self, style: str, tail: str, recent: str) -> str:
+        """As many usual medications as fit, rotating; ones just said are left out."""
+        self.last_medications = []
+        if not self.medications:
+            return ""
+        n = len(self.medications)
+        if not recent:
+            self._med_start = 0                # each dictation starts from the top of the list
+        order =[self.medications[(self._med_start + i) % n] for i in range(n)]
+        order = [m for m in order if not _contains(recent, m)]
+        chosen: List[str] = []
+        for m in order:
+            line = "Usual medications: " + ", ".join(chosen + [m]) + "."
+            if self.count(" ".join(p for p in (style, line, tail) if p)) > self.budget - 2:
+                break
+            chosen.append(m)
+        if not chosen:
+            return ""
+        self.last_medications = chosen
+        self._med_start = (self._med_start + len(chosen)) % n
+        return "Usual medications: " + ", ".join(chosen) + "."
+
     def __call__(self, context: str) -> str:
         tail = context[-CONTEXT_TAIL_CHARS:].strip() if context else ""
         if tail and len(context) > CONTEXT_TAIL_CHARS:
@@ -238,7 +321,8 @@ class PromptBuilder:
         tail = fit_text_budget(tail, self.count, self.budget)
         combine = lambda style: " ".join(p for p in (style, tail) if p)
         style = fit_text_budget(self.style, lambda value: self.count(combine(value)), self.budget)
-        fixed = combine(style)
+        meds = self._medications_line(style, tail, recent)
+        fixed = " ".join(p for p in (style, meds, tail) if p)
         remaining = self.budget - self.count(fixed + " Vocabulary: .") - 2
         topics = self._pick_topics(context)
         self.last_topics = topics
@@ -266,7 +350,7 @@ class PromptBuilder:
                 term = q.pop(0)
                 cost = self.count(", " + term.text)
                 proposed_vocab = "Vocabulary: " + ", ".join(chosen + [term.text]) + "."
-                proposed = " ".join(p for p in (style, proposed_vocab, tail) if p)
+                proposed = " ".join(p for p in (style, meds, proposed_vocab, tail) if p)
                 if cost <= remaining and self.count(proposed) <= self.budget:
                     chosen.append(term.text)
                     remaining -= cost
@@ -278,7 +362,7 @@ class PromptBuilder:
             self._rotation[name] = self._rotation.get(name, 0) + n
 
         vocab = ("Vocabulary: " + ", ".join(chosen) + ".") if chosen else ""
-        prompt = " ".join(p for p in (style, vocab, tail) if p)
+        prompt = " ".join(p for p in (style, meds, vocab, tail) if p)
         return prompt
 
 
@@ -344,15 +428,18 @@ def build_text_pipeline(style: str, count: Optional[Callable[[str], int]] = None
     if off("MYTRANSCRIBE_VOCAB") and off("MYTRANSCRIBE_AUTOCORRECT"):
         return None, None
     lex = load_lexicon(env=env)
+    meds = load_medications(env)
     builder = None
     if not off("MYTRANSCRIBE_VOCAB"):
         defaults = [t.strip().lower() for t in env.get("MYTRANSCRIBE_VOCAB_TOPICS", "").split(",") if t.strip()]
         builder = PromptBuilder(style, lex, count=count, is_common=make_wordfreq_is_common(),
-                                default_topics=defaults)
+                                default_topics=defaults, medications=meds)
     post = None
     if not off("MYTRANSCRIBE_AUTOCORRECT"):
         from vocab_correct import make_corrector
         from text_fixes import make_text_fixes
-        post = PostProcess(make_corrector(t.text for t in lex.all_terms()),
-                           make_text_fixes(known_abbreviations(lex), correction_files))
+        corrector = make_corrector([t.text for t in lex.all_terms()] + meds)
+        if corrector is not None:
+            corrector.preferred = medication_words(meds)
+        post = PostProcess(corrector, make_text_fixes(known_abbreviations(lex), correction_files))
     return builder, post

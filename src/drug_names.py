@@ -28,10 +28,12 @@ DRUG_FILE = Path(__file__).parent / "vocab" / "drug_names.txt"
 
 ANYWHERE_SCORE = 86       # spelling similarity (0-100) accepted wherever the word is
 SLOT_SCORE = 74           # in a drug position
-SLOT_MARGIN = 6           # best must beat the next different drug by this much
+SLOT_MARGIN = 1           # best must beat the next different drug by this much
 SOUND_SCORE = 55          # with the same consonant skeleton, in a drug position
 SOUND_WEIGHT = 0.4        # share of the score that comes from the consonant skeleton (Metaphone)
 COMMON_BONUS = 3         # everyday drugs win near-ties against rare ones
+PREFERRED_BONUS = 12      # the user's usual medications win close calls ("mesoprolol": bisoprolol)
+PREFERRED_FLOOR = 65
 UNKNOWN_ZIPF = 1.5        # below this the word is not ordinary English
 MIN_LEN = 5
 MAX_SPAN = 3
@@ -72,11 +74,18 @@ class DrugNameCorrector:
     """Callable text -> text. Helpers are injected so the rules can be tested without the libraries."""
 
     def __init__(self, names: Iterable[str], ratio: Callable, phonetic: Callable, zipf: Callable,
-                 extract: Optional[Callable] = None, common: Iterable[str] = (), known: Iterable[str] = ()):
+                 extract: Optional[Callable] = None, common: Iterable[str] = (), known: Iterable[str] = (),
+                 preferred: Iterable[str] = (), brands: Iterable[str] = ()):
         self.ratio, self.phonetic, self.zipf, self._extract = ratio, phonetic, zipf, extract
         self.names = sorted({n.lower() for n in names if len(n) >= MIN_LEN})
         self.name_set: Set[str] = set(self.names)
         self.common = {c.lower() for c in common} & self.name_set
+        self.preferred = {p.lower() for p in preferred} & self.name_set
+        # Brand names written in lower case get their capital ("ozempic" -> Ozempic); a brand
+        # that is also an everyday word is left alone.
+        self.brands = {b.lower(): b for b in brands if len(b) >= 4 and b[0].isupper() and self.zipf(b.lower()) < 3.0}
+        self._brand_re = (re.compile(r"\b(" + "|".join(sorted(map(re.escape, self.brands), key=len, reverse=True))
+                                     + r")\b") if self.brands else None)
         self.known = {k.lower() for k in known} | self.name_set        # words never to change
         self._phon = {n: phonetic(n) for n in self.names}
         self._by_phon = {}
@@ -92,8 +101,12 @@ class DrugNameCorrector:
         else:
             hits = sorted(((n, self.ratio(word, n)) for n in self.names), key=lambda x: -x[1])[:15]
         key = self.phonetic(word)
-        scored = [(n, (1 - SOUND_WEIGHT) * s + SOUND_WEIGHT * self.ratio(key, self._phon[n])
-                   + (COMMON_BONUS if n in self.common else 0)) for n, s in hits]
+        scored = []
+        for n, s in hits:
+            blended = (1 - SOUND_WEIGHT) * s + SOUND_WEIGHT * self.ratio(key, self._phon[n])
+            bonus = PREFERRED_BONUS if n in self.preferred and blended >= PREFERRED_FLOOR else \
+                COMMON_BONUS if n in self.common else 0
+            scored.append((n, blended + bonus))
         return sorted(scored, key=lambda x: -x[1])
 
     def match(self, word: str, slot: bool) -> Optional[str]:
@@ -214,6 +227,8 @@ class DrugNameCorrector:
         if not self.names or not text:
             return text
         text = _DOUBLE_UNIT.sub(lambda m: m.group(1) + " mcg", text)    # "75 milligrams, micrograms": the second is meant
+        if self._brand_re is not None:
+            text = self._brand_re.sub(lambda m: self.brands[m.group(1)], text)
         out, pos = [], 0
         for m in _SENTENCE.finditer(text):
             out.append(text[pos:m.start()])
@@ -226,7 +241,8 @@ class DrugNameCorrector:
 _cached = None
 
 
-def make_drug_corrector(common: Iterable[str] = (), known: Iterable[str] = ()) -> Optional[DrugNameCorrector]:
+def make_drug_corrector(common: Iterable[str] = (), known: Iterable[str] = (), preferred: Iterable[str] = (),
+                        brands: Iterable[str] = ()) -> Optional[DrugNameCorrector]:
     """Corrector with rapidfuzz/jellyfish/wordfreq, or None if they or the name list are missing."""
     try:
         from rapidfuzz import fuzz, process
@@ -243,14 +259,15 @@ def make_drug_corrector(common: Iterable[str] = (), known: Iterable[str] = ()) -
         return [(c, s) for c, s, _ in process.extract(word, choices, scorer=fuzz.ratio, limit=limit)]
 
     return DrugNameCorrector(names, ratio=fuzz.ratio, phonetic=jellyfish.metaphone,
-                             zipf=lambda w: zipf_frequency(w, "en"), extract=extract, common=common, known=known)
+                             zipf=lambda w: zipf_frequency(w, "en"), extract=extract, common=common, known=known,
+                             preferred=preferred, brands=brands)
 
 
 def default_corrector() -> Optional[DrugNameCorrector]:
     """One shared corrector: everyday drugs and the words to leave alone come from the vocabulary files."""
     global _cached
     if _cached is None:
-        common, known = [], []
+        common, known, preferred, brands = [], [], [], []
         try:
             import vocab
             lex = vocab.load_lexicon(env={})
@@ -259,9 +276,14 @@ def default_corrector() -> Optional[DrugNameCorrector]:
                 known.extend(words)
                 if t.category == "drug":
                     common.extend(words)
+                    if t.text[:1].isupper() and " " not in t.text:
+                        brands.append(t.text)
+            meds = vocab.load_medications()
+            preferred = vocab.medication_words(meds)
+            brands += [m.group(1) for m in (re.search(r"\(([A-Z]\w+)\)", x) for x in meds) if m]
         except Exception:                                   # the list alone is enough to work
             pass
-        _cached = make_drug_corrector(common, known) or False
+        _cached = make_drug_corrector(common, known, preferred, brands) or False
     return _cached or None
 
 

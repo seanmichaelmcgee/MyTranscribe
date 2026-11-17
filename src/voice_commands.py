@@ -174,6 +174,53 @@ def _is_noun(word: str, before: str, after: str) -> bool:
     return False
 
 
+def _sentence_capital(text: str, pos: int) -> bool:
+    """
+    Is the capital at text[pos] only there because the model ended a sentence at a
+    dictated comma? Ordinary words only: "I", abbreviations (ECG) and words that are
+    not everyday English (names, brands) keep their capital.
+    """
+    m = _WORD.match(text, pos)
+    if not m or not text[pos].isupper():
+        return False
+    word = m.group(0)
+    if word == "I" or word.startswith(("I'", "I’")) or not word[1:].islower() and len(word) > 1:
+        return False
+    if text[m.end():m.end() + 1] == "." or word.lower() in _TITLE_WORDS:
+        return False                                  # "Dr. Patel", "Doctor Patel"
+    return _common_word(word.lower())
+
+
+_TITLE_WORDS = {"dr", "doctor", "mr", "mrs", "ms", "miss", "prof", "professor", "nurse", "sister", "father"}
+_zipf = None
+
+
+def _common_word(word: str) -> bool:
+    global _zipf
+    if _zipf is None:
+        try:
+            from wordfreq import zipf_frequency
+            _zipf = lambda w: zipf_frequency(w, "en")      # noqa: E731
+        except ImportError:                                 # without word data: a short list of sure cases
+            sure = {"it", "this", "that", "the", "she", "he", "they", "we", "and", "but", "so", "then", "which",
+                    "there", "her", "his", "a", "an", "in", "on", "with", "was", "is", "no", "not"}
+            _zipf = lambda w: 6.0 if w in sure else 0.0    # noqa: E731
+    return _zipf(word) >= 4.0
+
+
+_HESITATION = re.compile(r"(?<=\w)[ \t]*(?:\.\.\.|…)(?=[ \t]+[a-z])")
+
+
+def drop_hesitations(text: str) -> str:
+    """
+    "She did not tolerate... dulaglutide": the model writes a pause in the middle of
+    a sentence as "...". Someone who dictates every mark did not say it.
+    Only a "..." followed by a lower-case word is removed; one that ends a
+    sentence or the text is left alone.
+    """
+    return _HESITATION.sub("", text)
+
+
 _DICTATED_COMMA = "\x08"          # a comma that was said, while only-dictated-commas is sorting them out
 
 
@@ -201,6 +248,9 @@ def spoken_marks(text: str, tag_commas: bool = False) -> str:
             out.append(" ")
         if pos < len(text) and _MARKS[word] in ".?!" and text[pos].islower():
             out.append(text[pos].upper())
+            pos += 1
+        elif pos < len(text) and _MARKS[word] in ",;" and _sentence_capital(text, pos):
+            out.append(text[pos].lower())             # the model wrote "comma. It was": no new sentence here
             pos += 1
     out.append(text[pos:])
     return "".join(out)
@@ -241,7 +291,7 @@ def apply(text: str, lenient: bool = False, punctuation: bool = False, only_dict
         text = _replace_commands(text, pattern, "\x03" if br == "\n\n" else "\x04", lenient)
     strict = punctuation and only_dictated_commas
     if punctuation:
-        text = spoken_marks(text, tag_commas=strict)
+        text = spoken_marks(drop_hesitations(text), tag_commas=strict)
     text = _replace_commands(text, _OPEN, "\x01")
     text = _replace_commands(text, _CLOSE, "\x02")
     if lenient:

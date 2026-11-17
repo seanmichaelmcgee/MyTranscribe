@@ -1,0 +1,37 @@
+# my_medications.txt — the drugs you prescribe or mention most, one per line.
+#
+# Whisper is shown this list before every chunk ("Usual medications: ..."), which
+# makes it hear these names right ("bisoprolol", not "mesoprolol"), and the spelling
+# and drug-name correctors prefer them when a misheard word is close to two drugs.
+# Keep it short (about 25 names): the list shares Whisper's prompt with your style
+# example and the last few sentences, and a long list crowds those out.
+# "generic (Brand)" adds both. Lines starting with # are comments.
+#
+# Your own list goes in %APPDATA%\MyTranscribe\my_medications.txt (same format); when
+# it exists it is used instead of this one and is kept when the app is updated.
+# MYTRANSCRIBE_MEDICATIONS=off turns the list off.
+#
+# Seeded from the owner's reading sets and common primary-care drugs (2026-11-17).
+bisoprolol
+metoprolol
+apixaban
+rivaroxaban
+ramipril
+perindopril
+amlodipine
+hydrochlorothiazide
+rosuvastatin
+atorvastatin
+metformin
+gliclazide
+empagliflozin (Jardiance)
+semaglutide (Ozempic)
+insulin glargine
+levothyroxine (Synthroid)
+pantoprazole
+pregabalin
+sacubitril-valsartan
+spironolactone
+furosemide
+prednisone
+colchicine
