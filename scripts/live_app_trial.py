@@ -35,7 +35,7 @@ import dictation_reliability as dr  # noqa: E402
 import dragon_replay  # noqa: E402
 
 CABLE_CAPTURE_PREFIX = "CABLE Output"
-OPTIONS = ("pause_aware", "spoken_punctuation", "extra_fixes")
+OPTIONS = ("pause_aware", "spoken_punctuation", "extra_fixes", "only_dictated_commas")
 
 
 def cable_stream_factory():

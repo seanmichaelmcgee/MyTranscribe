@@ -30,7 +30,9 @@ Word = Tuple[str, float, float]      # a second listen adds a 4th value: probabi
 
 TERMINAL = ".?!"
 CARRY_MIN_GAP_S = 0.12       # a sentence end must have at least this much air to cut in
-RESCUE_MIN_GAP_S = 0.6       # "new line" takes ~0.6 s to say; fast dictation leaves no more
+TAIL_MIN_SOUND_S = 0.25      # sound after the last decoded word that counts as an unheard word
+TAIL_LEVEL_SHARE = 0.5       # ... at this share of the chunk's speech level (80th percentile of 50 ms frames)
+RESCUE_MIN_GAP_S = 0.6      # "new line" takes ~0.6 s to say; fast dictation leaves no more
 RESCUE_MARGIN_S = 0.35       # the neighbours' timings smear into the hole: listen a bit wider
 RESCUE_NEIGHBOURS = 4        # words either side checked for a command that is already there
 RESCUE_MAX_STRAYS = 4        # other words a second listen may hear (the neighbours, in part)
@@ -119,6 +121,38 @@ def split_for_carry(words: Sequence[Word], audio_s: float,
         if _ends_sentence(words[k][0]) and gap_end - gap_start >= CARRY_MIN_GAP_S:
             return words[:k + 1], (gap_start + gap_end) / 2
     return words, None
+
+
+def unheard_tail(words: Sequence[Word], samples, sample_rate: int, max_carry_s: float) -> Optional[float]:
+    """
+    Where to carry from when a chunk ends in speech the model wrote nothing for.
+
+    The cut falls in the quietest spot near the target length, which can be
+    just after a word said alone ("... New paragraph. | Plan | colon ..."); the
+    model tends to drop such a stranded last word. If, after the last decoded
+    word, there is at least TAIL_MIN_SOUND_S of sound about as loud as the
+    chunk's speech, that stretch is handed to the next chunk. `samples` is the
+    float chunk; returns seconds from its start, or None.
+    """
+    import numpy as np
+    if not words:
+        return None
+    audio_s = len(samples) / sample_rate
+    start = max(words[-1][2], audio_s - max_carry_s)
+    if audio_s - start < TAIL_MIN_SOUND_S:
+        return None
+    win = int(0.05 * sample_rate)
+    def levels(x):
+        usable = (len(x) // win) * win
+        return np.sqrt(np.mean(np.square(x[:usable].astype(np.float32).reshape(-1, win)), axis=1)) if usable else np.zeros(0)
+    whole, tail = levels(samples), levels(samples[int(start * sample_rate):])
+    if not len(whole) or not len(tail):
+        return None
+    speech = float(np.percentile(whole, 80))
+    loud = int(np.sum(tail >= TAIL_LEVEL_SHARE * speech))
+    if speech <= 0 or loud * 0.05 < TAIL_MIN_SOUND_S:
+        return None
+    return max(0.0, start - 0.1)
 
 
 def speech_gaps(words: Sequence[Word], audio_s: float,

@@ -102,7 +102,10 @@ writes readings the chart way: "138 over 78" as 138/78, "g per litre" as g/L, "d
 Celsius" as °C. It also puts a misheard drug name right where the sentence says a drug
 belongs ("renew Ram and Pearl 5 mg" becomes ramipril, "caprigolin 0.5 mg weekly" becomes
 cabergoline), using a list of 2,400 approved drug names. On synthetic dictation it fixed 162
-names and made 4 wrong changes, so check drug names as you always would.
+names and made 4 wrong changes, so check drug names as you always would. And it writes out
+a contraction the model put where the full words were said, when the next word makes the
+meaning certain ("I'd be grateful" as "I would be grateful", "There's no" as "There is no");
+"didn't" and the like stay as said.
 `MYTRANSCRIBE_EXTRA_FIXES=1` (or `0`) overrides the saved choice.
 
 ## Starting without a console window
@@ -110,6 +113,9 @@ names and made 4 wrong changes, so check drug names as you always would.
 `run_1060.bat` keeps a console open with the log, which is handy when something is wrong.
 For everyday use:
 
+- `MyTranscribe-personal.bat` is the same start with the owner's dictation options on for
+  that start, whatever is saved in Options: pause-aware dictation, spoken punctuation, Extra
+  corrections and only-dictated commas, in English with Whisper.
 - `MyTranscribe.bat` starts the app and closes its own window at once, or
 - run `scripts\make_shortcut.ps1` once (PowerShell) for a desktop shortcut that shows no
   console at all.

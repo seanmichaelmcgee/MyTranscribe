@@ -104,6 +104,25 @@ _OVER = re.compile(r"(?<![\w./])(\d{2,3})\s+over\s+(\d{2,3})(?!\w|[./]\d|\s+(?:t
 _DEGREES = re.compile(r"(?<![\w.])(" + _NUMBER + r")\s*(?:degrees?|°)\s*(celsius|centigrade|fahrenheit|c|f)(?!\w)", re.I)
 
 
+_ID_WOULD = re.compile(r"\b(I|we|he|she|they)['’]d(?=\s+(?:be|appreciate|like|suggest|recommend|value|welcome|"
+                       r"advise|favou?r|consider|expect|prefer|also)\b)", re.I)
+_S_HAS = re.compile(r"\b(there|it|he|she|that|here)['’]s(?=\s+(?:been|had|got)\b)", re.I)
+_S_IS = re.compile(r"\b(there|it|he|she|that|here)['’]s(?=\s+(?:a|an|the|no|not|also|now|currently|on|in|at|"
+                   r"likely|unlikely|possible|\w+ing)\b)", re.I)
+
+
+def expand_contractions(text: str) -> str:
+    """
+    A letter dictated as "I would be grateful" or "There is no history" is
+    sometimes written "I'd be grateful", "There's no history". Only the forms
+    whose meaning is certain from the next word are written out; "didn't" and
+    the like are left as said.
+    """
+    text = _ID_WOULD.sub(lambda m: m.group(1) + " would", text)
+    text = _S_HAS.sub(lambda m: m.group(1) + " has", text)
+    return _S_IS.sub(lambda m: m.group(1) + " is", text)
+
+
 def format_readings(text: str) -> str:
     """
     Readings as they are written in a chart: "138 over 78" -> "138/78" (two 2-3
@@ -115,6 +134,7 @@ def format_readings(text: str) -> str:
     import drug_names
     import spoken_numbers
     text = dictation_fixes.apply(text)                    # spelled names, dates of birth, chart numbers
+    text = expand_contractions(text)
     text = spoken_numbers.normalise(text)
     text = drug_names.apply(text)                         # after the numbers: a dose marks where a drug name sits
     text = _OVER.sub(r"\1/\2", text)

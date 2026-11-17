@@ -200,6 +200,23 @@ The file-based figures for the same recordings were 3.32% and 4.52%, so the opti
 - Compute for 5.6 hours of audio on the RTX 4070 Ti SUPER: 1,059 s existing, 1,228 s all options, 136 s MedASR.
 - Synthetic voices and generated notes: a comparison between builds, not accuracy on clinicians. The dictated-prompt example adopted for English (see the multilingual note) was in place for these runs.
 
+## Owner's build, last round (2026-11-16)
+
+Four things, each checked on the owner's reading (26 clips), the older held-out recordings (23) and the older development recordings (24), "personal" profile (all options and only-dictated commas):
+
+| | Reading | Held-out | Development |
+|---|---|---|---|
+| Before the round | 3.00% | 3.24% | 10.59% |
+| + drug names in drug positions | 2.50% | 3.24% | 10.59% |
+| + stranded last word carried, contractions written out | 2.08% | 3.24% | 10.54% |
+| Same, in the 6 GB-card number format (int8_float32) | 2.08% | 3.01% | 10.75% |
+
+- **A word stranded at the end of a chunk** (`pause_flow.unheard_tail`): the audio is cut at the quietest spot near 24 s, which can fall just after a word said alone ("New paragraph. | Plan | colon"). The model dropped that last word. Now, if at least 0.25 s of sound at speech level follows the last decoded word, that stretch is decoded again with the next chunk. This restored the lost "Plan" heading; nothing else changed on 73 recordings.
+- **Contractions** (`text_fixes.expand_contractions`, part of Extra corrections): "I'd be/appreciate/…" → "I would", "there's/it's/she's" + "no/a/the/…ing" → "is", + "been/had/got" → "has". Anything not certain from the next word, and every "n't", is left as said.
+- **6 GB card:** int8_float32 is what the app picks on a GTX 1060 or 1660 Ti. Run on the RTX card here it gives the same accuracy within noise, and whole-card memory peaked 3.7 GB above the idle desktop. Speed on the real 6 GB card was not measured here.
+- **Live app window** with all four options, older held-out recordings played in real time through the audio cable: 3.01% word errors, commands 56/56, layout 12/12, text 0.8 s after Stop (median; 1.8 s at most).
+- **Start it this way:** `MyTranscribe-personal.bat` switches the four options on for that start.
+
 ## Limitations
 
 - **Known regression:** with 4 s pauses one held-out letter lost four list commands that the classic pipeline kept (48/52 vs 52/52), and WER in that condition rose 5.81 → 6.06. Commands inside a numbered list ("new line, 2 period") are the weak spot.

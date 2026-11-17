@@ -100,7 +100,7 @@ item restarted after "sorry, break break".
 | | WER | Adjusted WER | Format ok | Commands | Last words ok | Drug names | Doses |
 |---|---|---|---|---|---|---|---|
 | Dragon Medical One | 4.83% | 4.50% | 10/10 | 37/37 | 25/26 | 23/24 | 14/15 |
-| Whisper large-v3, all options | 2.50% | 2.42% | 9/10 | 36/37 | 26/26 | 24/24 | 15/15 |
+| Whisper large-v3, all options | 2.08% | 2.00% | 10/10 | 37/37 | 26/26 | 24/24 | 15/15 |
 | MedASR, text options | 5.83% | 5.25% | 10/10 | 37/37 | 25/26 | 24/24 | 14/15 |
 
 - **Dragon** heard the same 26 clips, played through the virtual cable into its microphone
@@ -115,6 +115,12 @@ item restarted after "sorry, break break".
 - **Before the drug-name correction** (`src/drug_names.py`, part of Extra corrections) Whisper
   stood at 3.00% with 22/24 drug names and 14/15 doses: "Ram and Pearl" for ramipril,
   "4-Motorol" for formoterol, and "75 mg micrograms". All three are now right.
+- **Then two more fixes** took Whisper from 2.50% to 2.08% with every heading and command
+  right: the "Plan" heading that had been lost is kept (a word left alone at the end of an
+  audio chunk is now handed to the next chunk), and "I'd be grateful" / "There's no" are
+  written out as dictated.
+- **In the number format a 6 GB GTX card uses** (int8_float32) the same 26 clips score the
+  same 2.08%, and the app used about 3.7 GB of video memory at its peak.
 - **How the Dragon run was made to work:** Dragon typed nothing into the tool's own window or
   into its Dictation Box on this day; after Dragon was restarted it typed into Notepad. The
   microphone was switched on once and left on, so no key was sent between clips.

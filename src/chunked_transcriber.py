@@ -542,6 +542,8 @@ class ChunkedTranscriber:
         carry = None
         if not final:
             words, carry_from = pause_flow.split_for_carry(words, audio_s, self.carry_max_s)
+            if carry_from is None:
+                carry_from = pause_flow.unheard_tail(words, chunk, SAMPLE_RATE, self.carry_max_s)
             if carry_from is not None:
                 carry = chunk[int(carry_from * SAMPLE_RATE):]
         self._commit(pause_flow.words_text(words), audio_s, time.perf_counter() - t0)
