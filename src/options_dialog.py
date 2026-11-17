@@ -224,7 +224,8 @@ class OptionsDialog(QDialog):
                                       "Remove that environment variable to use this option.")
         self.live_insert = self._option(
             "Type into my document while I dictate", settings.live_insert,
-            "Each finished piece (about every 30 seconds) is pasted at the cursor while you keep talking. "
+            "Finished sentences are pasted at the cursor every few seconds while you keep talking (slightly less "
+            "accurate than copying at Stop). "
             "The full text is also copied when you stop. Keep the cursor in the same window.")
 
         # ── View ─────────────────────────────────────────────────────────────

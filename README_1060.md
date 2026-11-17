@@ -222,10 +222,13 @@ The window starts small (compact view) and stays on top of other windows:
   They only count when you pause around them (Whisper then punctuates them), so
   "a new line of therapy" stays as text. Turn off in Options.
 - **Numbered items:** "new line, 1 period, dry eyes…" → a new line starting "1. Dry eyes…".
-- **Type as you dictate** (Options, off by default): each finished ~30 s piece is pasted
-  at your cursor while you keep talking, only into the window you started in (never into
-  MyTranscribe, held if you click elsewhere), and the full text is on the clipboard when
-  you stop.
+- **Type as you dictate** (Options, off by default): finished sentences are pasted at your
+  cursor about every 6 seconds while you keep talking, only into the window you started in
+  (never into MyTranscribe, held if you click elsewhere), and the full text is on the
+  clipboard when you stop. What is typed matches the copied text, paragraphs and punctuation
+  included; the last mark of each piece appears with the next one. It uses 15 s audio windows
+  instead of 30 s, which costs about half a point of word errors (2.9% vs 2.4% on the owner's
+  recordings; [measurements](docs/optimization/2026-11-17-live-insert.md)).
 - **Microphone kept ready** (Options, on by default): the mic stays open
   and the last half-second is kept in memory, so a word spoken as you press Start isn't
   clipped (Bluetooth headsets otherwise drop ~0.3 s). Windows shows the mic as in use
