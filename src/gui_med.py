@@ -54,7 +54,8 @@ sys.path.insert(0, str(_SRC_DIR))
 from fw_engine import register_cuda_dll_dirs                 # noqa: E402
 from hw_profile import choose_config, detect_hardware        # noqa: E402
 from chunked_transcriber import (                            # noqa: E402
-    ERROR_PREFIX, LEVEL_THRESHOLD_RMS, POST_ROLL_S, ChunkedTranscriber, InputLevel, gain_from_slider,
+    CHUNK_TARGET_S, ERROR_PREFIX, LEVEL_THRESHOLD_RMS, POST_ROLL_S, ChunkedTranscriber, InputLevel,
+    gain_from_slider,
 )
 from prompt_loader import load_prompt                        # noqa: E402
 from vocab import build_text_pipeline                        # noqa: E402
@@ -65,6 +66,7 @@ import settings as settings_store                            # noqa: E402
 import app_log                                               # noqa: E402
 import engines                                               # noqa: E402
 import lang_commands                                         # noqa: E402
+import live_insert                                           # noqa: E402
 import lang_packs                                            # noqa: E402
 import text_fixes                                            # noqa: E402
 import voice_commands                                        # noqa: E402
@@ -81,6 +83,10 @@ AUTOPASTE_MAX_WAIT_MS = 3000    # ...for at most this long, then paste anyway
 COPY_ATTEMPTS = 6               # clipboard busy (EMR / Citrix)? retry...
 COPY_RETRY_MS = 100             # ...this often (~0.5 s total) before giving up
 LIVE_INSERT_GAP_MS = 300        # let the target app read the clipboard before the next piece
+# Typing as you dictate decodes 15 s windows: text every ~6 s instead of ~19 s, word
+# errors 2.35% -> 2.91% on the owner's 54 recordings (docs/optimization/2026-11-17-live-insert.md).
+# Copy-at-Stop keeps the default 30 s windows.
+LIVE_INSERT_CHUNK_S = 15.0
 LOADING_TEXT = "Loading speech model…"
 TRANSCRIBING_SUFFIX = "\n\n[Finishing transcription…]"
 NORMAL_SIZE = (560, 300)
@@ -277,6 +283,7 @@ class MedTranscriptionWindow(TranscriptionWindow):
         # Live insert ("type at the cursor as you dictate"): see _collect_pieces / _pump_insert.
         self._foreground = phi_clipboard.foreground_window   # tests swap in a fake
         self._insert_queue: list = []
+        self._live_doc = ""
         self._inserting = False
         self._inserted_n = 0           # transcriptions already queued for insertion
         self._inserted_any = False
@@ -438,6 +445,7 @@ class MedTranscriptionWindow(TranscriptionWindow):
     def _apply_pause_mode(self) -> None:
         """Classic or pause-aware pipeline (Options); takes effect from the next recording."""
         if self._transcriber is not None:
+            self._transcriber.set_chunk_target(LIVE_INSERT_CHUNK_S if self._settings.live_insert else CHUNK_TARGET_S)
             on = self._settings.pause_aware
             self._transcriber.set_pause_aware(on, POST_ROLL_S if on else 0.0)
             corrector = getattr(self._transcriber.postprocess, "corrector", None)
@@ -813,6 +821,7 @@ class MedTranscriptionWindow(TranscriptionWindow):
 
     # ── Live insert: paste each finished ~20 s piece at the cursor ────────────
     def _reset_live_insert(self) -> None:
+        self._live_doc = ""            # everything queued for typing so far, exactly as typed
         self._insert_queue = []
         self._inserting = False
         self._inserted_n = 0
@@ -824,13 +833,22 @@ class MedTranscriptionWindow(TranscriptionWindow):
         self._insert_target = fg if fg and fg != int(self.winId()) else None   # None: first other window
 
     def _collect_pieces(self, final: bool = False) -> None:
-        """Queue newly finished transcript pieces for insertion at the cursor."""
+        """
+        Queue what is new for typing at the cursor. The whole transcript so far is
+        formatted as the copy at Stop would be, and only the new part is typed
+        (live_insert.next_text): a spoken "new paragraph" at the end of a piece is
+        held until the next piece, instead of being lost.
+        """
         pieces = self._transcriber.transcriptions
-        new, self._inserted_n = pieces[self._inserted_n:], len(pieces)
-        for p in new:
-            if not p or p.startswith(ERROR_PREFIX):
-                continue
-            self._insert_queue.append(self._format(p))
+        if len(pieces) == self._inserted_n and not final:
+            self._pump_insert()
+            return
+        self._inserted_n = len(pieces)
+        text = " ".join(p for p in pieces if p and not p.startswith(ERROR_PREFIX))
+        new = live_insert.next_text(self._live_doc, self._format(text), final=final) if text else ""
+        if new.strip():
+            self._live_doc += new
+            self._insert_queue.append(new)
         self._pump_insert()
 
     def _insert_target_ok(self) -> bool:
@@ -852,9 +870,7 @@ class MedTranscriptionWindow(TranscriptionWindow):
                 self._insert_queue.clear()          # stopped with focus elsewhere: don't chase it
                 self._insert_partial = True
             else:
-                piece = self._insert_queue.pop(0)
-                if self._inserted_any and not piece.startswith("\n"):
-                    piece = " " + piece
+                piece = self._insert_queue.pop(0)       # already carries its leading space or line break
                 self._inserting = True
                 self._insert_try(piece, 1, self._copy_generation)
                 return
@@ -891,7 +907,7 @@ class MedTranscriptionWindow(TranscriptionWindow):
             QTimer.singleShot(AUTOPASTE_RETRY_MS, lambda: self._insert_paste(piece, generation))
             return
         if not self._insert_target_ok():            # focus moved since we copied: put it back
-            self._insert_queue.insert(0, piece.lstrip(" "))
+            self._insert_queue.insert(0, piece)
             self._inserting = False
             return
         try:

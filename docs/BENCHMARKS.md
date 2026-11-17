@@ -103,6 +103,20 @@ findings, names, dates of birth, chart numbers) written correctly.
 **Live app**, recordings played in real time into the running window: 3.01% word errors,
 56 / 56 commands, 12 / 12 layouts, text **0.8 s** after Stop (median; 1.8 s at most).
 
+## Typing as you dictate
+
+Text pasted at the cursor while you keep talking, against the text copied at Stop, on the
+developer's 54 recordings with a script (2,855 words):
+
+| | Copied at Stop | Typed as you dictate |
+|---|---|---|
+| Word errors | 2.35% | 2.91% |
+| Layout right (paragraphs, lists) | 24 / 24 | 24 / 24 |
+| New text appears | at Stop | about every 6 s |
+| Typed text identical to the copied text | | 54 of 54 recordings |
+
+Details: [optimization/2026-11-17-live-insert.md](optimization/2026-11-17-live-insert.md).
+
 ## Hardware
 
 | | |

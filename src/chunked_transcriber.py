@@ -378,6 +378,19 @@ class ChunkedTranscriber:
         self.carry_max_s = self._carry_limit_s if self.pause_aware else 0.0
         self.post_roll_s = max(0.0, post_roll_s)
 
+    def set_chunk_target(self, chunk_target_s: float) -> None:
+        """
+        Length of the audio window decoded at once, for the NEXT recording (ignored
+        while one is running). Shorter windows give text sooner but cost accuracy:
+        see docs/optimization/2026-11-17-live-insert.md.
+        """
+        if self._running or self.busy:
+            return
+        self.chunk_target_s = chunk_target_s
+        self.cut_search_s = min(CUT_SEARCH_S, chunk_target_s / 2)
+        self._carry_limit_s = max(0.0, min(CARRY_MAX_S, chunk_target_s / 2))
+        self.carry_max_s = self._carry_limit_s if self.pause_aware else 0.0
+
     def start_recording(self, mode: str = "normal") -> None:
         """Open the mic and start the capture + worker threads for a new session."""
         if self._running or self.busy:

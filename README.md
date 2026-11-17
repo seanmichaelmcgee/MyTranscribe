@@ -136,7 +136,7 @@ Open with the **⚙** button. Everything is saved for the next start.
 | Only the commas I dictate | With spoken punctuation: removes the commas the model adds by itself. For people who dictate every comma. | Off; turn on if you dictate every comma |
 | Medical clean-up | Writes readings the chart way (138/78, g/L, °C, mg/day), puts a misheard drug name right when it sits where a drug belongs, capitalises brand names, writes "I would" where "I'd" was written for it. | **On** |
 | Paste automatically after stopping | When you stop with the key or mouse button, the text is pasted for you. The on-screen button only copies. Some remote (Citrix) EMRs block this; then paste with Ctrl+V. | Off |
-| Type into my document while I dictate | Pastes each finished piece (about every 30 seconds) at the cursor while you keep talking. | Off |
+| Type into my document while I dictate | Pastes finished sentences at the cursor about every 6 seconds while you keep talking, with the same paragraphs and punctuation as the copied text. Slightly less accurate than copying at Stop (2.9% vs 2.4% word errors on the developer's recordings). | Off |
 | Start in compact view | Opens with the button only. | On |
 
 **Show log…** (Options → Troubleshooting) opens the recent log: timings and errors, never what

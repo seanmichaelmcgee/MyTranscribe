@@ -458,7 +458,9 @@ def test_live_insert_pastes_pieces_then_copies_full_text(qapp, make_window):
     wait_for(lambda: False, timeout=0.5, app=qapp)
     joined = "".join(w.inserted_pieces)
     full = w._text_area.toPlainText()
-    assert w.inserted_pieces[0] == "Piece 0." and w.inserted_pieces[1] == " Piece 1."
+    # what arrived since the last update is typed in one paste; each piece's last mark waits for the next
+    assert w.inserted_pieces[0].startswith("Piece 0") and all(p.startswith(". ") or p == "."
+                                                               for p in w.inserted_pieces[1:])
     assert joined == full                                  # everything inserted, in order, spaced
     assert w.clip.text() == full                           # clipboard ends with the full text
     assert len(w.pastes) == len(w.inserted_pieces)         # no extra paste of the full text
