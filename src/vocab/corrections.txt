@@ -20,3 +20,6 @@ dysthyatokinesia => dysdiadochokinesia
 # are heard as a letter and a verb.
 C attached => see attached
 medications is below => medications as below
+
+# "emerg" (the emergency department) is written "eMERG", copying the style of "eGFR".
+eMERG => emerg
