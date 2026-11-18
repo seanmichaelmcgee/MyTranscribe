@@ -7,8 +7,9 @@
 # Format: "## <id> | <kind> | <style> | <split>". Kind: letter, note, results, message.
 # Style is how the speaker dictates (src/tuning/sets.py): every, sentence, layout,
 # natural, notes. Split (tune or check) was fixed when the item was written, before any
-# result was seen. {um} is said but not written. Rules for the set:
-# tests/test_synthetic_set.py.
+# result was seen. Words in {braces} are said but not written: hesitations ({um}) and
+# self-corrections ({20 mg, sorry,} 15 mg), whose written form is the corrected text.
+# Rules for the set: tests/test_synthetic_set.py.
 
 ## e01 | letter | every | tune
 Dear Dr. Abernathy,
@@ -232,7 +233,7 @@ Dear Dr. Sandhu,
 
 I am referring Mrs. Grace Whitfield, who is 66 and has had pain and stiffness in both shoulders and hips for 6 weeks. The stiffness lasts {um} about 2 hours every morning. Her ESR is 58 and her CRP is 31.
 
-I started prednisone 20 mg, sorry, 15 mg daily 5 days ago and she is already much better. She has no headache, no jaw pain and no change in her vision.
+I started prednisone {20 mg, sorry,} 15 mg daily 5 days ago and she is already much better. She has no headache, no jaw pain and no change in her vision.
 
 I would appreciate your opinion on the diagnosis and on how long to continue the prednisone.
 
@@ -256,7 +257,7 @@ Dear Dr. Thompson,
 
 Thank you for seeing Mr. Daniel Cho, a 35-year-old man with {um} low back pain for 4 months after lifting at work. The pain goes down his left leg to the foot and he has numbness on the outer side of the foot. He has no bladder or bowel problems.
 
-He has tried naproxen 500 mg twice daily and physiotherapy without much benefit. His MRI shows a disc protrusion at L4-5, sorry, L5-S1, touching the left S1 nerve root.
+He has tried naproxen 500 mg twice daily and physiotherapy without much benefit. His MRI shows a disc protrusion at {L4-5, sorry,} L5-S1, touching the left S1 nerve root.
 
 I would appreciate your opinion on whether he needs surgery.
 
