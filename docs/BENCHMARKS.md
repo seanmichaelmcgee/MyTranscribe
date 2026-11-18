@@ -22,7 +22,12 @@ November 2026. Lower word error rate (WER) is better; higher recall is better.
 | **0.8 s** | median wait from Stop to finished text in the live app (graphics card) |
 | **0** | bytes of audio or text sent anywhere |
 
+Images of these results for sharing are in [images/](images/) (redraw them with
+`python scripts/make_promo_images.py` after changing a figure here).
+
 ## Head to head: the same audio through every system
+
+![Head to head](images/head_to_head.png)
 
 Word error rate. Each system got the same recordings; the best result in each row is in bold.
 
@@ -49,6 +54,8 @@ Word error rate. Each system got the same recordings; the best result in each ro
 The same Whisper large-v3 model files, first exactly as they come (faster-whisper's own
 defaults: no prompt, its own 30 s windows, previous text carried forward), then with the app's
 steps added one at a time:
+
+![What the app adds to Whisper](images/steps.png)
 
 | Step | Real clinicians (Corti, 24 notes) | Developer's voice, held out (23) |
 |---|---|---|
@@ -89,6 +96,8 @@ into a different real drug, so drug names must still be checked, as with any dic
 (CC BY 4.0): 77 test notes read by 28 computer voices in six recording conditions, 462
 recordings, 5.6 hours. Score: share of 9,366 clinical terms (drugs, doses, lab values,
 findings, names, dates of birth, chart numbers) written correctly.
+
+![Clinical terms right by recording condition](images/difficult_audio.png)
 
 | Condition | **MyTranscribe Medical** | Plain Whisper pipeline | MedASR |
 |---|---|---|---|
