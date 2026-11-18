@@ -68,9 +68,30 @@ def test_idempotent():
     ("Renal normal hemoglobin similar new line repeat in 3 months",
      "Renal normal hemoglobin similar\nRepeat in 3 months"),
     ("Plan as above. New paragraph. Thank you for seeing her.", "Plan as above.\n\nThank you for seeing her."),
+    # A clinical heading after "new line" (synthetic set item s04, 2026-11-18).
+    ("no prednisone this year new line on examination her chest was clear",
+     "no prednisone this year\nOn examination her chest was clear"),
 ])
 def test_lenient_accepts_unpunctuated_breaks(raw, want):
     assert apply(raw, lenient=True) == want
+
+
+def test_lenient_new_line_right_after_a_dictated_full_stop():
+    raw = "no prednisone this year period new line on the left the chest was clear period"
+    assert apply(raw, lenient=True, punctuation=True) == \
+        "no prednisone this year.\nOn the left the chest was clear."
+    raw = "this year full stop new line on examination her chest was clear full stop"
+    assert apply(raw, lenient=True, punctuation=True) == "this year.\nOn examination her chest was clear."
+    # "period" as a noun is not a full stop, so the noun guard still applies after it
+    raw = "her last period new line of therapy was started"
+    assert apply(raw, lenient=True, punctuation=True) == raw
+
+
+def test_a_dictated_comma_keeps_a_term_that_holds_a_digit():
+    assert apply("Seen today comma A1c 7.2 percent, B12 normal period", punctuation=True) == \
+        "Seen today, A1c 7.2 percent, B12 normal."
+    assert apply("The chest is clear, comma. It was fine, period.", punctuation=True) == \
+        "The chest is clear, it was fine."
 
 
 @pytest.mark.parametrize("text", [
@@ -80,6 +101,7 @@ def test_lenient_accepts_unpunctuated_breaks(raw, want):
     "consider second line or new line of treatment",
     "Her last period was 2 weeks ago.",
     "Patient is quite open to the plan.",
+    "There was a new line on examination of the film.",
 ])
 def test_lenient_still_leaves_ordinary_text(text):
     assert apply(text, lenient=True) == text

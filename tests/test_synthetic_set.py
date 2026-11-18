@@ -46,11 +46,11 @@ MINIMUM = {"salutation": 12, "sign_off": 12, "heading": 6, "list": 3, "reading":
 COMMAND_WORDS = re.compile(r"\b(?:new line|new paragraph|open quote|close quote|full stop)\b", re.I)
 
 # Items that hit a known gap in the app's rules when the words come with no punctuation at
-# all (the lenient path). With Whisper's usual punctuation both convert correctly. Kept in
+# all (the lenient path). With Whisper's usual punctuation they convert correctly. Kept in
 # the set because clinicians say them; xfail(strict) flags the day the rule is improved.
+# Fixed: s04, "new line" before "On examination" (2026-11-18).
 KNOWN_GAPS = {
     "e03": "a quote in mid-sentence is converted only when punctuation sets it off",
-    "s04": "'new line' followed by 'On examination' is read as a noun phrase ('the new line on ...')",
 }
 
 
