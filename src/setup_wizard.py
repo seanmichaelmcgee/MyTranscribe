@@ -74,14 +74,15 @@ QCheckBox#inCard { font-weight: 400; margin-left: 23px; }
 """
 
 # How you dictate (first page). Every statement here must be true of the app today:
-# natural speech gets sentence punctuation from the recogniser, but no paragraphs or letter
-# layout unless spoken (docs/settings/SETUP_WIZARD_PLAN.md, "Speaking naturally").
+# natural speech gets sentence punctuation from the recogniser and a letter's greeting and
+# sign-off laid out (voice_commands.letter_layout), but no other paragraphs unless spoken
+# (docs/settings/SETUP_WIZARD_PLAN.md, "Speaking naturally").
 DICTATION = (
     ("traditional", "Traditional dictation",
      "You say the punctuation and the layout: “period”, “comma”, “new paragraph”."),
     ("natural", "Natural speech",
-     "Talk as you would to a colleague. Full stops and commas are added from how you speak. "
-     "Paragraphs are not started for you: say “new paragraph” where you want one."),
+     "Talk as you would to a colleague. Full stops and commas are added from how you speak, and a "
+     "letter's greeting and sign-off go on their own lines. For other paragraphs, say “new paragraph”."),
 )
 TRADITIONAL_EXAMPLE = (
     "<table cellspacing='0' cellpadding='1'>"

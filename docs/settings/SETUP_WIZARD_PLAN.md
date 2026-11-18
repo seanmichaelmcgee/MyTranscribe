@@ -14,8 +14,9 @@ person on a fresh install. Phases 2–5 are still plans.
     (10.8% vs 1.6% word errors in the settings suite), so Next waits for one. "Use
     recommended for the rest" keeps the answer.
   - **Nothing promised that the app does not do.** Natural speech gets sentence punctuation
-    from the recogniser, but no paragraphs or letter layout unless they are spoken, and the
-    page says so. Spoken layout commands are on for both answers.
+    from the recogniser and a letter's greeting and sign-off laid out, but no other
+    paragraphs unless they are spoken, and the page says so. Spoken layout commands are on
+    for both answers.
 - **"What you mostly dictate."** Left for phase 2, because nothing in phase 1 would use the
   answer.
 - **Usual medications page.** Also phase 2.
@@ -217,10 +218,11 @@ within chance.
 
 ## Speaking naturally: letters formatted for you
 
-This is a new feature and is not built yet. Today, a person who does not say the marks gets
-Whisper's own sentence punctuation, which is good. Paragraphs, the salutation line, headings
-and lists come only from spoken commands, so "just talk and it formats my letter" does not
-work yet.
+Partly built (2026-11-18). A person who does not say the marks gets Whisper's own sentence
+punctuation, which is good. The greeting ("Dear Dr. X,") and the sign-off ("Kind regards,"
+and the name) are now laid out without any command (`voice_commands.letter_layout`).
+Paragraphs inside the body, headings and lists still come only from spoken commands, so
+"just talk and it formats my letter" works only for the start and end of a letter.
 
 Plan: a letter-layout step made of rules, measured like everything else.
 
