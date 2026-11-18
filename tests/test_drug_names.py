@@ -53,6 +53,12 @@ def test_correct_text_is_left_alone(text):
     assert drug_names.apply(text) == text
 
 
+def test_misheard_brand_name_is_put_right():
+    # Jardiance is a brand in the bundled vocabulary (empagliflozin (Jardiance)).
+    raw = "She takes metformin 1000 mg twice daily and Jardientz 25 mg daily."
+    assert drug_names.apply(raw) == "She takes metformin 1000 mg twice daily and Jardiance 25 mg daily."
+
+
 def test_name_after_title_is_not_a_drug():
     assert drug_names.apply("Dr. Labatol takes over the clinic daily.") == "Dr. Labatol takes over the clinic daily."
 

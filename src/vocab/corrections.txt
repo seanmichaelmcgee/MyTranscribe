@@ -23,3 +23,15 @@ medications is below => medications as below
 
 # "emerg" (the emergency department) is written "eMERG", copying the style of "eGFR".
 eMERG => emerg
+
+# Settings suite, 2026-11-18 (synthetic voices, fictional notes). The Montreal Cognitive
+# Assessment is heard as the drink; "mocha" alone is an everyday word, so only where a score goes.
+moca => MoCA
+on the mocha => on the MoCA
+mocha score => MoCA score
+mocha test => MoCA test
+mocha of => MoCA of
+# The spirometry ratio, said with or without "over" / "to".
+FEV1 FVC => FEV1/FVC
+FEV1 over FVC => FEV1/FVC
+FEV1 to FVC => FEV1/FVC
