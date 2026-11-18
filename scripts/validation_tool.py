@@ -46,79 +46,8 @@ sys.path.insert(0, str(ROOT / "src"))
 
 DEFAULT_SET = ROOT / "validation" / "validation_set_v1.txt"
 SR = 16000
-_TITLES = ("Mr", "Mrs", "Ms", "Dr", "Miss")
-_SAID = {".": "period", ",": "comma", ":": "colon", ";": "semicolon", "?": "question mark"}
-
-
-# ── The set ──────────────────────────────────────────────────────────────────
-def parse_set(text: str) -> list:
-    """[{id, category, reference}] from the "## id | kind" format."""
-    items, current = [], None
-    for line in text.splitlines():
-        if line.startswith("## "):
-            ident, _, kind = line[3:].partition("|")
-            current = {"id": ident.strip(), "category": kind.strip() or "short", "lines": []}
-            items.append(current)
-        elif current is not None:
-            current["lines"].append(line)
-    for item in items:
-        item["reference"] = "\n".join(item.pop("lines")).strip()
-        item["spoken"] = spoken_form(item["reference"])
-    return items
-
-
-def spoken_form(reference: str, shout: bool = False, language: str = "en") -> str:
-    """
-    The text as it is dictated: every mark and break said as a word. With
-    shout=True the dictated words are in CAPITALS so they are easy to read out.
-    `language` picks the words (English here; others from lang_packs).
-    """
-    if language != "en":
-        return _spoken_form_pack(reference, shout, language)
-    say = (lambda w: w.upper()) if shout else (lambda w: w)
-    text = reference
-    text = re.sub(r"(\d)/(\d)", r"\1 over \2", text)
-    text = re.sub(r"(\d)%", r"\1 percent", text)
-    text = re.sub(r'"([^"\n]*)"', lambda m: f" {say('open quote')} {m.group(1)} {say('close quote')}", text)
-    text = re.sub(r"(?m)^(\d{1,2})\. ", lambda m: f"{m.group(1)} {say('period')} ", text)   # list numbers
-    titles = "".join(rf"(?<!\b{t})" for t in _TITLES)                              # "Dr." has no spoken mark
-    text = re.sub(titles + r"([.,:;?])(?=\s|$)", lambda m: f" {say(_SAID[m.group(1)])}", text)   # not decimals
-    text = re.sub(r"[ \t]*\n[ \t]*\n[ \t]*", f" {say('new paragraph')} ", text)
-    text = re.sub(r"[ \t]*\n[ \t]*", f" {say('new line')} ", text)
-    return re.sub(r"[ \t]{2,}", " ", text).strip()
-
-
-def _spoken_form_pack(reference: str, shout: bool, language: str) -> str:
-    import lang_packs
-    pack = lang_packs.get(language)
-    if pack is None:
-        raise SystemExit(f"no language pack for {language!r}")
-    say = (lambda w: w.upper()) if shout else (lambda w: w)
-    words, text = pack.say, reference
-    text = re.sub(r"(\d)/(\d)", rf"\1 {pack.over[0]} \2", text)
-    left, right = (re.escape(q.strip()) for q in pack.quotes)
-    text = re.sub(left + r"\s*([^\n]*?)\s*" + right,
-                  lambda m: f" {say(words['open'])} {m.group(1)} {say(words['close'])}", text)
-    titles = "".join(rf"(?<!\b{t})" for t in pack.titles)
-    text = re.sub(r"[ \t]*" + titles + r"([.,:;?])(?=\s|$)", lambda m: f" {say(words[m.group(1)])}", text)
-    text = re.sub(r"[ \t]*\n[ \t]*\n[ \t]*", f" {say(words[chr(10) * 2])} ", text)
-    text = re.sub(r"[ \t]*\n[ \t]*", f" {say(words[chr(10)])} ", text)
-    return re.sub(r"[ \t]{2,}", " ", text).strip()
-
-
-def set_language(path: Path) -> str:
-    """Language code from the set's file name: validation_set_es_v1.txt -> es (English otherwise)."""
-    m = re.search(r"_set_([a-z]{2})_", path.name)
-    return m.group(1) if m else "en"
-
-
-def load_set(path: Path) -> list:
-    language = set_language(path)
-    items = parse_set(path.read_text(encoding="utf-8"))
-    for item in items:
-        item["language"] = language
-        item["spoken"] = spoken_form(item["reference"], language=language)
-    return items
+# The set and its dictated form live in src/tuning/sets.py, shared with the setup wizard.
+from tuning.sets import load_set, parse_set, set_language, spoken_form  # noqa: E402,F401
 
 
 # ── show ─────────────────────────────────────────────────────────────────────
