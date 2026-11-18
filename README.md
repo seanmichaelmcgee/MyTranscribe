@@ -88,8 +88,13 @@ said; lower is better.
 3. Start the app with **`MyTranscribe.bat`**. For a desktop icon, run
    `scripts\make_shortcut.ps1` once (right-click → Run with PowerShell).
 
-The first start takes a few seconds while the model loads ("Loading speech model…"); the
-button unlocks when it is ready. If antivirus software blocks the downloads with a certificate
+The first start opens a short **setup wizard** (about three minutes): which microphone, with a
+level check that sets the gain; whether you say the punctuation; where the text should go; and
+which key or mouse button starts and stops dictation. **Use recommended settings** skips it, and
+**Options (⚙) → Run setup again** reopens it at any time.
+
+Then the model loads for a few seconds ("Loading speech model…"); the button unlocks when it
+is ready. If antivirus software blocks the downloads with a certificate
 error, see [README_1060.md](README_1060.md#install-windows).
 
 ## Dictating
@@ -114,7 +119,9 @@ line, 1 period, dry eyes" gives a new line starting "1. Dry eyes".
 
 ## Setting the microphone level
 
-The thin bar above the Start button shows how much sound the app is getting:
+**Options (⚙) → Microphone → Check my microphone…** does this for you: stay quiet for three
+seconds, read one sentence, and it sets the gain and says if the room is noisy or the voice too
+quiet. Otherwise, the thin bar above the Start button shows how much sound the app is getting:
 
 - **green and moving while you speak:** right;
 - **mostly amber while you speak:** too quiet. Raise **Options (⚙) → Microphone → Gain**;
@@ -131,6 +138,8 @@ Open with the **⚙** button. Everything is saved for the next start.
 
 | Option | What it does | Default |
 |---|---|---|
+| Run setup again | The setup wizard from the first start, with your current choices filled in. The settings it replaces are kept in `settings.before-setup.json` beside the settings file. | |
+| Microphone | Which microphone to record from. A chosen microphone that is unplugged falls back to the Windows default. | Windows default |
 | Keyboard key / Mouse button, hold or toggle | Which key and mouse button start and stop dictation, and whether you hold them while talking or press once to start and once to stop. Ctrl+Alt+Q and Space (window focused) always work. | F9 hold, mouse toggle |
 | Microphone gain | Makes the microphone louder or quieter (see above). | 50; adjust once for your microphone |
 | Keep microphone ready | Keeps the microphone open between dictations so your first word is not clipped. Windows shows the microphone as in use while the app is open. | On |

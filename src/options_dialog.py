@@ -1,7 +1,8 @@
 """
 options_dialog.py — the Options screen for gui_med.py.
 
-Start/stop keys and mouse button (hold-to-talk or toggle), microphone gain,
+Run setup again (setup_wizard.py), start/stop keys and mouse button (hold-to-talk
+or toggle), microphone choice, check and gain,
 start/stop sounds, speech model and dictation language, the text options
 (each with a one-line explanation under it), the start-up view, a short how-to
 and the log. Returns an edited copy of settings.Settings; the caller saves and
@@ -84,11 +85,18 @@ def gain_text(value: int) -> str:
 
 
 class OptionsDialog(QDialog):
-    def __init__(self, settings: Settings, parent=None) -> None:
+    def __init__(self, settings: Settings, parent=None, devices=None, default_device=None) -> None:
         super().__init__(parent)
         self.setWindowTitle("MyTranscribe — Options")
         self.setStyleSheet(STYLE)
         self._original = settings
+        self.requested_setup = False     # "Run setup again…": the caller opens the wizard after saving
+        if devices is None or default_device is None:
+            import audio_devices
+            names, default = audio_devices.snapshot()
+            devices = names if devices is None else devices
+            default_device = default if default_device is None else default_device
+        self._devices, self._default_device = devices, default_device
         outer = QVBoxLayout(self)
         self._scroll = QScrollArea()
         self._scroll.setWidgetResizable(True)
@@ -99,6 +107,17 @@ class OptionsDialog(QDialog):
         self._layout = layout
         self._scroll.setWidget(content)
         outer.addWidget(self._scroll)
+
+        # ── Setup ────────────────────────────────────────────────────────────
+        layout.addWidget(self._title("Setup"))
+        setup_row = QHBoxLayout()
+        self.run_setup = QPushButton("Run setup again…")
+        self.run_setup.clicked.connect(self._request_setup)
+        setup_row.addWidget(self.run_setup)
+        setup_row.addStretch(1)
+        layout.addLayout(setup_row)
+        self._help("Walks through the main choices again: microphone, punctuation, where the text goes, and the "
+                   "start and stop keys. Saves any changes made here first.", indent=False)
 
         # ── Start / stop ─────────────────────────────────────────────────────
         layout.addWidget(self._title("Start / stop dictation"))
@@ -124,6 +143,15 @@ class OptionsDialog(QDialog):
 
         # ── Microphone ───────────────────────────────────────────────────────
         layout.addWidget(self._title("Microphone"))
+        device_row = QHBoxLayout()
+        device_row.addWidget(QLabel("Microphone:"))
+        self.input_device = QComboBox()
+        self._fill_devices(settings.input_device)
+        device_row.addWidget(self.input_device, stretch=1)
+        self.check_mic = QPushButton("Check my microphone…")
+        self.check_mic.clicked.connect(self._check_microphone)
+        device_row.addWidget(self.check_mic)
+        layout.addLayout(device_row)
         self.mic_gain, gain_label = self._slider(settings.mic_gain, "Microphone gain", gain_text)
         gain_row = QHBoxLayout()
         gain_name = QLabel("Gain:")
@@ -131,7 +159,8 @@ class OptionsDialog(QDialog):
         gain_row.addWidget(self.mic_gain, stretch=1)
         gain_row.addWidget(gain_label)
         layout.addLayout(gain_row)
-        self._help("50 leaves the sound as the microphone sends it. Dictate a sentence and watch the level bar "
+        self._help("Check my microphone… measures your voice and the room and sets the gain for you. "
+                   "50 leaves the sound as the microphone sends it. Or dictate a sentence and watch the level bar "
                    "above the Start button: it should be green and move while you speak. Mostly amber: raise "
                    "the gain. Red: lower it or move the microphone back. A very quiet microphone is best "
                    "raised first in Windows (Settings → System → Sound → Input).", indent=False)
@@ -340,6 +369,28 @@ class OptionsDialog(QDialog):
                          "scripts\\convert_whisper_model.py (see the multilingual note).")
         self.engine_note.setText(note)
 
+    def _fill_devices(self, current: str) -> None:
+        c = self.input_device
+        c.clear()
+        c.addItem(f"Windows default ({self._default_device})" if self._default_device else "Windows default", "")
+        for name in self._devices:
+            c.addItem(name, name)
+        if current and c.findData(current) < 0:
+            c.addItem(f"{current} (not connected)", current)
+        c.setCurrentIndex(max(0, c.findData(current)))
+
+    def _check_microphone(self) -> None:
+        from setup_wizard import MicCheckDialog       # imported here: setup_wizard imports this module
+        dlg = MicCheckDialog(self.input_device.currentData() or "", self.mic_gain.value(), parent=self,
+                             devices=self._devices, default_device=self._default_device)
+        if dlg.exec():
+            self._fill_devices(dlg.panel.selected_device())
+            self.mic_gain.setValue(dlg.panel.gain.value())
+
+    def _request_setup(self) -> None:
+        self.requested_setup = True
+        self.accept()
+
     def _show_log(self) -> None:
         from log_window import LogWindow
         if self.log_window is None:
@@ -365,4 +416,5 @@ class OptionsDialog(QDialog):
                        only_dictated_commas=self.only_dictated_commas.isChecked(),
                        extra_fixes=self.extra_fixes.isChecked(),
                        mic_gain=self.mic_gain.value(),
+                       input_device=self.input_device.currentData() or "",
                        chime_volume=self.chime_volume.value(), autopaste=self.autopaste.isChecked())

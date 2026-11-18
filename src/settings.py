@@ -4,6 +4,7 @@ settings.py — the few user options for gui_med.py, saved as a small JSON file.
 Location: %APPDATA%\\MyTranscribe\\settings.json on Windows
           (~/.config/mytranscribe/settings.json elsewhere).
 Holds only key bindings, view, microphone and accuracy preferences: never transcript text.
+No file at all means a first start: gui_med.py then opens the setup wizard.
 
 Environment variables still override the file (handy for testing):
   MYTRANSCRIBE_KEY / MYTRANSCRIBE_KEY_MODE      e.g. f9 / hold|toggle, or none
@@ -63,6 +64,10 @@ class Settings:
     extra_fixes: bool = True           # "Medical clean-up": drug names, readings format (138/78, g/L)
     only_dictated_commas: bool = False  # with spoken punctuation: drop commas the model added by itself
     spoken_punctuation: bool = False   # "period", "comma", "colon" ... -> the marks (voice_commands.py)
+    input_device: str = ""             # microphone by name (audio_devices.py); "" = the Windows default
+    # The setup wizard (setup_wizard.py) last finished on this file; 0 = never. It opens by itself only
+    # when there is no settings file at all, so an existing install is never sent through it.
+    setup_version: int = 0
 
     def triggers(self) -> TriggerConfig:
         return TriggerConfig(
@@ -104,6 +109,12 @@ class Settings:
             self.engine = d.engine
         if self.language not in LANGUAGE_CHOICES:
             self.language = d.language
+        self.input_device = (self.input_device.strip()[:200]
+                             if isinstance(self.input_device, str) else d.input_device)
+        try:
+            self.setup_version = max(0, int(self.setup_version))
+        except (ValueError, TypeError, OverflowError):
+            self.setup_version = d.setup_version
         return self
 
 
