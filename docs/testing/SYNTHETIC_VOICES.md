@@ -1,8 +1,9 @@
 # Synthetic voice test set: plan
 
-**Status (2026-11-18): planned.** No scripts are written and no audio has been made. The
-owner listens to the voices first. Paid generation waits for the owner's go-ahead. Terms and
-principles are in [README.md](README.md).
+**Status (2026-11-18): the English scripts are written** and checked by
+`tests/test_synthetic_set.py`; the owner has not reviewed them yet. No audio has been made.
+The owner listens to the voices first, and paid generation waits for the owner's go-ahead.
+Terms and principles are in [README.md](README.md).
 
 ## Purpose
 
@@ -58,29 +59,54 @@ Every voice reads every style: 60 pseudo-users.
 
 ## Scripts
 
-- **New texts.** Not v1 or v2, which back the published figures. Eight scripts per style,
-  about 650 words (5 minutes) per style, marked in advance: 5 for tuning, 3 for checking.
-- **One written form per script.** The spoken form for each style and mark word is generated
-  from it. This needs `spoken_form()` to take a style and "full stop".
-- **What each script contains:** at least one drug with a dose, numbers with units, and a
-  negation. The set as a whole covers:
-  - "Dear Dr. …" openings and sign-offs;
+- **Where:** `validation/synthetic_set_en_v1.txt`, 40 scripts and about 2,760 words.
+  - The text is public.
+  - The audio will stay in `results_1060/synthetic_voices/`. A manifest will record the
+    engine, model, voice, instruction and date for each clip.
+- **New texts.** v1 and v2 are not used, because they back the published figures. The test
+  checks that no patient and no sentence is shared with them.
+- **Per style:** 8 scripts, 450 to 640 words (quick notes are the densest). Each is marked in
+  advance: 5 for tuning, 3 for checking, and the checking items mix kinds.
+- **One written form per script.** `spoken_form()` in `src/tuning/sets.py` generates what each
+  style says, with "period" or "full stop". `{um}` marks a hesitation that is said but not
+  written.
+- **Every script has** a drug with a dose and a negation. **The set as a whole covers:**
+  - openings and sign-offs;
   - headings;
   - numbered lists;
   - readings such as 138/78;
+  - percentages and questions;
+  - a quotation;
+  - semicolons;
+  - self-corrections;
   - brand and generic drug names.
-- **Stored in** `validation/synthetic_v1/`. The text is public; the audio stays in
-  `results_1060/synthetic_voices/` with a manifest that records the engine, model, voice,
-  instruction and date for each clip.
+- **Checked by `tests/test_synthetic_set.py`:**
+  - every rule above;
+  - for each script, that the words, said with every mark, turn back into exactly the
+    written text through the app's own rules;
+  - in the script's own style, the same for its words and layout.
+
+  Another language adds its set file and one entry in that test.
+- **What writing them found in the app's rules:**
+  - *Mid-sentence quote:* converted only when punctuation sets it off (e03).
+  - *"New line, On examination":* read as a noun phrase when the model wrote no punctuation
+    (s04).
+  - *A1c after a dictated comma:* lower-cased to "a1c".
+  - *"Dear Dr. X," for a speaker who says no marks:* comes out as "Dear Dr. X."
+
+  The first two are recorded as known gaps in the test; the third as an expected failure in
+  `tests/test_reading_sets.py`. None is fixed: each would be an app change.
+- **Before audio is made,** the generator must spell units out for the voices (mg as
+  milligrams, mmol/L as millimoles per litre). The written form keeps the abbreviations.
 - **If decisions come out close,** a second pool of 8 scripts per style is added, read by half
   the voices each, for more variety of content.
 
 ## Size and cost (current list prices)
 
-- **Volume:** 12 voices × 5 styles × about 650 words is about 39,000 spoken words, or roughly
-  4.6 hours of audio.
-- **Amazon:** about 117,000 characters at $30 per million (generative) is **about $3.50**.
-- **OpenAI:** about 140 minutes at its earlier estimate of 1.5 cents a minute is **about $2**.
+- **Volume:** each voice reads all 40 scripts. That is about 3,000 spoken words with the
+  marks, or about 22 minutes per voice, so about 4.3 hours for 12 voices.
+- **Amazon:** about 120,000 characters at $30 per million (generative) is **about $3.60**.
+- **OpenAI:** about 130 minutes at its earlier estimate of 1.5 cents a minute is **about $2**.
   It bills $12 per million audio tokens; the per-minute figure is unverified.
 - **Each clip is used twice:** clean, and through its voice's home microphone (simulated by
   `make_test_dictation.py`). Both are made locally at no cost.
@@ -137,7 +163,7 @@ They are reported by style, voice, engine and microphone, as paired differences 
 
 ## Steps, each with the owner's go-ahead
 
-1. Write the scripts. Claude drafts them and the owner reviews.
+1. Write the scripts. **Drafted 2026-11-18;** the owner reviews them.
 2. The owner listens:
    - at [OpenAI.fm](https://www.openai.fm/): voice, accent instruction, a script;
    - to Amazon Polly in the AWS console.
