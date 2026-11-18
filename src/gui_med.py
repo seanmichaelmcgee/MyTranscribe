@@ -70,8 +70,10 @@ import live_insert                                           # noqa: E402
 import lang_packs                                            # noqa: E402
 import text_fixes                                            # noqa: E402
 import voice_commands                                        # noqa: E402
+from mic_check import meter_display                          # noqa: E402  (shared with the setup wizard)
 from mic_ready import ReadyMic                               # noqa: E402
 from options_dialog import OptionsDialog                     # noqa: E402
+from setup_wizard import SetupWizard                         # noqa: E402
 
 logger = logging.getLogger("gui_med")
 
@@ -137,14 +139,6 @@ QProgressBar#micLevel::chunk { background: #2E9E4F; border-radius: 2px; }
 QProgressBar#micLevel[levelKind="low"]::chunk { background: #B98500; }
 QProgressBar#micLevel[levelKind="clipping"]::chunk { background: #C8322B; }
 """
-
-
-def meter_display(level: InputLevel) -> tuple[int, str]:
-    """Logarithmic captured-signal meter; independent of the recording light."""
-    value = round(max(0.0, min(100.0, (level.dbfs + 60) * 100 / 60)))
-    kind = ("clipping" if level.peak >= 0.999 else
-            "low" if level.rms * 32768 <= LEVEL_THRESHOLD_RMS else "signal")
-    return value, kind
 
 
 class _StatusLabel(QLabel):
@@ -251,6 +245,8 @@ class MedTranscriptionWindow(TranscriptionWindow):
         self._injected_stream = stream_factory is not None
         self._stream_factory = stream_factory
         self._ready_mic = None
+        self._mic_device = ""          # the microphone the kept-ready stream was opened on
+        self._in_setup = False         # the setup wizard is open: hotkeys do nothing
         self._mic_warmup_override = mic_warmup_s
         self._mic_live = False
         self._autopaste_override = autopaste
@@ -376,7 +372,8 @@ class MedTranscriptionWindow(TranscriptionWindow):
             return
         builder, corrector = self._text_pipeline
         self._transcriber = ChunkedTranscriber(
-            self._engine, self._base_prompt, stream_factory=self._stream_factory,
+            self._engine, self._base_prompt,
+            stream_factory=self._stream_factory or (None if self._injected_stream else self._open_mic),
             prompt_builder=builder, postprocess=corrector,
         )
         self._apply_pause_mode()
@@ -569,24 +566,29 @@ class MedTranscriptionWindow(TranscriptionWindow):
                                     "off": "Not recording"}[state])
 
     # ── Microphone: kept ready (pre-roll) or opened per recording (warm-up) ──
+    def _open_mic(self):
+        """Open the microphone chosen in Options (or the Windows default). Returns (stream, owner)."""
+        from chunked_transcriber import _default_stream_factory
+        return _default_stream_factory(self._settings.input_device)
+
     def _apply_mic_mode(self) -> None:
-        """Start/stop the always-open mic to match settings.keep_mic_ready."""
+        """Start/stop the always-open mic to match settings.keep_mic_ready (reopened on a new microphone)."""
         want = self._settings.keep_mic_ready and not self._injected_stream
+        if self._ready_mic is not None and (not want or self._mic_device != self._settings.input_device):
+            self._ready_mic.stop()
+            self._ready_mic = None
         if want and self._ready_mic is None:
             try:
-                self._ready_mic = ReadyMic()
+                self._ready_mic = ReadyMic(open_stream=self._open_mic)
+                self._mic_device = self._settings.input_device
                 self._ready_mic.start()
             except Exception as exc:
                 logger.error("Could not keep the microphone ready: %s", exc)
                 self._ready_mic = None
-        elif not want and self._ready_mic is not None:
-            self._ready_mic.stop()
-            self._ready_mic = None
         if not self._injected_stream:
             self._stream_factory = self._ready_mic.session if self._ready_mic else None
             if self._transcriber is not None:
-                from chunked_transcriber import _default_stream_factory
-                self._transcriber._stream_factory = self._stream_factory or _default_stream_factory
+                self._transcriber._stream_factory = self._stream_factory or self._open_mic
 
     @property
     def _warmup_s(self) -> float:
@@ -1023,7 +1025,7 @@ class MedTranscriptionWindow(TranscriptionWindow):
 
     def on_hotkey(self) -> None:
         """Ctrl+Alt+Q / F9 / mouse button (toggle mode)."""
-        if self._finishing or not self.ready:
+        if self._finishing or not self.ready or self._in_setup:
             return
         if self._state == AppState.IDLE:
             # Don't raise the window (it's always on top anyway): keyboard focus
@@ -1070,6 +1072,35 @@ class MedTranscriptionWindow(TranscriptionWindow):
             self._log_window.show()
         if accepted:
             self.apply_settings(dlg.result_settings())
+            if dlg.requested_setup:
+                QTimer.singleShot(0, self.run_setup)
+
+    def run_setup(self, wizard_factory: Optional[Callable] = None) -> bool:
+        """
+        Options → Run setup again: the setup wizard over the current settings. The
+        previous settings are kept beside the file (settings.before-setup.json).
+        Returns True if new settings were applied.
+        """
+        if self._state != AppState.IDLE or self._finishing:
+            return False
+        old = self._settings
+        self._in_setup = True
+        if self._triggers is not None:
+            self._triggers.stop()               # the wizard tests the keys itself: F9 must not start dictation
+        try:
+            factory = wizard_factory or (lambda: SetupWizard(old, parent=self, install_hooks=self._install_hooks))
+            wizard = factory()
+            accepted = bool(wizard.exec())
+        finally:
+            self._in_setup = False
+        if not accepted:
+            self._apply_triggers()
+            return False
+        backup = (self._settings_path or settings_store.default_path()).with_name("settings.before-setup.json")
+        settings_store.save(old, backup)
+        self.apply_settings(wizard.result_settings())
+        logger.info("Setup wizard finished; settings applied")
+        return True
 
     def _sync_autopaste(self):
         if self._autopaste_override is not None:
@@ -1127,9 +1158,30 @@ def main() -> None:
     app.setStyleSheet(MED_QSS)
     logger.info("Starting MyTranscribe Medical (faster-whisper); hotkey Ctrl+Alt+Q")
 
-    window = MedTranscriptionWindow()
+    window = MedTranscriptionWindow(settings=first_start_settings())
     window.show()
     sys.exit(app.exec())
+
+
+def first_start_settings(path: Optional[Path] = None, wizard_factory: Optional[Callable] = None):
+    """
+    No settings file yet (a new install): run the setup wizard before the model loads,
+    so its choices (model, microphone) are used from the start. Closing the wizard keeps
+    the defaults. Either way the file is saved, so the wizard does not open by itself
+    again; Options → Run setup again reopens it. Returns None when a file already exists.
+    """
+    path = path or settings_store.default_path()
+    if path.exists():
+        return None
+    settings = settings_store.load(path)
+    logger.info("First start: opening the setup wizard")
+    wizard = (wizard_factory or (lambda s: SetupWizard(s, first_run=True)))(settings)
+    if wizard.exec():
+        settings = wizard.result_settings()
+    else:
+        logger.info("Setup wizard closed; using the recommended settings")
+    settings_store.save(settings, path)
+    return settings
 
 
 if __name__ == "__main__":

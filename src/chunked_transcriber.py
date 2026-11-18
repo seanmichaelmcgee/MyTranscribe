@@ -258,18 +258,10 @@ class ChunkStat:
         return self.elapsed_s / self.audio_s if self.audio_s else 0.0
 
 
-def _default_stream_factory():
-    """Open the default microphone with PyAudio. Returns (stream, pyaudio_instance)."""
-    import pyaudio
-    pa = pyaudio.PyAudio()
-    try:
-        info = pa.get_default_input_device_info()
-        logger.info("Input device [%s] index=%s", info.get("name"), info.get("index"))
-    except (IOError, OSError) as exc:
-        logger.warning("Could not query default input device: %s", exc)
-    stream = pa.open(format=pyaudio.paInt16, channels=1, rate=SAMPLE_RATE,
-                     input=True, frames_per_buffer=FRAMES_PER_BUFFER)
-    return stream, pa
+def _default_stream_factory(device: str = ""):
+    """Open the chosen microphone (Options; "" = the Windows default) with PyAudio. Returns (stream, pyaudio_instance)."""
+    from audio_devices import open_stream
+    return open_stream(device, SAMPLE_RATE, FRAMES_PER_BUFFER)
 
 
 class ChunkedTranscriber:

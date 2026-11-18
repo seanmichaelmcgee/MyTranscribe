@@ -415,7 +415,13 @@ def test_ready_mic_feeds_recordings_with_preroll(qapp, tmp_path, monkeypatch):
         s = EndlessStream(speech_like(3), pace_s=0.004)
         opened.append(s)
         return s, None
-    monkeypatch.setattr(gui_med, "ReadyMic", lambda: mic_ready.ReadyMic(open_stream=open_stream))
+    asked = []                                       # what the window would open: its chosen microphone
+
+    def ready_mic(open_stream=None):
+        asked.append(open_stream)
+        return mic_ready.ReadyMic(open_stream=open_stream_fake)
+    open_stream_fake = open_stream
+    monkeypatch.setattr(gui_med, "ReadyMic", ready_mic)
     w = gui_med.MedTranscriptionWindow(engine_factory=FakeEngine, autopaste=False, base_prompt="",
                                        text_pipeline=(None, None), settings=Settings(start_compact=False),
                                        settings_path=tmp_path / "s.json", install_hooks=False)
@@ -433,6 +439,13 @@ def test_ready_mic_feeds_recordings_with_preroll(qapp, tmp_path, monkeypatch):
             w._on_toggle_clicked()
             assert finish(w, qapp)
         assert len(opened) == 1                             # one device open for both recordings
+        assert asked == [w._open_mic]
+        first = w._ready_mic
+        w.apply_settings(Settings(start_compact=False, input_device="Headset (USB)"))   # a new microphone
+        assert w._ready_mic is not first and not first._running and w._mic_device == "Headset (USB)"
+        assert wait_for(lambda: len(opened) == 2, app=qapp)
+        w.apply_settings(Settings(start_compact=False, input_device="Headset (USB)", chime_volume=50))
+        assert len(asked) == 2                              # same microphone: not reopened
     finally:
         w.close()
     assert w._ready_mic is not None and not w._ready_mic._running
