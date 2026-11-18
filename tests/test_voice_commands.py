@@ -193,9 +193,11 @@ def test_only_dictated_commas_drops_the_ones_the_model_added():
     ("Thank you for seeing him. Thank you, Dr. Priya Raman.", "Thank you for seeing him.\n\nThank you,\nDr. Priya Raman"),
     ("Please call Mrs. Whitfield. Thanks, Sarah.", "Please call Mrs. Whitfield.\n\nThanks,\nSarah"),
     ("To whom it may concern: Mr. Ruiz was seen today.", "To whom it may concern:\n\nMr. Ruiz was seen today."),
-    # already laid out by spoken commands: unchanged apart from the name's own line
-    ("Dear Dr. Lee, new paragraph. Seen today. New paragraph. Kind regards, Dr. Ade Bankole.",
-     "Dear Dr. Lee,\n\nSeen today.\n\nKind regards,\nDr. Ade Bankole"),
+    # whoever says layout commands lays the letter out: only the greeting's full stop is mended
+    ("Dear Dr. Lee. New paragraph. Seen today. New paragraph. Kind regards, Dr. Ade Bankole.",
+     "Dear Dr. Lee,\n\nSeen today.\n\nKind regards, Dr. Ade Bankole."),
+    ("Dear Dr. Okafor, Thank you for seeing Ms. Ruiz. New paragraph. Thank you for your help. Kind regards.",
+     "Dear Dr. Okafor, Thank you for seeing Ms. Ruiz.\n\nThank you for your help. Kind regards."),
 ])
 def test_letter_greeting_and_sign_off(raw, want):
     assert apply(raw, lenient=True) == want

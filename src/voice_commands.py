@@ -299,18 +299,23 @@ _SALUTATION = re.compile(r"(^|\n)([ \t]*(?:Dear\b[^\n,:!?]{1,60}|To whom it may 
 _CLOSING = (r"(?:(?:With )?[Kk]ind regards|Best regards|Warm regards|Regards|Yours sincerely|Sincerely|"
             r"Yours truly|Yours faithfully|Best wishes|Many thanks|With thanks|Thank you|Thanks)")
 _NAME = r"(?:(?:Dr\.?|Doctor)[ \t]+)?[A-Z][\w'’-]*\.?(?:[ \t]+[A-Z][\w'’-]*\.?){0,3}"
-_GREETING_STOP = re.compile(r"(?:^|(?<=\n))([ \t]*Dear\b[^\n!?]{1,60}?)\.(?=[ \t]*\n)")
+_GREETING_STOP = re.compile(r"(?:^|(?<=\n))([ \t]*Dear[ \t]+(?:(?:Dr|Mr|Mrs|Ms|Miss|Mx|Prof|Doctor)\.?[ \t]+)?"
+                            r"[A-Z][\w'’-]*(?:[ \t]+[A-Z][\w'’-]*){0,2})\.(?=[ \t]*\n)")
 _SIGN_OFF = re.compile(r"(?:(?<=[.!?])[ \t]+|(\n+))(" + _CLOSING + r")[,.]?[ \t]+(" + _NAME + r")[ \t]*$")
 
 
-def letter_layout(text: str) -> str:
+def letter_layout(text: str, spoken_layout: bool = False) -> str:
     """
     'Dear Dr. Mbeki, I would be grateful ...' -> greeting on its own line, a blank line after;
     '... treatment. Kind regards, Dr. Owen Gallagher.' -> 'Kind regards,' in a paragraph of its
-    own with the name on the next line. Text already laid out is left as it is.
+    own with the name on the next line. Only for someone who said no layout command at all
+    (spoken_layout False): whoever says "new paragraph" lays the letter out as they want it.
+    A greeting the model ended with a full stop gets its comma in any case.
     """
-    text = _SALUTATION.sub(lambda m: m.group(1) + m.group(2) + "\n\n", text, count=1)
     text = _GREETING_STOP.sub(r"\1,", text, count=1)          # "Dear Dr. Castillo." -> "Dear Dr. Castillo,"
+    if spoken_layout:
+        return text
+    text = _SALUTATION.sub(lambda m: m.group(1) + m.group(2) + "\n\n", text, count=1)
 
     def sign_off(m):
         name = m.group(3).rstrip(".") if not re.search(r"\b[A-Z]\.$", m.group(3)) else m.group(3)
@@ -334,6 +339,7 @@ def apply(text: str, lenient: bool = False, punctuation: bool = False, only_dict
         return text
     for pattern, br in _BREAKS:
         text = _replace_commands(text, pattern, "\x03" if br == "\n\n" else "\x04", lenient)
+    spoken_layout = "\x03" in text or "\x04" in text
     strict = punctuation and only_dictated_commas
     if punctuation:
         text = spoken_marks(drop_hesitations(text), tag_commas=strict)
@@ -350,7 +356,7 @@ def apply(text: str, lenient: bool = False, punctuation: bool = False, only_dict
     text = re.sub(r"[ \t]+\n", "\n", text)
     text = re.sub(r"\n[ \t]+", "\n", text)
     text = re.sub(r"[ \t]{2,}", " ", text).strip(" \n")
-    text = letter_layout(text)
+    text = letter_layout(text, spoken_layout)
     text = _LIST_ITEM.sub(lambda m: f"{m.group(1)}{_NUMBER_WORDS.get(m.group(2).lower(), m.group(2))}. ", text)
     # Capitalise the first letter of each new line / list item (and of a quote opening
     # it). The very start of the text is left as dictated: it may be pasted mid-sentence.
