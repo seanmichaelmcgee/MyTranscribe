@@ -101,7 +101,9 @@ commit.
    - The mismatch table: style × answer.
    - Clinical-field errors (drugs, numbers, negations).
 2. **Defaults.** The settings for each wizard answer, chosen from milestone 1. Any change to
-   an app default goes to the owner first.
+   an app default goes to the owner first. First round done 2026-11-18
+   ([fixes](../optimization/2026-11-18-settings-suite-fixes.md)): spoken punctuation on for
+   both answers, plus app-wide text fixes found by the suite.
 3. **Setup, simulated.** The reading and the decisions setup makes from it, measured as D, S
    and O on the pseudo-users and improved until S is close to O.
 4. **In the app.** The wizard's reading page and tuning, using the same code, timed on a 6 GB
