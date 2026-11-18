@@ -217,6 +217,11 @@ invented reading script, without sharing anything real, is in [docs/VALIDATION.m
 
 - [README_1060.md](README_1060.md): full reference: every option, environment variables,
   vocabulary files, recognisers and their licences, older and 6 GB graphics cards.
+- [docs/](docs/README.md): an index of all the documentation.
+- [docs/settings/](docs/settings/README.md): how defaults and the setup wizard's choices are
+  decided.
+- [docs/testing/](docs/testing/README.md): what the app is tested with, where audio is kept
+  (never on GitHub), and how voice service terms were read.
 - [docs/VALIDATION.md](docs/VALIDATION.md): how accuracy is measured on your own voice.
 - [docs/optimization/](docs/optimization/): each round of measurements and what was changed.
 - [NOTICE.md](NOTICE.md): third-party models, word lists and their licences.
