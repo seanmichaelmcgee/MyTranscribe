@@ -119,6 +119,82 @@ _S_IS = re.compile(r"\b(there|it|he|she|that|here)['’]s(?=\s+(?:a|an|the|no|no
                    r"likely|unlikely|possible|\w+ing)\b)", re.I)
 
 
+# -- Hesitations: "um", "uh" are never meant to be written --------------------------------
+# "er" and "ah" only in lower case or before a comma ("ER" is the emergency room); "mm" is
+# millimetres, so it is not a hesitation here.
+_FILLER = re.compile(r"(,?)[ \t]*(?<![\w'’-])(?:(?i:u+[hm]+|erm+|hmm+)|er|ah|(?:Er|Ah)(?=,))(?![\w'’-])"
+                     r"([,.;:?!…]*)[ \t]*")
+_LOWER_WORD = re.compile(r"^(\s*)([a-z])(?=[a-z']*\b)")
+
+
+def remove_fillers(text: str) -> str:
+    """
+    "with, um, 2 months" -> "with 2 months"; "Um, the chest is clear" -> "The chest is clear";
+    "drinks, uh." -> "drinks.". The commas around a hesitation were only there for the pause.
+    """
+    out, pos, cap = "", 0, False
+    for m in _FILLER.finditer(text):
+        piece = text[pos:m.start()]
+        if cap and piece:
+            piece, cap = _LOWER_WORD.sub(lambda x: x.group(1) + x.group(2).upper(), piece, 1), False
+        head = (out + piece).rstrip(" \t")
+        rest = text[m.end():]
+        joiner = " " if rest and not rest.startswith("\n") else ""
+        at_start = not head or head[-1] in ".!?\n"
+        end = re.search(r"[.?!…]", m.group(2))
+        if at_start:
+            out = head + (" " if head and not head.endswith("\n") and rest else "")
+            cap = True
+        elif end:
+            out = head + end.group(0) + joiner
+        else:
+            keep = m.group(2) if m.group(2) in (";", ":") else ""
+            out = head + keep + joiner
+        pos = m.end()
+    tail = text[pos:]
+    if cap:
+        tail = _LOWER_WORD.sub(lambda x: x.group(1) + x.group(2).upper(), tail, 1)
+    return out + tail
+
+
+# -- Self-corrections: "20 mg, sorry, 15 mg" -> "15 mg" -------------------------------------
+# Only when what was said and what replaced it are the same kind of thing (an amount, a spinal
+# level or similar code, a side, a day), so "sorry" in ordinary speech is never touched.
+_CUE = r"(?i:sorry|I mean|correction|or rather)"
+_AMOUNT_UNIT = r"(?:mg|mcg|g|kg|mL|L|units?|mmol/L|mEq|puffs?|tablets?)\b|%"
+_KINDS = (
+    (r"\d{2,3}/\d{2,3}", ""),                                          # a blood pressure
+    (r"\d+(?:\.\d+)?", r"(?:[ \t]?(?:" + _AMOUNT_UNIT + r"))?"),       # an amount, with or without its unit
+    (r"[A-Z]{1,2}\d{1,2}(?:-[A-Z]?\d{1,2})?", ""),                     # a spinal level or similar code
+    (r"(?i:left|right)", ""),
+    (r"(?i:monday|tuesday|wednesday|thursday|friday|saturday|sunday)", ""),
+)
+_SELF_CORRECTIONS = [re.compile(r"(?<![\w./-])(" + core + r")(" + unit + r")[,.]?[ \t]+" + _CUE + r"[,.]?[ \t]+("
+                                + core + r")(" + unit + r")(?![\w/])") for core, unit in _KINDS]
+
+
+def apply_self_corrections(text: str) -> str:
+    """'prednisone 20 mg, sorry, 15 mg daily' -> 'prednisone 15 mg daily'; 'L4-5, sorry, L5-S1' -> 'L5-S1'."""
+    for pat in _SELF_CORRECTIONS:
+        # A unit said only the first time carries over: "20 mg, sorry, 15 daily" -> "15 mg daily".
+        text = pat.sub(lambda m: m.group(3) + (m.group(4) or m.group(2)), text)
+    return text
+
+
+# -- Signs and units as they are written: "minus 3.1" -> "-3.1", "1 gram" -> "1 g" ------------
+_MINUS = re.compile(r"\b[Mm]inus[ \t]+(?=\d)")
+_NOT_A_SIGN = re.compile(r"(?:\d|\b(?:or|and|plus))[ \t]*$", re.I)     # "5 minus 3", "plus or minus 2"
+_UNIT_WORD = re.compile(r"(?<![\w./])(\d+(?:\.\d+)?)[ \t]+(grams?|kilograms?|milligrams?|micrograms?|"
+                        r"millilit(?:re|er)s?|lit(?:re|er)s?)(?![\w/])", re.I)
+_UNIT_SYMBOL = {"gram": "g", "kilogram": "kg", "milligram": "mg", "microgram": "mcg",
+                "millilitre": "mL", "milliliter": "mL", "litre": "L", "liter": "L"}
+
+
+def write_signs_and_units(text: str) -> str:
+    text = _MINUS.sub(lambda m: m.group(0) if _NOT_A_SIGN.search(m.string[:m.start()]) else "-", text)
+    return _UNIT_WORD.sub(lambda m: f"{m.group(1)} {_UNIT_SYMBOL[m.group(2).lower().rstrip('s')]}", text)
+
+
 _HAVE = re.compile(r"\b(I|we|they|you)['’]ve\b", re.I)
 _PACK_YEAR = re.compile(r"\b(\d+)[- ]pack[- ]year\b(?!s)", re.I)
 # The kidney function is written eGFR; "EGFR" (the gene) is never followed by a value.
@@ -151,12 +227,23 @@ def format_readings(text: str) -> str:
     text = dictation_fixes.apply(text)                    # spelled names, dates of birth, chart numbers
     text = expand_contractions(text)
     text = spoken_numbers.normalise(text)
+    text = _OVER.sub(r"\1/\2", text)
+    text = apply_self_corrections(text)                   # after the numbers and readings are written as digits
     text = drug_names.apply(text)                         # after the numbers: a dose marks where a drug name sits
     text = _PACK_YEAR.sub(r"\1-pack-year", text)          # "30-pack year smoking history" -> 30-pack-year
     text = _EGFR.sub("eGFR", text)
-    text = _OVER.sub(r"\1/\2", text)
     text = _UNIT_PER.sub(lambda m: f"{m.group(1)} {_UNIT[m.group(2).lower()]}/{_PER[m.group(3).lower()]}", text)
+    text = write_signs_and_units(text)
     return _DEGREES.sub(lambda m: f"{m.group(1)} °{m.group(2)[0].upper()}", text)
+
+
+def finish(text: str, extra_fixes: bool = True) -> str:
+    """
+    Every English transcript, before spoken commands are converted: hesitations always
+    come out; the chart clean-ups above (Options → Extra corrections) when they are on.
+    """
+    text = remove_fillers(text)
+    return format_readings(text) if extra_fixes else text
 
 
 def make_text_fixes(known_abbreviations: Set[str],
