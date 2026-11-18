@@ -5,8 +5,12 @@ chosen from the results is in [../settings/](../settings/README.md).
 
 ## Where things are
 
-- **Test texts (fictional, public):** `validation/`. Sets v1 and v2 are English; the es and
-  fr sets are drafts. Every person and value in them is invented.
+- **Test texts (fictional, public):** `validation/`. Every person and value in them is
+  invented.
+  - Sets v1 and v2 are English; the es and fr sets are drafts.
+  - `synthetic_set_en_v1.txt` holds the scripts for synthetic voices. Its rules are
+    `tests/test_synthetic_set.py`.
+  - The set format and each way of dictating are in `src/tuning/sets.py`.
 - **Audio (private, this PC only):** `results_1060/`, which git ignores. This holds
   recordings, synthetic audio and transcripts. None of it goes on GitHub.
 - **Tools:** `scripts/` ([index](../../scripts/readme.md)).
@@ -74,6 +78,8 @@ How we came to this:
 
 The same rules apply. In addition:
 - write the scripts in the language, with a clinician who speaks it reviewing them;
+- add the language to `FEATURES` in `tests/test_synthetic_set.py`, with what counts as a
+  dose, a negation and so on;
 - generate the spoken forms from its language pack;
 - cover that language's regional accents with voices from at least two engines;
 - check and date each engine's terms;

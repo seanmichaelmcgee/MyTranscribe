@@ -1,0 +1,317 @@
+# MyTranscribe synthetic voice set, English v1: fictional text for synthetic voices.
+#
+# Every person, result and detail here is invented; no real patient is described.
+# Written for the 12-voice test set (docs/testing/SYNTHETIC_VOICES.md). Not used for
+# the published figures, which come from validation_set_v1/v2.
+#
+# Format: "## <id> | <kind> | <style> | <split>". Kind: letter, note, results, message.
+# Style is how the speaker dictates (src/tuning/sets.py): every, sentence, layout,
+# natural, notes. Split (tune or check) was fixed when the item was written, before any
+# result was seen. {um} is said but not written. Rules for the set:
+# tests/test_synthetic_set.py.
+
+## e01 | letter | every | tune
+Dear Dr. Abernathy,
+
+Thank you for seeing Mrs. Hana Takahashi, a 58-year-old woman with rheumatoid arthritis and new shortness of breath on exertion. She has taken methotrexate 20 mg weekly for 6 years, with folic acid 5 mg weekly. She has no fever, cough or chest pain.
+
+Her oxygen saturation was 93% at rest and fell to 88% after 2 flights of stairs. A chest X-ray showed fine reticular changes at both bases. Her CRP was 14 and her creatinine was 71.
+
+I am worried about methotrexate lung or early interstitial lung disease. I have held the methotrexate and started prednisone 30 mg daily until you see her.
+
+Yours sincerely,
+Dr. Priya Raman
+
+## e02 | letter | every | tune
+Dear Dr. Mbeki,
+
+I would be grateful if you could assess Mr. Tomasz Wierzbicki, a 67-year-old man whose PSA has risen from 3.1 to 6.8 over 18 months. He has mild nocturia but no hematuria, bone pain or weight loss. His father had prostate cancer at 72.
+
+He takes tamsulosin 0.4 mg at night, atorvastatin 40 mg daily and ramipril 10 mg daily. His blood pressure today was 138/84. He would prefer to avoid a biopsy if the MRI is normal.
+
+My questions are:
+1. Does he need an MRI before a biopsy?
+2. Should he stop the tamsulosin before any procedure?
+
+Thank you for seeing him.
+
+Kind regards,
+Dr. Owen Gallagher
+
+## e03 | letter | every | check
+Dear Dr. Lefebvre,
+
+Thank you for seeing Ms. Adaeze Nwosu, a 44-year-old woman with 3 months of intermittent rectal bleeding and a change in bowel habit. She describes the stool as "pencil thin" at times. She has no abdominal pain; she has lost 3 kg.
+
+Her mother was diagnosed with colon cancer at 51. Her hemoglobin is 104 g/L and her ferritin is 9. She takes ferrous fumarate 300 mg daily and no other medications.
+
+I would appreciate a colonoscopy at your earliest opportunity.
+
+Kind regards,
+Dr. Priya Raman
+
+## e04 | letter | every | tune
+Dear Dr. Oyelaran,
+
+Re: Mr. Gabriel Fontaine, a 79-year-old man with worsening memory over the past year.
+
+His daughter reports that he has missed bills and got lost driving to a familiar store. He scored 21 out of 30 on the MoCA today. He has no hallucinations and no falls. He lives with his wife, who now does most of the driving.
+
+His medications are donepezil 5 mg daily, started 6 weeks ago, amlodipine 5 mg daily and vitamin B12 1000 mcg daily. His B12, TSH and calcium are normal.
+
+Could you advise on increasing the donepezil to 10 mg, and on whether he should still drive?
+
+Thank you,
+Dr. Sofia Marchand
+
+## e05 | note | every | tune
+History: 3 days of sore throat and fever to 38.9. No cough or runny nose. She has had no antibiotics this year and has no allergies.
+Examination: tonsils enlarged with white exudate; tender anterior neck nodes. Temperature 38.4. Heart rate 102.
+Assessment: probable streptococcal pharyngitis. Rapid strep test positive.
+Plan:
+1. Penicillin V 600 mg twice daily for 10 days.
+2. Acetaminophen 1 g every 6 hours as needed.
+3. Return if she cannot swallow fluids.
+
+## e06 | note | every | check
+Seen for follow-up of type 2 diabetes. Her A1c is 7.4%, down from 8.2%. She checks her sugars twice daily; fasting readings are 6 to 8 mmol/L.
+She takes metformin 1000 mg twice daily and Jardiance 25 mg daily. She has no hypoglycemia and no foot ulcers. Her feet have normal sensation. She walks for 30 minutes most days.
+Blood pressure 132/78. Weight 84 kg.
+Plan: continue the current doses and repeat the A1c in 3 months.
+
+## e07 | message | every | tune
+Please call Mr. Okonkwo and let him know his potassium is 5.8, which is high. Hold the spironolactone 25 mg and do not restart it until we repeat the blood work tomorrow.
+
+## e08 | message | every | check
+Prescription faxed for amoxicillin 500 mg 3 times daily for 7 days. No follow-up is needed unless the earache is not better in 3 days.
+
+## s01 | letter | sentence | tune
+Dear Dr. Haddad,
+
+Thank you for seeing Mr. Ibrahim Saleh, a 52-year-old man with chest pressure on exertion for 6 weeks. It comes on after 2 blocks of walking and settles with rest within 5 minutes. He has no pain at rest and no fainting.
+
+He has hypertension and smokes 15 cigarettes a day. He takes perindopril 8 mg daily and has just started ASA 81 mg daily and rosuvastatin 20 mg daily. His LDL is 4.2 and his ECG today shows no acute changes.
+
+I would be grateful for an exercise stress test and your opinion on further investigation.
+
+Yours sincerely,
+Dr. Owen Gallagher
+
+## s02 | letter | sentence | tune
+Dear Dr. Brennan,
+
+I am referring Mrs. Lucia Ferreira, a 36-year-old woman who is 9 weeks pregnant, with a history of epilepsy. She has been seizure-free for 3 years on valproic acid 500 mg twice daily. She did not plan this pregnancy and was not taking folic acid.
+
+I have started folic acid 5 mg daily. I have not changed her valproic acid, as I did not want to risk a seizure before she sees you.
+
+Could you see her urgently to discuss switching to lamotrigine?
+
+Kind regards,
+Dr. Ade Bankole
+
+## s03 | letter | sentence | check
+Dear Dr. Nakamura,
+
+Thank you for seeing Mr. Samuel Achebe, a 61-year-old man with chronic kidney disease. His eGFR has fallen from 48 to 34 over 1 year, and his urine albumin-to-creatinine ratio is 62.
+
+He has type 2 diabetes and hypertension. His medications are insulin glargine 32 units at bedtime, candesartan 16 mg daily and Ozempic 0.5 mg weekly. His potassium is 5.1 and his blood pressure is 146/88.
+
+He has no edema and no urinary symptoms. I would value your advice on his blood pressure target and on adding finerenone.
+
+Kind regards,
+Dr. Priya Raman
+
+## s04 | note | sentence | tune
+Follow-up for asthma. She has used her salbutamol 3 to 4 times a week for the past month, mostly at night. She has had no emergency visits and no prednisone this year.
+On examination her chest was clear. Peak flow was 340, which is 78% of her best.
+Plan: step up to Symbicort 200 mcg, 1 puff twice daily and as needed. Review her inhaler technique and see her in 6 weeks.
+
+## s05 | note | sentence | tune
+Telephone follow-up. He finished 5 days of azithromycin yesterday. The cough is better but not gone, and he has no fever or shortness of breath. His oxygen saturation at home is 96%.
+I have advised fluids and acetaminophen 650 mg every 6 hours as needed. He will call if he has new fever or chest pain. He does not need a chest X-ray unless the cough lasts beyond 3 weeks.
+
+## s06 | note | sentence | check
+Seen with her son for a review of falls. She had 1 fall last week getting out of bed at night. She did not hit her head and has no new pain.
+Blood pressure lying 142/80, standing 118/70 after 3 minutes. She takes doxazosin 4 mg at night, which may be the cause.
+Plan: stop the doxazosin, add a night light and refer to home physiotherapy. Recheck her blood pressure in 2 weeks.
+
+## s07 | results | sentence | tune
+Results reviewed. Her TSH is 7.9 and her free T4 is 11, so her levothyroxine 75 mcg is not quite enough. Please increase it to 88 mcg daily and repeat the TSH in 6 weeks. She should take it on an empty stomach, apart from her calcium.
+
+## s08 | results | sentence | check
+Lab results are back. Hemoglobin 118, ferritin 11 and B12 normal. This is iron deficiency without a clear cause. Please book a visit to discuss, not urgent, and start ferrous sulfate 300 mg every other day.
+
+## l01 | letter | layout | tune
+Dear Dr. Castillo,
+
+Thank you for seeing Miss Ella Johansson, a 19-year-old woman with acne that has not responded to 6 months of doxycycline 100 mg daily and topical adapalene. She has scarring on both cheeks and it is affecting her mood and her sleep.
+
+She is not pregnant and uses an IUD. Her lipids and liver tests are normal. I think she would benefit from isotretinoin, and she is keen to start after discussing the risks with you.
+
+Thank you for your help.
+
+Kind regards,
+Dr. Sofia Marchand
+
+## l02 | letter | layout | tune
+Dear Dr. Venkataraman,
+
+Mr. Arthur Blackwood is an 84-year-old man with heart failure and an ejection fraction of 30%. He was admitted twice this year with fluid overload.
+
+His current medications are:
+1. Furosemide 40 mg twice daily.
+2. Bisoprolol 5 mg daily.
+3. Sacubitril-valsartan 49/51 mg twice daily.
+
+He does not tolerate spironolactone because of high potassium. His weight is up 2 kg this week and his ankles are more swollen.
+
+Could you see him in the heart function clinic?
+
+Kind regards,
+Dr. Ade Bankole
+
+## l03 | letter | layout | tune
+Dear Dr. Ahmadi,
+
+I am writing about Mrs. Rosa Delgado, a 70-year-old woman with osteoporosis. Her bone density shows a T-score of -3.1 at the hip, and she had a wrist fracture in March. She took alendronate 70 mg weekly for 5 years and stopped 2 years ago.
+
+Her calcium and vitamin D levels are normal and her creatinine is 64. She has no dental work planned and no history of kidney stones. She takes calcium 500 mg twice daily with meals.
+
+Would you consider denosumab or another treatment for her?
+
+Kind regards,
+Dr. Priya Raman
+
+## l04 | letter | layout | check
+Dear Dr. Morrison,
+
+Thank you for seeing Mr. Kwame Asante, a 47-year-old man with gout. He has had 4 flares in the past year despite allopurinol 300 mg daily. His uric acid is still 480. The flares affect his right big toe and once his left knee.
+
+He takes colchicine 0.6 mg daily as prevention and has no kidney disease. He drinks 2 beers most nights and has cut down since the last flare. He works in construction and has missed 6 days of work this year.
+
+I would appreciate your advice on increasing the allopurinol or switching to febuxostat.
+
+Kind regards,
+Dr. Owen Gallagher
+
+## l05 | letter | layout | check
+Dear Dr. Laurent,
+
+Please see Ms. Mei Lin Zhou, a 29-year-old woman with depression that has not improved on 2 medications. She took sertraline 150 mg for 4 months and now takes venlafaxine 225 mg daily. Her PHQ-9 score is 19.
+
+She has no thoughts of self-harm and is working part time. She has a supportive partner and has started weekly therapy. Her sleep is poor and she wakes at 4 most mornings.
+
+I would be grateful for your advice on the next steps, including whether to add a second medication.
+
+Yours sincerely,
+Dr. Sofia Marchand
+
+## l06 | message | layout | tune
+Please book Mrs. Delgado a 30-minute visit next week. No blood work is needed first. Ask her to bring her calcium 500 mg tablets and her other medications so we can check the doses.
+
+## l07 | message | layout | tune
+The pharmacy called about Mr. Blackwood. Please tell them to continue the furosemide 40 mg twice daily and not to change the dose without calling me. His daughter will pick up the blister packs on Friday.
+
+## l08 | message | layout | check
+Please let Ms. Zhou know her blood work is normal. She does not need to come in, and she can continue venlafaxine 225 mg daily until her appointment.
+
+## n01 | letter | natural | tune
+Dear Dr. Fitzgerald,
+
+Thank you for seeing Mr. Viktor Petrov, a 58-year-old man with {um} 2 months of heartburn and trouble swallowing solid food. He has lost about 5 kg. He has no vomiting and no black stools.
+
+He has taken pantoprazole 40 mg daily for 6 weeks with only a small improvement. He smokes and drinks {um} 3 or 4 beers a day. His hemoglobin is 131 and his liver tests are normal.
+
+I would appreciate an early gastroscopy and your advice on any further tests.
+
+Kind regards,
+Dr. Ade Bankole
+
+## n02 | letter | natural | tune
+Dear Dr. Sandhu,
+
+I am referring Mrs. Grace Whitfield, who is 66 and has had pain and stiffness in both shoulders and hips for 6 weeks. The stiffness lasts {um} about 2 hours every morning. Her ESR is 58 and her CRP is 31.
+
+I started prednisone 20 mg, sorry, 15 mg daily 5 days ago and she is already much better. She has no headache, no jaw pain and no change in her vision.
+
+I would appreciate your opinion on the diagnosis and on how long to continue the prednisone.
+
+Yours sincerely,
+Dr. Priya Raman
+
+## n03 | letter | natural | check
+Dear Dr. Abiodun,
+
+Thank you for seeing Ms. Chloe Martin, a 24-year-old woman with heavy periods since she was 13. She changes a pad every hour on the heaviest days and has missed work because of it. Her hemoglobin is 98 and her ferritin is 6.
+
+She has tried tranexamic acid 1000 mg 3 times daily during her periods, which helped a little. She does not want hormonal treatment at the moment. {um} Her pelvic ultrasound was normal.
+
+I would be grateful for your advice on further treatment.
+
+Kind regards,
+Dr. Owen Gallagher
+
+## n04 | letter | natural | tune
+Dear Dr. Thompson,
+
+Thank you for seeing Mr. Daniel Cho, a 35-year-old man with {um} low back pain for 4 months after lifting at work. The pain goes down his left leg to the foot and he has numbness on the outer side of the foot. He has no bladder or bowel problems.
+
+He has tried naproxen 500 mg twice daily and physiotherapy without much benefit. His MRI shows a disc protrusion at L4-5, sorry, L5-S1, touching the left S1 nerve root.
+
+I would appreciate your opinion on whether he needs surgery.
+
+Kind regards,
+Dr. Sofia Marchand
+
+## n05 | message | natural | tune
+Please tell Mr. Petrov that his gastroscopy is booked for the 14th. He should not eat after midnight and he can {um} keep taking his pantoprazole 40 mg. Someone will need to drive him home afterwards.
+
+## n06 | message | natural | tune
+Can you call Mrs. Whitfield and ask how she is doing on the prednisone 15 mg? If she has no headache or vision changes she can stay on the same dose until I see her next month.
+
+## n07 | message | natural | check
+The lab called with a high INR of 4.6 for Mr. Ruiz. Please tell him to skip his warfarin tonight and {um} take 3 mg instead of 5 mg tomorrow, then repeat the INR on Monday. No vitamin K is needed.
+
+## n08 | message | natural | check
+Please renew Ms. Martin's tranexamic acid 1000 mg, 30 tablets with 2 refills. She does not need to come in for this, but she should book a visit after she sees the gynecologist.
+
+## q01 | note | notes | tune
+Subjective: 4 days of left ear pain after swimming. No discharge or hearing loss. No fever. She has diabetes, well controlled.
+Objective: left canal swollen and red, tender on tragal pressure. Tympanic membrane intact. Temperature 36.9. No tenderness behind the ear.
+Assessment: otitis externa, left.
+Plan: Ciprodex 4 drops twice daily for 7 days. Keep the ear dry and no swimming for 2 weeks. Review if not better in 1 week.
+
+## q02 | note | notes | tune
+BP check. Home readings average 148/92 over 2 weeks. Clinic 152/94, repeat 146/90.
+Current medications: amlodipine 10 mg daily, hydrochlorothiazide 12.5 mg daily.
+No headaches, chest pain or ankle swelling. Sodium 138, potassium 3.9, creatinine 82.
+Plan: add telmisartan 40 mg daily. Recheck electrolytes in 1 week and BP in 1 month.
+
+## q03 | note | notes | check
+Well baby visit at 6 months. Feeding well, breastfed plus solids twice daily. No concerns from parents.
+Weight 7.4 kg, 45th percentile. Length 67 cm. Head circumference 43 cm.
+Development: sits with support, babbles, reaches for toys.
+Immunizations given today: DTaP-IPV-Hib, pneumococcal and rotavirus.
+Plan: vitamin D 400 units daily. Next visit at 9 months.
+
+## q04 | results | notes | tune
+Lipid results: total cholesterol 6.1, LDL 3.9, HDL 1.1, triglycerides 2.4. 10-year risk 14%.
+Discussed with the patient by phone. Not keen on a statin yet; he would like to try diet first. No family history of early heart disease.
+Plan: diet and exercise for 3 months, then repeat lipids. If the LDL is still above 3.5, start atorvastatin 20 mg daily.
+
+## q05 | results | notes | tune
+Urine culture positive, sensitive to nitrofurantoin and resistant to ampicillin. She is already on nitrofurantoin 100 mg twice daily, so no change. This is her third infection this year. Please let her know and remind her to finish all 5 days. No repeat culture is needed if her symptoms settle.
+
+## q06 | results | notes | check
+ECG reviewed: sinus rhythm, rate 58, PR 210, QRS 96. No ST changes. First-degree AV block, likely from metoprolol 50 mg twice daily. He has no dizziness or fainting. No change for now; repeat the ECG in 6 months, sooner if he feels light-headed.
+
+## q07 | note | notes | tune
+Follow-up of knee osteoarthritis. Her pain is 6 out of 10, worse on stairs. No swelling, locking or giving way.
+Examination: right knee crepitus, range 0 to 110 degrees, no effusion.
+X-ray: moderate medial joint space narrowing.
+Plan: diclofenac gel 4 times daily, physiotherapy referral and weight loss advice. Avoid oral NSAIDs because of her eGFR of 52. Acetaminophen 1 g up to 3 times daily if needed.
+
+## q08 | results | notes | check
+Spirometry: FEV1 2.1 L, 68% predicted. FEV1/FVC 0.62 after bronchodilator. Consistent with moderate COPD.
+He still smokes 10 a day and does not want to quit yet.
+Plan: start tiotropium 2.5 mcg, 2 puffs daily. Pneumococcal vaccine today. Review in 2 months, with a smoking cessation visit before then.
