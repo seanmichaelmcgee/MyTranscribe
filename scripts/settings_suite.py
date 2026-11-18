@@ -135,7 +135,7 @@ def final_text(raw: str, profile: dict) -> str:
     """The text the app would copy, from the raw decode, for a text-only profile."""
     import text_fixes
     import voice_commands
-    text = text_fixes.format_readings(raw) if profile.get("extra_fixes") else raw
+    text = text_fixes.finish(raw, bool(profile.get("extra_fixes")))
     return voice_commands.apply(text, **profile.get("commands", {}))
 
 

@@ -291,7 +291,7 @@ def run_pipeline(engine, audio, stop_at, style, builder, post, profile, with_spo
         t._stopped.wait(30)
     t.wait_until_idle()
     text = t.text
-    final = text_fixes.format_readings(text) if profile.get("extra_fixes") else text
+    final = text_fixes.finish(text, bool(profile.get("extra_fixes")))
     final = voice_commands.apply(final, **profile.get("commands", {}))
     out = (final, list(t.transcriptions), time.perf_counter() - t0, t.rescued_commands)
     return out + (text,) if with_spoken else out

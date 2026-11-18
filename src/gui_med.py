@@ -936,8 +936,7 @@ class MedTranscriptionWindow(TranscriptionWindow):
             if not self._settings.voice_commands:
                 return text
             return lang_commands.apply(text, pack, punctuation=self._settings.spoken_punctuation)
-        if self._settings.extra_fixes:
-            text = text_fixes.format_readings(text)
+        text = text_fixes.finish(text, self._settings.extra_fixes)    # hesitations out, always
         if not self._settings.voice_commands:
             return text
         # MedASR writes dictated marks as words of its own accord: always convert those.
