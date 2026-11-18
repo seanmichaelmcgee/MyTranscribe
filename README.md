@@ -88,10 +88,11 @@ said; lower is better.
 3. Start the app with **`MyTranscribe.bat`**. For a desktop icon, run
    `scripts\make_shortcut.ps1` once (right-click → Run with PowerShell).
 
-The first start opens a short **setup wizard** (about three minutes): which microphone, with a
-level check that sets the gain; whether you say the punctuation; where the text should go; and
-which key or mouse button starts and stops dictation. **Use recommended settings** skips it, and
-**Options (⚙) → Run setup again** reopens it at any time.
+The first start opens a short **setup wizard** (about three minutes). It first asks how you
+dictate: traditionally, saying the punctuation, or in natural speech. Then it covers which
+microphone, with a level check that sets the gain; where the text should go; and which key or
+mouse button starts and stops dictation. After the first question, **Use recommended for the
+rest** skips the others, and **Options (⚙) → Run setup again** reopens it at any time.
 
 Then the model loads for a few seconds ("Loading speech model…"); the button unlocks when it
 is ready. If antivirus software blocks the downloads with a certificate

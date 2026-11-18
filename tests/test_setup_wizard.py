@@ -181,19 +181,48 @@ def go_to(w, page, qapp):
         qapp.processEvents()
 
 
-def test_recommended_settings_on_first_run(make_wizard, qapp):
+def test_first_start_waits_for_how_you_dictate_and_recommended_keeps_it(make_wizard, qapp):
     from PyQt6.QtWidgets import QWizard
     w = make_wizard(st.Settings(spoken_punctuation=True, key="f12"), first_run=True)
     w.show()
     qapp.processEvents()
-    assert w.button(QWizard.WizardButton.CustomButton1).isVisible()
+    recommended = w.button(QWizard.WizardButton.CustomButton1)
+    assert recommended.isVisible()
+    assert not w.welcome.isComplete() and not recommended.isEnabled()      # nothing chosen for them
+    assert not w.button(QWizard.WizardButton.NextButton).isEnabled()
+    w.welcome.group.buttons()[1].card.mousePressEvent(_click())           # clicking the card chooses it
+    assert w.welcome.choice() == "none" and recommended.isEnabled()
+    recommended.click()
+    assert w.result_settings() == st.Settings(setup_version=1)
+
+
+def test_recommended_after_choosing_traditional_keeps_the_marks(make_wizard, qapp):
+    from PyQt6.QtWidgets import QWizard
+    w = make_wizard(first_run=True)
+    w.show()
+    qapp.processEvents()
+    w.welcome.group.buttons()[0].setChecked(True)
+    assert w.welcome.every_comma.isVisible() and w.welcome.choice() == "some"
+    w.welcome.every_comma.setChecked(True)
     w.button(QWizard.WizardButton.CustomButton1).click()
     r = w.result_settings()
-    assert r == st.Settings(setup_version=1)
+    assert r == st.Settings(setup_version=1, spoken_punctuation=True, only_dictated_commas=True)
+
+
+def _click():
+    from PyQt6.QtCore import QPointF, Qt
+    from PyQt6.QtGui import QMouseEvent
+    return QMouseEvent(QMouseEvent.Type.MouseButtonPress, QPointF(5, 5), QPointF(5, 5),
+                       Qt.MouseButton.LeftButton, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier)
 
 
 def test_choices_map_to_settings(make_wizard, qapp):
     w = make_wizard()
+    w.show()
+    qapp.processEvents()
+    assert w.welcome.choice() == "none"                                 # a re-run shows the current answer
+    w.welcome.group.buttons()[0].setChecked(True)                       # traditional
+    w.welcome.every_comma.setChecked(True)
     go_to(w, w.computer, qapp)
     assert "GTX 1060" in w.computer.text.text() and w.computer.group.buttons()[0].isVisible()
     w.computer.group.buttons()[1].setChecked(True)                    # Faster
@@ -201,9 +230,6 @@ def test_choices_map_to_settings(make_wizard, qapp):
     panel = w.microphone.panel
     panel.device.setCurrentIndex(panel.device.findData("Headset (Buds)"))
     panel.gain.setValue(60)
-    go_to(w, w.dictation, qapp)
-    w.dictation.group.buttons()[0].setChecked(True)                   # I say every mark
-    assert w.dictation.commands.isChecked() and not w.dictation.commands.isEnabled()
     go_to(w, w.output, qapp)
     w.output.group.buttons()[2].setChecked(True)                      # type while I talk
     go_to(w, w.trigger_page, qapp)
@@ -213,7 +239,7 @@ def test_choices_map_to_settings(make_wizard, qapp):
     t.mouse.setCurrentIndex(t.mouse.findData("none"))
     go_to(w, w.summary, qapp)
     text = w.summary.lines.text()
-    assert "Headset (Buds)" in text and "I say every punctuation mark" in text and "F8 (toggle)" in text
+    assert "Headset (Buds)" in text and "traditional, every comma said" in text and "F8 (toggle)" in text
     assert "Accuracy" not in w.summary.changes.text() and "Changed from before" in w.summary.changes.text()
     r = w.result_settings()
     assert (r.accuracy, r.input_device, r.mic_gain) == ("fast", "Headset (Buds)", 60)
@@ -227,8 +253,7 @@ def test_choices_map_to_settings(make_wizard, qapp):
 def test_rerun_with_nothing_changed_says_so(make_wizard, qapp):
     s = st.Settings(spoken_punctuation=True, autopaste=True, setup_version=1)
     w = make_wizard(s)
-    go_to(w, w.dictation, qapp)
-    assert w.dictation.choice() == "some"
+    assert w.welcome.choice() == "some" and not w.welcome.every_comma.isChecked()
     go_to(w, w.output, qapp)
     assert w.output.choice() == "paste"
     go_to(w, w.summary, qapp)
