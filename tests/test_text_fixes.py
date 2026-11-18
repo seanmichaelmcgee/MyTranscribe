@@ -54,3 +54,14 @@ def test_bundled_corrections_file_parses():
     from text_fixes import BUNDLED_CORRECTIONS
     rules = load_corrections([BUNDLED_CORRECTIONS])
     assert rules and apply_corrections("anti-Rho", rules) == "anti-Ro"
+
+
+@pytest.mark.parametrize("heard, want", [
+    ("He was seen in eMERG yesterday.", "He was seen in emerg yesterday."),
+    ("Emerg visit on Monday.", "Emerg visit on Monday."),          # a sentence start keeps its capital
+    ("Seen in emerg.", "Seen in emerg."),
+    ("Emergency department.", "Emergency department."),         # whole words only
+])
+def test_emerg_is_written_as_dictated(heard, want):
+    from text_fixes import BUNDLED_CORRECTIONS
+    assert apply_corrections(heard, load_corrections([BUNDLED_CORRECTIONS])) == want
