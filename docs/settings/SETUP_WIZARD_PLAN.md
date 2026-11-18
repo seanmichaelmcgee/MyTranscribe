@@ -306,6 +306,8 @@ Test the method itself offline, on material we already have:
    voice and condition as a separate "user": tune on some of that voice's notes and check on
    its others, against the defaults. This shows whether tuning helps, does nothing, or
    overfits. Synthetic voices are fine for testing the method, but not for an accuracy claim.
+   The planned 12-voice set does the same across accents and five dictation styles
+   ([SYNTHETIC_VOICES.md](../testing/SYNTHETIC_VOICES.md)).
 2. **The owner's corpus.** Tune on the development recordings and check on the held-out ones.
    That split already exists.
 3. **The owner reads the wizard's own texts** once in each punctuation mode.
@@ -322,49 +324,12 @@ If tuning cannot beat good questions plus the medications list, the wizard ships
 questions, the microphone check and the before/after score only. That would still be
 worth having.
 
-## Synthetic voices for testing (terms checked 2026-11-18)
+## Synthetic voices
 
-**What they would be used for.** More voices make better test material for three things:
-
-- checking the tuning method (phase 3);
-- letters dictated without spoken marks (phase 4);
-- trying the wizard's reading texts end to end.
-
-**Their limits.** A computer voice is not a clinician. It mispronounces some drug names, and its
-pauses are generated, so it cannot set the personal paragraph-pause length.
-
-**Cloud voice services: not usable as things stand.** Each of these companies also sells speech
-recognition, and each one's terms restrict using its output for work like ours. That holds
-whether or not the project is commercial.
-
-| Service | What its terms say | Reading |
-|---|---|---|
-| ElevenLabs | **Prohibited Use Policy** (updated 9 Oct 2026, section 12) bans using its services or output "to develop, train, fine-tune, or improve any AI model or service", or putting output in a dataset for those purposes, "except as expressly permitted"; and using them "to research or develop products or services that compete with ours". **Terms of service:** a free plan is "non-commercial purposes" only, and no health information may be sent. | Tuning our pipeline on it is improving an AI service. A public test set also falls under the dataset clause. A paid plan does not lift either clause. Not usable without written permission. |
-| OpenAI TTS | **Terms of use:** no use of output to develop models that compete with OpenAI. **TTS guide:** says the usage policies require telling listeners that the voice is AI-generated, and that the current TTS models shut down on 6 Jan 2027. The usage policy page itself could not be read. | Unclear, and the same competing-product risk. |
-| Google Cloud TTS | **Service Specific Terms**, section 17: no use of an AI/ML service or its output "to develop a similar or competing product or service". Whether Text-to-Speech counts as an AI/ML service there was not confirmed. | Unclear. |
-| Azure Speech | **Product Terms** (an excerpt, not read in full): no use of the services or their data "to create, train, or improve" a similar or competing product or service. | Unclear. |
-
-**Open-weight voices that run on this PC: usable.** There are no service terms, the voices run
-offline, the output can be published, and nothing is sent anywhere. All fit the RTX 4070 Ti
-SUPER, and Kokoro also runs on a processor.
-
-| Model | Licence of the weights | Notes |
-|---|---|---|
-| Kokoro-82M | Apache-2.0 | 54 preset voices across 8 languages, American and British English among them; small and fast. Good for many voices quickly. |
-| Chatterbox (Resemble AI) | MIT | 0.5B. Copies a voice from a short clip. Output carries an inaudible watermark. Copy only voices whose owners agree, such as the owner's or a tester's. |
-| Orpheus 3B | Apache-2.0 | Gated on Hugging Face, so it needs the user's own account. Natural intonation; English. |
-| Dia 1.6B | Apache-2.0 | About 10 GB of graphics memory; made for dialogue; English. |
-| XTTS-v2, F5-TTS | Non-commercial (Coqui Public Model License; CC BY-NC) | Avoid, to keep the project's licences simple. |
-
-**Proposal.** Use Kokoro for breadth of voices, and Chatterbox or Orpheus for realism. Pass
-the audio through the existing microphone and room simulations in
-`scripts/make_test_dictation.py`. Keep Modulate's 28 voices (CC BY 4.0). Each model download
-needs the owner's go-ahead.
-
-ElevenLabs could be used only with written permission. The request would cover non-commercial
-evaluation and tuning of an open-source dictation app, with fictional scripts only.
-
-These are readings of the published terms, not legal advice.
+Which voice services may be used, the terms behind that, and the 12-voice test set and
+settings suite are in [../testing/README.md](../testing/README.md) and
+[../testing/SYNTHETIC_VOICES.md](../testing/SYNTHETIC_VOICES.md). In short: they test and
+tune, they never train, and their audio stays on this PC.
 
 ## Phases
 

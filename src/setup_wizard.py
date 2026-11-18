@@ -14,7 +14,7 @@ the recommended answer already chosen:
 It only edits a copy of settings.Settings; the caller saves and applies
 result_settings(). Everything else (recogniser, language, medical clean-up,
 pause-aware dictation) keeps its value and stays in Options. The plan for the
-later phases (practice reading, tuning to the voice) is docs/SETUP_WIZARD_PLAN.md.
+later phases (practice reading, tuning to the voice) is docs/settings/SETUP_WIZARD_PLAN.md.
 """
 
 from dataclasses import replace
