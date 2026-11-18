@@ -19,6 +19,7 @@ Follow [instructions.md](instructions.md) and [project SOP](../docs/PROJECT_SOP.
 | `corti_benchmark.py` | Corti Med-Dictate benchmark (evaluation only), any engine, scored with the frozen October metric |
 | `dragon_replay.py` | Plays recordings into Dragon Medical One through the cable and scores what it types |
 | `spoken_punctuation_tts.py` | Synthetic set with dictated punctuation marks (Windows voices) for the spoken-punctuation rules |
+| `synth_voices.py`, `synth_voices_key.ps1` | The 12-voice synthetic set read by OpenAI voices (paid; `--go`, budget cap); [plan](../docs/testing/SYNTHETIC_VOICES.md) |
 | `make_shortcut.ps1` | Desktop shortcut that starts the app with no console window |
 | `dictation_reliability.py` | Thinking pauses, spoken commands and early Stop on the headset corpus, classic vs pause-aware pipeline; [results note](../docs/optimization/2026-11-15-dictation-reliability.md) |
 | `whisper_decoder_trace.py`, `whisper_native_trace.py` | Experimental observation helpers; [trace interface](../docs/optimization/whisper-public-trace.md) |
