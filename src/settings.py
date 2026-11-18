@@ -65,6 +65,9 @@ class Settings:
     only_dictated_commas: bool = False  # with spoken punctuation: drop commas the model added by itself
     spoken_punctuation: bool = False   # "period", "comma", "colon" ... -> the marks (voice_commands.py)
     input_device: str = ""             # microphone by name (audio_devices.py); "" = the Windows default
+    # The setup wizard's answer to "How do you dictate?": "traditional" | "natural" | "" (not asked).
+    # Both answers turn spoken punctuation on, so the answer itself is kept for the next run.
+    dictation_style: str = ""
     # The setup wizard (setup_wizard.py) last finished on this file; 0 = never. It opens by itself only
     # when there is no settings file at all, so an existing install is never sent through it.
     setup_version: int = 0
@@ -111,6 +114,8 @@ class Settings:
             self.language = d.language
         self.input_device = (self.input_device.strip()[:200]
                              if isinstance(self.input_device, str) else d.input_device)
+        if self.dictation_style not in ("traditional", "natural", ""):
+            self.dictation_style = d.dictation_style
         try:
             self.setup_version = max(0, int(self.setup_version))
         except (ValueError, TypeError, OverflowError):

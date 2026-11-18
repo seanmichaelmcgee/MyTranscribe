@@ -41,7 +41,8 @@ def test_settings_file_never_holds_text(tmp_path):
                                                               "keep_mic_ready", "live_insert", "chime_volume", "autopaste",
                                                               "pause_aware", "spoken_punctuation", "engine", "language",
                                                               "only_dictated_commas",
-                                                              "extra_fixes", "input_device", "setup_version"}
+                                                              "extra_fixes", "input_device", "setup_version",
+                                                              "dictation_style"}
 
 
 def test_accuracy_default_and_validation(tmp_path):

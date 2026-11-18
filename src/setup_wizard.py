@@ -81,8 +81,9 @@ DICTATION = (
     ("traditional", "Traditional dictation",
      "You say the punctuation and the layout: “period”, “comma”, “new paragraph”."),
     ("natural", "Natural speech",
-     "Talk as you would to a colleague. Full stops and commas are added from how you speak, and a "
-     "letter's greeting and sign-off go on their own lines. For other paragraphs, say “new paragraph”."),
+     "Talk as you would to a colleague. Full stops and commas are added from how you speak (saying "
+     "“period” works too), and a letter's greeting and sign-off go on their own lines. For other "
+     "paragraphs, say “new paragraph”."),
 )
 TRADITIONAL_EXAMPLE = (
     "<table cellspacing='0' cellpadding='1'>"
@@ -108,16 +109,23 @@ OUTPUT = (
 
 # ── Pure helpers (unit-tested) ───────────────────────────────────────────────
 def punctuation_choice(s: Settings) -> str:
+    if s.dictation_style == "natural":
+        return "none"
     if s.voice_commands and s.spoken_punctuation:
         return "every" if s.only_dictated_commas else "some"
     return "none"
 
 
 def dictation_fields(choice: str) -> dict:
-    """The settings an answer on the first page sets: 'every' / 'some' (traditional) or 'none' (natural).
-    Spoken layout commands are on for both, because both pages tell the user to say "new paragraph"."""
-    return dict(spoken_punctuation=choice in ("every", "some"), only_dictated_commas=choice == "every",
-                voice_commands=True)
+    """
+    The settings an answer on the first page sets: 'every' / 'some' (traditional) or 'none' (natural).
+    Spoken layout commands are on for both, because both cards tell the user to say "new paragraph".
+    Spoken punctuation is on for natural speech too (2026-11-18): no worse on the owner's real
+    recordings, better on the synthetic voices, and a natural speaker who does say "period" keeps
+    the mark (docs/optimization/2026-11-18-settings-suite-fixes.md).
+    """
+    return dict(spoken_punctuation=True, only_dictated_commas=choice == "every", voice_commands=True,
+                dictation_style="natural" if choice == "none" else "traditional")
 
 
 def output_choice(s: Settings) -> str:
