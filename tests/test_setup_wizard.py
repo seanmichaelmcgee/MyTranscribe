@@ -18,9 +18,9 @@ def test_new_settings_round_trip_and_bad_values(tmp_path):
     st.save(st.Settings(input_device="Microphone (USB Headset)", setup_version=1), p)
     s = st.load(p, env={})
     assert (s.input_device, s.setup_version) == ("Microphone (USB Headset)", 1)
-    p.write_text(json.dumps({"input_device": 7, "setup_version": "x"}), encoding="utf-8")
+    p.write_text(json.dumps({"input_device": 7, "setup_version": "x", "dictation_style": "shouting"}), encoding="utf-8")
     s = st.load(p, env={})
-    assert (s.input_device, s.setup_version) == ("", 0)
+    assert (s.input_device, s.setup_version, s.dictation_style) == ("", 0, "")
 
 
 # ── Microphone check ─────────────────────────────────────────────────────────
@@ -193,7 +193,8 @@ def test_first_start_waits_for_how_you_dictate_and_recommended_keeps_it(make_wiz
     w.welcome.group.buttons()[1].card.mousePressEvent(_click())           # clicking the card chooses it
     assert w.welcome.choice() == "none" and recommended.isEnabled()
     recommended.click()
-    assert w.result_settings() == st.Settings(setup_version=1)
+    # Natural speech keeps spoken punctuation on: a "period" that is said still becomes a mark.
+    assert w.result_settings() == st.Settings(setup_version=1, spoken_punctuation=True, dictation_style="natural")
 
 
 def test_recommended_after_choosing_traditional_keeps_the_marks(make_wizard, qapp):
@@ -206,7 +207,16 @@ def test_recommended_after_choosing_traditional_keeps_the_marks(make_wizard, qap
     w.welcome.every_comma.setChecked(True)
     w.button(QWizard.WizardButton.CustomButton1).click()
     r = w.result_settings()
-    assert r == st.Settings(setup_version=1, spoken_punctuation=True, only_dictated_commas=True)
+    assert r == st.Settings(setup_version=1, spoken_punctuation=True, only_dictated_commas=True,
+                            dictation_style="traditional")
+
+
+def test_a_rerun_shows_natural_speech_again(make_wizard, qapp):
+    s = st.Settings(spoken_punctuation=True, dictation_style="natural", setup_version=1)
+    w = make_wizard(s)
+    assert w.welcome.choice() == "none"
+    go_to(w, w.summary, qapp)
+    assert "natural speech" in w.summary.lines.text() and "Nothing changed" in w.summary.changes.text()
 
 
 def _click():

@@ -17,6 +17,11 @@ person on a fresh install. Phases 2–5 are still plans.
     from the recogniser and a letter's greeting and sign-off laid out, but no other
     paragraphs unless they are spoken, and the page says so. Spoken layout commands are on
     for both answers.
+  - **Spoken punctuation is on for both answers** (2026-11-18). On the owner's real
+    recordings, which say layout commands but no marks, it made no difference (7.50% vs
+    7.47% word errors). On the synthetic voices it helped natural and layout-command
+    speakers, and it means a natural speaker who does say "period" still gets the mark. The
+    answer is kept in `dictation_style` so a re-run shows it.
 - **"What you mostly dictate."** Left for phase 2, because nothing in phase 1 would use the
   answer.
 - **Usual medications page.** Also phase 2.
