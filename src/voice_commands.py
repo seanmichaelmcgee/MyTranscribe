@@ -71,14 +71,29 @@ _LINE_NOT_BEFORE = {"of", "on", "in", "at", "to", "for", "was", "is", "has", "ha
                     "inserted", "started", "sited", "and", "or", "that", "which", "infection", "site"}
 
 
+# A dictated sentence end just before "new line": "... this year period new line on examination".
+_SAID_END = re.compile(r"\b(period|full[ \t]+stop|question[ \t]+mark)[ \t]*[.,]?[ \t]*$", re.I)
+# Clinical headings that start a line with "on": "new line on examination ..." is a command.
+_ON_HEADING = {"examination", "exam", "auscultation", "inspection", "palpation", "assessment", "review", "arrival",
+               "admission", "discharge"}
+
+
 def _lenient_ok(text: str, start: int, end: int, paragraph: bool) -> bool:
     """An unpunctuated "new paragraph" / "new line" that still reads as a command."""
     if paragraph:
         return True
-    before = re.findall(r"[A-Za-z']+", text[:start])
+    left = text[:start]
+    said_end = _SAID_END.search(left)
+    if said_end and not _is_noun(re.sub(r"\s+", " ", said_end.group(1).lower()), left[:said_end.start()],
+                                 text[said_end.end():]):
+        return True                                   # the speaker just dictated a full stop
+    before = re.findall(r"[A-Za-z']+", left)
     after = re.findall(r"[A-Za-z']+", text[end:end + 40])
-    return not ((before and before[-1].lower() in _LINE_NOT_AFTER)
-                or (after and after[0].lower() in _LINE_NOT_BEFORE))
+    if before and before[-1].lower() in _LINE_NOT_AFTER:
+        return False                                  # "a new line", "the new line"
+    if len(after) > 1 and after[0].lower() == "on" and after[1].lower() in _ON_HEADING:
+        return True                                   # "new line on examination ..."
+    return not (after and after[0].lower() in _LINE_NOT_BEFORE)
 
 
 def _set_off(text: str, start: int, end: int) -> bool:
@@ -186,6 +201,8 @@ def _sentence_capital(text: str, pos: int) -> bool:
     word = m.group(0)
     if word == "I" or word.startswith(("I'", "I’")) or not word[1:].islower() and len(word) > 1:
         return False
+    if text[m.end():m.end() + 1].isdigit():
+        return False                                  # "A1c", "B12", "T4": a term, not an ordinary word
     if text[m.end():m.end() + 1] == "." or word.lower() in _TITLE_WORDS:
         return False                                  # "Dr. Patel", "Doctor Patel"
     return _common_word(word.lower())

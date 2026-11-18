@@ -88,14 +88,15 @@ Every voice reads every style: 60 pseudo-users.
 
   Another language adds its set file and one entry in that test.
 - **What writing them found in the app's rules:**
-  - *Mid-sentence quote:* converted only when punctuation sets it off (e03).
-  - *"New line, On examination":* read as a noun phrase when the model wrote no punctuation
-    (s04).
-  - *A1c after a dictated comma:* lower-cased to "a1c".
-  - *"Dear Dr. X," for a speaker who says no marks:* comes out as "Dear Dr. X."
-
-  The first two are recorded as known gaps in the test; the third as an expected failure in
-  `tests/test_reading_sets.py`. None is fixed: each would be an app change.
+  - **Fixed on 2026-11-18:**
+    - *"A1c" after a dictated comma* was lower-cased to "a1c".
+    - *"New line" before "On examination"* was read as a noun phrase when the model wrote no
+      punctuation.
+  - **Still open:**
+    - *A mid-sentence quote* is converted only when punctuation sets it off. It is item e03,
+      listed as a known gap in the test.
+    - *A speaker who says no marks* gets "Dear Dr. X." with a full stop. This is for the
+      phase 4 letter layout.
 - **Before audio is made,** the generator must spell units out for the voices (mg as
   milligrams, mmol/L as millimoles per litre). The written form keeps the abbreviations.
 - **If decisions come out close,** a second pool of 8 scripts per style is added, read by half

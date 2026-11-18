@@ -51,9 +51,8 @@ def test_the_app_turns_each_way_of_dictating_back_into_the_text(mode, stop):
     assert back_to_text(sets.spoken_form(ROUND_TRIP, mode=mode, stop=stop)) == expected
 
 
-@pytest.mark.xfail(strict=True, reason="known app gap (2026-11-18): after a dictated comma the next word is "
-                                       "lower-cased when its letters alone are a common word, so A1c -> a1c")
 def test_a_dictated_comma_keeps_a_mixed_case_term():
+    # Was lower-cased to "a1c" until 2026-11-18 (found while writing the synthetic set).
     assert back_to_text("Seen today comma A1c 7.2 percent period") == "Seen today, A1c 7.2%."
 
 
