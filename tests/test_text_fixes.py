@@ -118,6 +118,8 @@ def test_hesitations_come_out_even_without_extra_corrections():
     ("prednisone 20 mg, sorry, 15 daily", "prednisone 15 mg daily"),     # the unit said once carries over
     ("a disc protrusion at L4-5, sorry, L5-S1, touching", "a disc protrusion at L5-S1, touching"),
     ("pain in the left, I mean, right knee", "pain in the right knee"),
+    # A corrected side is resolved too (owner's decision, 2026-11-18).
+    ("The hernia was left, correction, right inguinal.", "The hernia was right inguinal."),
     ("BP 138/78, sorry, 140/80 today.", "BP 140/80 today."),
     ("Review on Tuesday, sorry, Wednesday.", "Review on Wednesday."),
 ])

@@ -61,9 +61,11 @@ Word errors %, dev voices, with the answer setup gives each style.
 
 One of the owner's scripts says "The hernia was left, correction, right inguinal. The final
 recorded side is right." Its reference keeps the correction as said. The new rule writes
-"The hernia was right inguinal", which counts as 2 errors against that reference. Whether a
-corrected side should be resolved, or kept as said for the reader to see, is the owner's
-call.
+"The hernia was right inguinal", which counts as 2 errors against that reference.
+
+**Decision (owner, 2026-11-18): resolve it.** A corrected side is written as the corrected
+side, like any other self-correction. The reference belongs to the frozen reproducibility
+corpus, so it is not edited: that recording will keep counting those 2 words as errors.
 
 ## A: why the app is unchanged
 
