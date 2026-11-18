@@ -49,7 +49,10 @@ PUNCT = ",.;:!?"
 # recordings: 52/58 -> 54/58, no change for the worse elsewhere).
 DICTATION_EXAMPLE = ("The chest is clear, period. New paragraph. No fever, comma, no cough, period. New line. "
                      "Open quote, rest, close quote, period.")
-# The same example for someone who says the layout commands but not the marks (under test).
+# The same example for someone who says the layout commands but not the marks. Tried on
+# 2026-11-18 and not adopted: on the owner's real recordings it kept no more commands
+# (110/114 either way) and laid out 22 letters right instead of 24. The scripts keep it to
+# reproduce that note (docs/optimization/2026-11-18-settings-suite-fixes.md).
 LAYOUT_EXAMPLE = "The chest is clear. New paragraph. No fever, no cough. New line. Open quote, rest, close quote."
 _BREAKS = [(re.compile(r"\bnew\s+paragraph\b", re.I), "\n\n"),
            (re.compile(r"\b(?:new|next)\s+line\b", re.I), "\n")]
