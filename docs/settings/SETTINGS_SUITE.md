@@ -3,6 +3,12 @@
 Written 2026-11-18. This is a mission statement with milestones, not a specification. The
 details are expected to change as each milestone's measurements come in.
 
+**Priority, set by the owner (2026-11-18): improve the app itself.**
+- The main gain is from changes that help every user: rules, defaults, prompts and
+  post-processing, found with this first large test suite. Personal setup comes second.
+- The milestones are a guide, not a contract. When the measurements point somewhere
+  promising, follow that.
+
 ## Mission
 
 Anyone who installs MyTranscribe and spends **five minutes or less** on setup should get
@@ -88,7 +94,9 @@ Both halves share one code base in `src/tuning/`, so what is tested is what user
 Each milestone ends with a measured result, a short write-up in `docs/optimization/` and a
 commit.
 
-1. **Baseline.** A runner and scoring; every clip under each wizard profile.
+1. **Baseline** (done 2026-11-18,
+   [results](../optimization/2026-11-18-settings-suite-baseline.md)). A runner and scoring;
+   every clip under each wizard profile.
    - Results by style, accent and microphone.
    - The mismatch table: style × answer.
    - Clinical-field errors (drugs, numbers, negations).
