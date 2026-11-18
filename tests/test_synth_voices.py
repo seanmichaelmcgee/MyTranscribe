@@ -36,6 +36,12 @@ def test_units_minus_signs_and_pauses_are_spelled_out_for_the_voice():
     assert sv.voice_text("heavy periods, no comma here.", mode="natural") == "heavy periods, no comma here."
 
 
+def test_colon_and_period_as_words_get_no_pause_the_voice_would_read_out():
+    said = "diagnosed with colon cancer at 51 period My questions are colon new line her last period was in May period"
+    assert sv.voice_text(said) == ("diagnosed with colon cancer at 51 period. My questions are colon, new line. "
+                                   "her last period was in May period.")
+
+
 def test_plan_covers_every_voice_and_script_with_its_own_stop_word():
     clips = sv.plan(sv.load_panel())
     assert len(clips) == 12 * 40
