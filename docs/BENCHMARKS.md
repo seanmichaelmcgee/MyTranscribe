@@ -46,17 +46,29 @@ Word error rate. Each system got the same recordings; the best result in each ro
 
 ## What the pipeline adds to the open model
 
-The same Whisper large-v3 model, step by step, on real clinicians' dictation (Corti, 23 notes):
+The same Whisper large-v3 model files, first exactly as they come (faster-whisper's own
+defaults: no prompt, its own 30 s windows, previous text carried forward), then with the app's
+steps added one at a time:
 
-| Step | Word error rate |
-|---|---|
-| Whisper large-v3 as it comes (dictated "period", "comma" left as words) | 24.48% |
-| + spoken punctuation turned into marks | 8.36% |
-| + medical clean-up (readings, units, drug names) | 7.34% |
-| + spoken numbers written as digits | **7.18%** |
+| Step | Real clinicians (Corti, 24 notes) | Developer's voice, held out (23) |
+|---|---|---|
+| Whisper large-v3 as it comes | 44.89% | 13.87% |
+| + spoken punctuation and commands turned into marks and layout | 14.20% | 5.88% |
+| + medical clean-up (readings, units, spoken numbers, drug names) | 12.25% | 3.92% |
+| + the app's recognition: medical prompt, pause-aware windows, term correction (**the full build**) | **7.01%** | **2.86%** |
 
-On the developer's held-out recordings, as recorded: 4.52% (plain pipeline) → 3.32% (all
-options) → 3.09% (with the usual-medications prompt and drug-name correction).
+- **Half the errors of Whisper used sensibly.** Against off-the-shelf Whisper with only the
+  dictated marks converted, which any dictation tool would need, the full build makes about
+  half the word errors on both sets (14.2% → 7.0%, 5.9% → 2.9%).
+- The first row is mostly the dictated words "period", "comma", "new paragraph" left in the text.
+  It also includes a known Whisper failure: on one Corti note it repeated a sentence 13 times
+  (121 extra words). The app's own windows and settings prevent that.
+- Layout (paragraphs, lists) on the held-out recordings: 0 / 12 as it comes, 12 / 12 with the
+  commands step.
+- Compute for Corti's 66 minutes: 334 s as it comes, 209 s for the full build (RTX 4070 Ti SUPER).
+- Measured 2026-11-17 with `scripts/untouched_whisper.py`; the text steps were applied to the
+  same raw text, and the full build's Corti text is the saved November 15 run, scored again
+  beside it with the same frozen scorer. This was one further Corti run, evaluation only.
 
 ## Drug names, doses and clinical terms
 
