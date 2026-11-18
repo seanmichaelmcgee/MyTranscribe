@@ -72,8 +72,14 @@ def load_panel(path: Path = PANEL) -> dict:
 
 
 # A dictator pauses briefly after each spoken command; a mark after it makes the voice do so.
-_PAUSE_AFTER = [(re.compile(r"\b(period|full stop|question mark|new line|new paragraph)\b(?![.,?])"), r"\1."),
-                (re.compile(r"\b(comma|colon|semicolon|open quote|close quote)\b(?![.,?])"), r"\1,")]
+# "colon" and "period" are also words ("colon cancer", "her last period was"): those get a pause
+# only before what follows a command (a new sentence, a number, another command or the end),
+# or the voice reads the added mark aloud ("colon, comma, cancer": full run, 2026-11-18).
+_AFTER_COMMAND = r"(?=\s+(?:new\b|[A-Z0-9])|\s*$)"
+_PAUSE_AFTER = [(re.compile(r"\b(full stop|question mark|new line|new paragraph)\b(?![.,?])"), r"\1."),
+                (re.compile(r"\b(period)\b(?![.,?])" + _AFTER_COMMAND), r"\1."),
+                (re.compile(r"\b(colon)\b(?![.,?])" + _AFTER_COMMAND), r"\1,"),
+                (re.compile(r"\b(comma|semicolon|open quote|close quote)\b(?![.,?])"), r"\1,")]
 
 
 def voice_text(spoken: str, mode: str = "every") -> str:
