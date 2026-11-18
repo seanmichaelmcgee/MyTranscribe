@@ -83,6 +83,39 @@ def test_budget_stops_a_run_before_it_starts(tmp_path, monkeypatch):
         sv.main(["make", "--go", "--out", str(tmp_path), "--budget-usd", "0.01"])
 
 
+def test_fidelity_forgives_formatting_but_flags_a_skipped_sign_off():
+    clip = next(c for c in sv.plan(sv.load_panel(), ["V01"], ["n02"]))
+    heard = clip["required"].replace("15 milligrams", "15mg").replace("6 weeks", "six weeks")
+    assert sv.judge(clip, heard) == []
+    skipped = heard.split("Yours sincerely")[0]
+    gaps = sv.judge(clip, skipped)
+    assert len(gaps) == 1 and "priya raman" in gaps[0][0]
+
+
+def test_a_self_correction_the_recogniser_tidied_away_is_not_the_voices_fault():
+    clip = next(c for c in sv.plan(sv.load_panel(), ["V04"], ["n02"]))
+    assert "sorry" in clip["input"] and "sorry" not in clip["required"]
+    assert sv.judge(clip, clip["required"]) == [] and sv.judge(clip, clip["input"]) == []
+
+
+def test_check_then_reject_sets_a_flagged_clip_aside_for_remaking(tmp_path):
+    clips = {c["item"]: c for c in sv.plan(sv.load_panel(), ["V01"], ["e07", "n02"])}
+    rows = []
+    for item, sha in (("e07", "a" * 64), ("n02", "b" * 64)):
+        sv.write_wav(tmp_path / "V01" / f"{item}.wav", np.zeros(1600), sv.RATE)
+        sv.write_wav(tmp_path / "V01" / f"{item}.24k.wav", np.zeros(2400), sv.SOURCE_RATE)
+        rows.append({"voice_id": "V01", "item": item, "wav": f"V01/{item}.wav", "sha256": sha})
+    (tmp_path / "manifest.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows), encoding="utf-8")
+    heard = {"e07.wav": clips["e07"]["input"], "n02.wav": clips["n02"]["required"].split("Yours")[0]}
+    args = sv.argparse.Namespace(out=tmp_path, voices=["V01"], items=["e07", "n02"], model=None)
+    sv.cmd_check(args, sv.load_panel(), transcribe=lambda p: heard[p.name])
+    sv.cmd_reject(args, sv.load_panel())
+    assert sv.done_clips(tmp_path) == {("V01", "e07")}
+    assert not (tmp_path / "V01" / "n02.wav").exists()
+    assert len(list((tmp_path / "_rejected").glob("*.wav"))) == 2
+    assert json.loads((tmp_path / "rejected.jsonl").read_text(encoding="utf-8"))["item"] == "n02"
+
+
 def test_resampling_keeps_length_and_pitch():
     t = np.arange(sv.SOURCE_RATE) / sv.SOURCE_RATE
     out = sv.resample(np.sin(2 * np.pi * 1000 * t))

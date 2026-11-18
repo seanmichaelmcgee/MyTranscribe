@@ -120,7 +120,8 @@ def test_every_item_has_a_dose_and_a_negation_and_the_set_covers_the_rest(path):
         assert re.search(feats["dose"], it["reference"]), f"{it['id']}: no drug dose"
         assert re.search(feats["negation"], it["reference"], re.I), f"{it['id']}: no negation"
     for name, least in MINIMUM.items():
-        found = sum(bool(re.search(feats[name], it["reference"])) for it in items)
+        field = "said" if name == "self_correction" else "reference"     # a correction is said, not written
+        found = sum(bool(re.search(feats[name], it[field])) for it in items)
         assert found >= least, f"{name}: {found} items, want {least}"
 
 

@@ -9,6 +9,8 @@ Units are spelled out for the voice ("500 milligrams"); the written text keeps t
     synth_voices.py plan   [--voices V01,V02] [--items e01,s04]   # no network, no cost
     synth_voices.py make --go [--voices ...] [--items ...] [--budget-usd 5]
     synth_voices.py status
+    synth_voices.py check  [--model <whisper folder>]   # did each voice say its text? (local)
+    synth_voices.py reject                               # set flagged clips aside; make remakes them
 
 The audio is AI-generated, for testing and tuning only: never for training, never
 published (docs/testing/README.md, terms read 2026-11-18). It stays under the ignored
@@ -100,7 +102,8 @@ def instructions(voice: dict, style: str) -> str:
             + ("Speak naturally, with a short pause at each blank line. " if natural else
                f"Words such as 'comma', '{voice['stop']}', 'colon', 'new line' and 'new paragraph' are "
                f"commands to the software: say them plainly as words. ")
-            + "Do not add, skip or change any word. Say drug names and abbreviations as a clinician would.")
+            + "Do not add, skip or change any word. Read every line through to the last one, including any "
+              "sign-off and name. Say drug names and abbreviations as a clinician would.")
 
 
 def plan(panel: dict, voices=None, items=None) -> list:
@@ -116,9 +119,13 @@ def plan(panel: dict, voices=None, items=None) -> list:
             text = voice_text(said, mode)
             if len(text) > MAX_INPUT:
                 raise ValueError(f"{it['id']}: {len(text)} characters, more than one request takes")
+            # Without the parts said but not written ({um}, self-corrections), for the fidelity check.
+            required = voice_text(sets.spoken_form(it["reference"], language=panel["language"], mode=mode,
+                                                   stop=v["stop"]), mode)
             clips.append({"voice_id": v["id"], "voice": v["voice"], "accent": v["accent"], "split": v["split"],
                           "item": it["id"], "style": it["style"], "item_split": it["split"], "stop": v["stop"],
-                          "spoken": said, "input": text, "instructions": instructions(v, it["style"])})
+                          "spoken": said, "input": text, "required": required,
+                          "instructions": instructions(v, it["style"])})
     return clips
 
 
@@ -275,9 +282,124 @@ def cmd_status(args, panel):
         print(f"{v['id']} {v['voice']:8s} {v['accent']:45s} {n} clips")
 
 
+# ── Fidelity: did the voice say what it was given? ───────────────────────────
+# A synthetic voice can skip or repeat lines (the pilot's marin voice left out a sign-off).
+# Each clip is transcribed locally and compared with what the voice was asked to say. Small
+# differences are the recogniser's; a run of 3 or more missing or extra content words is the
+# voice's, and the clip is remade. Command words, fillers and formatting are not counted.
+_NUMBER_WORDS = {w: str(i) for i, w in enumerate(
+    "zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen "
+    "seventeen eighteen nineteen twenty".split())}
+_SAME = {"mg": "milligrams", "milligram": "milligrams", "mcg": "micrograms", "microgram": "micrograms",
+         "g": "grams", "gram": "grams", "kg": "kilograms", "kilogram": "kilograms", "l": "litres",
+         "litre": "litres", "liter": "litres", "liters": "litres", "cm": "centimetres", "dr": "doctor"}
+_NOT_COUNTED = {"period", "full", "stop", "comma", "colon", "semicolon", "question", "mark", "new", "line",
+                "paragraph", "open", "close", "quote", "um", "uh", "sorry", "percent", "over", "minus"}
+GAP_WORDS = 3
+
+
+def fidelity_tokens(text: str) -> list:
+    text = re.sub(r"(\d)([a-z])", r"\1 \2", text.lower().replace("-", " "))      # "20mg" -> "20 mg"
+    out = []
+    for tok in re.findall(r"[a-z]+|\d+(?:\.\d+)?", text):
+        tok = _NUMBER_WORDS.get(tok, tok)
+        out.append(_SAME.get(tok, tok))
+    return out
+
+
+def fidelity_gaps(said: str, heard: str) -> list:
+    """Runs of content words the voice skipped or added: [(said words, heard words)]."""
+    import difflib
+    a, b = fidelity_tokens(said), fidelity_tokens(heard)
+    gaps = []
+    for op, i1, i2, j1, j2 in difflib.SequenceMatcher(None, a, b, autojunk=False).get_opcodes():
+        if op == "equal":
+            continue
+        lost = [t for t in a[i1:i2] if t not in _NOT_COUNTED]
+        added = [t for t in b[j1:j2] if t not in _NOT_COUNTED]
+        if max(len(lost), len(added)) - min(len(lost), len(added)) >= GAP_WORDS:
+            gaps.append((" ".join(a[i1:i2]), " ".join(b[j1:j2])))
+    return gaps
+
+
+def judge(clip: dict, heard: str) -> list:
+    """The smaller set of gaps, against what was said with or without the said-only parts."""
+    with_extras = fidelity_gaps(clip["input"], heard)
+    without = fidelity_gaps(clip.get("required", clip["input"]), heard)
+    return min(with_extras, without, key=len)
+
+
+def _whisper(model_path: str):
+    from fw_engine import register_cuda_dll_dirs
+    register_cuda_dll_dirs()
+    from faster_whisper import WhisperModel
+    model = WhisperModel(model_path, device="cuda", compute_type="float16")
+
+    def transcribe(path: Path) -> str:
+        segs, _ = model.transcribe(str(path), language="en", beam_size=5, condition_on_previous_text=False)
+        return " ".join(s.text.strip() for s in segs)
+    return transcribe
+
+
+def cmd_check(args, panel, transcribe=None):
+    rows = [json.loads(x) for x in (args.out / "manifest.jsonl").read_text(encoding="utf-8").splitlines() if x.strip()]
+    clips = {(c["voice_id"], c["item"]): c for c in plan(panel, args.voices, args.items)}
+    path = args.out / "fidelity.jsonl"
+    seen = {}
+    if path.is_file():
+        seen = {r["sha256"]: r for r in map(json.loads, path.read_text(encoding="utf-8").splitlines()) if r}
+    if transcribe is None:
+        model = args.model or os.environ.get("MYTRANSCRIBE_MODEL")
+        if not model:
+            raise SystemExit("check needs the Whisper model folder: --model or MYTRANSCRIBE_MODEL")
+        transcribe = _whisper(model)
+    flagged = 0
+    for r in rows:
+        clip = clips.get((r["voice_id"], r["item"]))
+        if clip is None or r["sha256"] in seen:
+            flagged += bool(seen.get(r["sha256"], {}).get("flagged"))
+            continue
+        heard = transcribe(args.out / r["wav"])
+        gaps = judge(clip, heard)
+        result = {"voice_id": r["voice_id"], "item": r["item"], "sha256": r["sha256"], "flagged": bool(gaps),
+                  "gaps": gaps, "heard": heard}
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(json.dumps(result, ensure_ascii=False) + "\n")
+        flagged += bool(gaps)
+        if gaps:
+            print(f"FLAG {r['voice_id']} {r['item']}: " + "; ".join(f"said {s!r} heard {h!r}" for s, h in gaps))
+    print(f"checked {len(rows)} clips; {flagged} flagged (remake them with 'reject' then 'make --go')")
+
+
+def cmd_reject(args, panel):
+    """Move flagged clips aside and out of the manifest, so that 'make' makes them again."""
+    path = args.out / "fidelity.jsonl"
+    bad = {r["sha256"] for r in map(json.loads, path.read_text(encoding="utf-8").splitlines()) if r and r["flagged"]}
+    manifest = args.out / "manifest.jsonl"
+    rows = [json.loads(x) for x in manifest.read_text(encoding="utf-8").splitlines() if x.strip()]
+    keep, moved = [], []
+    for r in rows:
+        if r["sha256"] not in bad:
+            keep.append(r)
+            continue
+        for name in (r["wav"], r["wav"].replace(".wav", ".24k.wav")):
+            src = args.out / name
+            if src.is_file():
+                dst = args.out / "_rejected" / f"{Path(name).stem}.{r['voice_id']}.{r['sha256'][:8]}.wav"
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                src.replace(dst)
+        moved.append(r)
+    with open(args.out / "rejected.jsonl", "a", encoding="utf-8") as f:
+        for r in moved:
+            f.write(json.dumps(r, ensure_ascii=False) + "\n")
+    manifest.write_text("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in keep), encoding="utf-8")
+    print(f"moved {len(moved)} flagged clips aside; 'make --go' will make them again")
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("command", choices=("plan", "make", "status"))
+    ap.add_argument("command", choices=("plan", "make", "status", "check", "reject"))
+    ap.add_argument("--model", help="check: Whisper model folder (default: MYTRANSCRIBE_MODEL)")
     ap.add_argument("--panel", type=Path, default=PANEL)
     ap.add_argument("--out", type=Path, default=OUT)
     ap.add_argument("--key-file", type=Path, default=KEY_FILE)
@@ -289,7 +411,8 @@ def main(argv=None):
     ap.add_argument("--show", type=int, default=2, help="plan: how many scripts to print")
     args = ap.parse_args(argv)
     panel = load_panel(args.panel)
-    {"plan": cmd_plan, "make": cmd_make, "status": cmd_status}[args.command](args, panel)
+    {"plan": cmd_plan, "make": cmd_make, "status": cmd_status, "check": cmd_check,
+     "reject": cmd_reject}[args.command](args, panel)
 
 
 if __name__ == "__main__":

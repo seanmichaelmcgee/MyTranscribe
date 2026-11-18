@@ -7,8 +7,9 @@ A set is a text file of fictional items in their written form, which is the trut
     The text as it should finally appear.
 
 <style> is how the speaker dictates (STYLES). <split> is "tune" or "check" and is
-fixed before any result is seen. Words in {braces} are said but not written, for
-hesitations such as {um}; everything else is both said and written.
+fixed before any result is seen. Words in {braces} are said but not written:
+hesitations such as {um}, and self-corrections such as {20 mg, sorry,} 15 mg, whose
+written form is the corrected text. Everything else is both said and written.
 
 spoken_form() turns the written form into what that speaker says. The style
 decides WHICH marks and breaks are said aloud; the language decides the WORDS

@@ -72,9 +72,31 @@ Two whole voices are held out and used only for the final check.
    - `manifest.jsonl` records the voice, instruction, exact text, length, checksum and date
      for each clip.
 
+4. **Check that each voice said its text** with `python scripts/synth_voices.py check`, then
+   `reject`, then `make --go` again.
+   - Each clip is transcribed with the local Whisper model and compared with what the voice
+     was given.
+   - A run of 3 or more content words skipped or added is flagged. Formatting differences
+     ("15mg" for "15 milligrams") and command words do not count.
+   - `reject` moves flagged clips aside, and `make` remakes them.
+   - A recogniser error can cause a needless remake, at a cost of cents. A skip of fewer than
+     3 words can go unnoticed.
+
 What the voice is given is the spoken form of the script, with two changes:
 - units are spelled out ("500 milligrams");
 - a short pause follows each spoken command, as a dictating person's would.
+
+**Pilot, 2026-11-18:** voices V01, V04 and V06 read e05, n02 and q02, giving 9 clips, 6.8
+minutes, about $0.10.
+- **Raw Whisper got 6.6% of words different from what was said,** mostly formatting ("3"
+  heard as "three", "mg" for "milligrams"). The every-mark clip came out of the app's rules
+  as correctly laid-out notes.
+- **Marin skipped a letter's sign-off.** The instruction now asks the voice to read through to
+  the last line, and the fidelity check above was added.
+- **Two of three readings came out without the self-correction ("20 mg, sorry, 15 mg").**
+  Self-corrections are now marked as said but not written, so the expected text is the
+  corrected one.
+- **The audio is kept in `en_v1_pilot/`.** The full set uses the new instruction throughout.
 
 OpenAI's current voice models shut down on 6 Jan 2027, so the originals are kept: they
 cannot be remade after that date.
@@ -102,8 +124,9 @@ Every voice reads every style: 60 pseudo-users.
 - **Per style:** 8 scripts, 450 to 640 words (quick notes are the densest). Each is marked in
   advance: 5 for tuning, 3 for checking, and the checking items mix kinds.
 - **One written form per script.** `spoken_form()` in `src/tuning/sets.py` generates what each
-  style says, with "period" or "full stop". `{um}` marks a hesitation that is said but not
-  written.
+  style says, with "period" or "full stop". Braces mark words that are said but not written:
+  a hesitation (`{um}`), or a self-correction (`{20 mg, sorry,} 15 mg`), whose written form
+  is the corrected text.
 - **Every script has** a drug with a dose and a negation. **The set as a whole covers:**
   - openings and sign-offs;
   - headings;
