@@ -5,6 +5,8 @@ them. The test material behind them is in [../testing/](../testing/README.md).
 
 ## Where things are
 
+- [SETTINGS_SUITE.md](SETTINGS_SUITE.md): the mission: anyone close to the owner's accuracy
+  after five minutes of setup, and the milestones to get there.
 - [SETUP_WIZARD_PLAN.md](SETUP_WIZARD_PLAN.md): the wizard and tuning to a voice. Phase 1 is
   built; phases 2–5 are plans.
 - **Code:**
