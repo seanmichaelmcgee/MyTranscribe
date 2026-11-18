@@ -95,6 +95,13 @@ PROFILES = {
     # ... with vocabulary topics assumed from the first word (short messages have no context to pick one from).
     "personal_topics": dict(_CANDIDATE, commands={"lenient": True, "punctuation": True, "only_dictated_commas": True},
                             extra_fixes=True, env={"MYTRANSCRIBE_VOCAB_TOPICS": "hypertension,diabetes,respiratory"}),
+    # A new install, by setup answer (2026-11-18): natural speech / layout commands only ...
+    "app_talk": dict(_CANDIDATE, extra_fixes=True),
+    # ... with the layout commands in the style prompt (tried 2026-11-18, not adopted) ...
+    "app_talk_layout": dict(_CANDIDATE, extra_fixes=True, layout_prompt=True),
+    # ... and with spoken punctuation on as well (the same as "candidate_full"): what both setup
+    # answers give since 2026-11-18.
+    "app_marks": dict(_CANDIDATE, commands={"lenient": True, "punctuation": True}, extra_fixes=True),
     # The text options without the pause-aware pipeline (for engines it does not suit).
     "classic_full": {"commands": {"lenient": True, "punctuation": True}, "extra_fixes": True},
     # Silence-handling variants tried on top of it (none was better; see the results note).
@@ -425,6 +432,8 @@ def style_for(profile: dict) -> str:
     style = load_prompt()
     if profile.get("commands", {}).get("punctuation"):
         style = (style + " " + voice_commands.DICTATION_EXAMPLE).strip()
+    elif profile.get("layout_prompt"):
+        style = (style + " " + voice_commands.LAYOUT_EXAMPLE).strip()
     return style
 
 

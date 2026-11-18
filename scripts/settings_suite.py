@@ -41,10 +41,15 @@ PROFILES = {
     "every": dict(_CORE, group="marks", commands={"lenient": True, "punctuation": True, "only_dictated_commas": True}),
     "some": dict(_CORE, group="marks", commands={"lenient": True, "punctuation": True}),
     "talk": dict(_CORE, group="plain", commands={"lenient": True}),
+    # "talk" with the layout commands in the style prompt: tried 2026-11-18, not adopted
+    # (no gain on the owner's real recordings). Decoded only when asked for (--groups layout).
+    "talk_layout": dict(_CORE, group="layout", layout_prompt=True, commands={"lenient": True}),
 }
 DEFAULT = "talk"
-# The wizard answer that matches each speaker style.
-MATCH = {"every": "every", "sentence": "some", "layout": "talk", "natural": "talk", "notes": "some"}
+# What setup gives each speaker style. Since 2026-11-18 the natural-speech answer also turns
+# spoken punctuation on, so it is the "some" profile; "talk" is what natural speech got before
+# (and what a new install keeps if setup is closed).
+MATCH = {"every": "every", "sentence": "some", "layout": "some", "natural": "some", "notes": "some"}
 _TITLE_NAME = re.compile(r"\b(?:Mr|Mrs|Ms|Miss|Dr)\. ((?:[A-Z][\w'-]+ ?)+)")
 _SIGN_OFF = re.compile(r"\b(kind regards|yours sincerely|thank you)\b")
 
@@ -108,6 +113,8 @@ def cmd_run(args):
         done = {(r["voice_id"], r["item"], r["group"]) for r in map(json.loads, path.read_text(encoding="utf-8").splitlines())}
     engine = dr.make_engine("whisper", args.model or os.environ.get("MYTRANSCRIBE_MODEL"))
     groups = {p["group"]: p for p in PROFILES.values()}             # one representative per decode group
+    if args.groups:
+        groups = {g: p for g, p in groups.items() if g in args.groups}
     t0 = time.perf_counter()
     for group, profile in groups.items():
         style = dr.style_for(profile)
@@ -192,7 +199,7 @@ def cmd_report(args):
     (out / "scored.jsonl").write_text("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in rows),
                                       encoding="utf-8")
     dev = [r for r in rows if r["voice_split"] == "dev"]
-    styles, profiles = list(MATCH), list(PROFILES)
+    styles, profiles = list(MATCH), [p for p in PROFILES if any(r["profile"] == p for r in rows)]
     lines = ["Settings suite baseline (dev voices; held voices V06, V12 not shown)", "",
              "Word errors % by speaker style (rows) and wizard answer (columns); * = the matching answer", "",
              "| style | " + " | ".join(profiles) + " | best |", "|---|" + "---|" * (len(profiles) + 1)]
@@ -232,6 +239,7 @@ def main(argv=None):
     ap.add_argument("--name", default="baseline")
     ap.add_argument("--voices", type=lambda s: s.split(","))
     ap.add_argument("--items", type=lambda s: s.split(","))
+    ap.add_argument("--groups", type=lambda s: s.split(","), help="decode groups to run (default: all)")
     ap.add_argument("--model")
     args = ap.parse_args(argv)
     {"run": cmd_run, "report": cmd_report}[args.command](args)
