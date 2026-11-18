@@ -8,6 +8,14 @@ person on a fresh install. Phases 2–5 are still plans.
 **Phase 1 as built.**
 - **Pages.** The wizard asks about this computer, the microphone, how you dictate, where the
   text goes, and start/stop, then shows a summary that lists what changed.
+- **First screen (2026-11-18).** It thanks the user and asks how they dictate: traditional
+  (saying the punctuation, with "I say every comma" as a sub-choice) or natural speech.
+  - **No preset answer on a first start.** The wrong answer costs more than anything else
+    (10.8% vs 1.6% word errors in the settings suite), so Next waits for one. "Use
+    recommended for the rest" keeps the answer.
+  - **Nothing promised that the app does not do.** Natural speech gets sentence punctuation
+    from the recogniser, but no paragraphs or letter layout unless they are spoken, and the
+    page says so. Spoken layout commands are on for both answers.
 - **"What you mostly dictate."** Left for phase 2, because nothing in phase 1 would use the
   answer.
 - **Usual medications page.** Also phase 2.

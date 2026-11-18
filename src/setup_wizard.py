@@ -1,15 +1,19 @@
 """
 setup_wizard.py — the setup wizard: first start, and Options → Run setup again.
 
-Walks through the choices that matter most for a new user, one page each, with
-the recommended answer already chosen:
+Walks through the choices that matter most for a new user, one page each:
 
-  1. This computer      graphics card, and the most accurate or the faster model
-  2. Microphone         which one, a short level check, the gain
-  3. How you dictate    every punctuation mark said / some / none; spoken formatting
+  1. Welcome            thanks, and how you dictate: traditional (you say the punctuation)
+                        or natural speech. The one question without a preset answer on a
+                        first start: the wrong answer costs more than anything else, so
+                        "Use recommended for the rest" keeps it.
+  2. This computer      graphics card, and the most accurate or the faster model
+  3. Microphone         which one, a short level check, the gain
   4. Where the text goes  copy at Stop / paste at Stop / type while talking
   5. Start and stop     key and mouse button, hold or toggle, with a live test
   6. Summary            what will be saved (and what changed, on a re-run)
+
+Pages 2–5 have the recommended answer already chosen.
 
 It only edits a copy of settings.Settings; the caller saves and applies
 result_settings(). Everything else (recogniser, language, medical clean-up,
@@ -21,10 +25,10 @@ from dataclasses import replace
 import threading
 from typing import Callable, List, Optional
 
-from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtGui import QColor, QPalette
+from PyQt6.QtCore import QEvent, QObject, Qt, QTimer
+from PyQt6.QtGui import QColor, QPainter, QPalette
 from PyQt6.QtWidgets import (
-    QButtonGroup, QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFormLayout, QHBoxLayout, QLabel,
+    QButtonGroup, QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFormLayout, QFrame, QHBoxLayout, QLabel,
     QProgressBar, QPushButton, QRadioButton, QSlider, QVBoxLayout, QWidget, QWizard, QWizardPage,
 )
 
@@ -55,19 +59,39 @@ QProgressBar#micLevel { background: #E3E1D7; border: none; border-radius: 3px; m
 QProgressBar#micLevel::chunk { background: #2E9E4F; border-radius: 3px; }
 QProgressBar#micLevel[levelKind="low"]::chunk { background: #B98500; }
 QProgressBar#micLevel[levelKind="clipping"]::chunk { background: #C8322B; }
+QFrame#choiceCard { background: #FFFFFF; border: 1px solid #E3E1D7; border-radius: 10px; }
+QFrame#choiceCard:hover { border-color: #C9C7BD; }
+QFrame#choiceCard[selected="true"] { background: #FCF3EE; border: 1px solid #C96442; }
+QFrame#choiceCard:disabled { background: #F5F4ED; }
+QLabel#eyebrow { color: #C96442; font-weight: 600; font-size: 8.5pt; letter-spacing: 1px; }
+QLabel#heroTitle { color: #1F1E1D; font-size: 16pt; font-weight: 600; }
+QLabel#heroText { color: #3D3C38; }
+QPushButton:disabled { color: #A8A69E; background: #F0EEE6; border-color: #E3E1D7; }
+QLabel#question { color: #1F1E1D; font-size: 12pt; font-weight: 600; margin-top: 10px; }
+QLabel#example { color: #3D3C38; background: rgba(31, 30, 29, 0.05); border-radius: 6px; padding: 6px 10px; margin-left: 23px; }
+QLabel#hint { color: #5E5D59; }
+QCheckBox#inCard { font-weight: 400; margin-left: 23px; }
 """
 
-PUNCTUATION = (
-    ("every", "I say every punctuation mark",
-     "“The chest is clear, period. No fever, comma, no cough, period.” is written "
-     "“The chest is clear. No fever, no cough.” Only the commas you say are kept."),
-    ("some", "I say some marks, not all",
-     "For example “period” at the end of a sentence. The marks you say become marks, "
-     "and the model adds the others from how you speak."),
-    ("none", "I don't say punctuation; I just talk",
-     "The model puts in full stops and commas from how you speak. "
-     "For now, paragraphs come from saying “new paragraph”."),
+# How you dictate (first page). Every statement here must be true of the app today:
+# natural speech gets sentence punctuation from the recogniser, but no paragraphs or letter
+# layout unless spoken (docs/settings/SETUP_WIZARD_PLAN.md, "Speaking naturally").
+DICTATION = (
+    ("traditional", "Traditional dictation",
+     "You say the punctuation and the layout: “period”, “comma”, “new paragraph”."),
+    ("natural", "Natural speech",
+     "Talk as you would to a colleague. Full stops and commas are added from how you speak. "
+     "Paragraphs are not started for you: say “new paragraph” where you want one."),
 )
+TRADITIONAL_EXAMPLE = (
+    "<table cellspacing='0' cellpadding='1'>"
+    "<tr><td style='color:#77756D; padding-right:10px'>You say</td>"
+    "<td><i>“No fever comma no cough period”</i></td></tr>"
+    "<tr><td style='color:#77756D; padding-right:10px'>You get</td><td>No fever, no cough.</td></tr></table>")
+NEW_TO_DICTATION = ("New to dictating? Natural speech is the easier start; saying the punctuation gives "
+                    "you more control over it. You can switch at any time in Options (⚙).")
+DICTATION_SUMMARY = {"every": "traditional, every comma said", "some": "traditional",
+                     "none": "natural speech"}
 OUTPUT = (
     ("copy", "Copy the text when I stop, and I paste it with Ctrl+V",
      "You choose where it goes."),
@@ -86,6 +110,13 @@ def punctuation_choice(s: Settings) -> str:
     if s.voice_commands and s.spoken_punctuation:
         return "every" if s.only_dictated_commas else "some"
     return "none"
+
+
+def dictation_fields(choice: str) -> dict:
+    """The settings an answer on the first page sets: 'every' / 'some' (traditional) or 'none' (natural).
+    Spoken layout commands are on for both, because both pages tell the user to say "new paragraph"."""
+    return dict(spoken_punctuation=choice in ("every", "some"), only_dictated_commas=choice == "every",
+                voice_commands=True)
 
 
 def output_choice(s: Settings) -> str:
@@ -111,15 +142,14 @@ def describe_hardware(hw) -> tuple:
 
 
 def summary_lines(s: Settings, device_label: str) -> List[str]:
-    punct = {k: label for k, label, _ in PUNCTUATION}[punctuation_choice(s)]
     out = {k: label for k, label, _ in OUTPUT}[output_choice(s)]
     triggers = s.triggers().describe()
     lines = [
+        f"How you dictate: {DICTATION_SUMMARY[punctuation_choice(s)]}",
         f"Model: {'most accurate (large-v3)' if s.accuracy == 'best' else 'faster (large-v3-turbo)'}"
         + ("" if s.engine == "whisper" else f", for Whisper; recogniser stays {engines.ENGINES[s.engine].label}"),
         f"Microphone: {device_label}, gain {gain_text(s.mic_gain)}",
-        f"Punctuation: {punct}",
-        "Spoken formatting (“new paragraph”, “new line”, quotes): " + ("on" if s.voice_commands else "off"),
+        "Spoken layout (“new paragraph”, “new line”, quotes): " + ("on" if s.voice_commands else "off"),
         f"Text: {out}",
         "Start and stop: " + ("; ".join(f"{a} ({b})" for a, b in triggers) or "on-screen button") +
         "; Ctrl+Alt+Q (toggle) always works",
@@ -161,16 +191,50 @@ def _help(text: str) -> QLabel:
     return _text(text, "optionHelp")
 
 
+def _repolish(widget: QWidget) -> None:
+    """Re-apply the style sheet after a property or object name used in it changed."""
+    widget.style().unpolish(widget)
+    widget.style().polish(widget)
+
+
+class ChoiceCard(QFrame):
+    """One answer: its radio button and explanation in a card. Clicking anywhere on the card chooses it."""
+
+    def __init__(self, key: str, label: str, help_text: str) -> None:
+        super().__init__()
+        self.setObjectName("choiceCard")
+        self.setAttribute(Qt.WidgetAttribute.WA_Hover)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.body = QVBoxLayout(self)
+        self.body.setContentsMargins(14, 10, 14, 10)
+        self.body.setSpacing(3)
+        self.button = QRadioButton(label)
+        self.button.setProperty("choice", key)
+        self.button.card = self
+        self.button.help_label = _help(help_text)
+        self.body.addWidget(self.button)
+        self.body.addWidget(self.button.help_label)
+        self.button.toggled.connect(self._show_selected)
+        self._show_selected(False)
+
+    def mousePressEvent(self, event) -> None:       # noqa: N802 (Qt name)
+        if self.isEnabled():
+            self.button.setChecked(True)
+            self.button.setFocus(Qt.FocusReason.MouseFocusReason)
+        super().mousePressEvent(event)
+
+    def _show_selected(self, on: bool) -> None:
+        self.setProperty("selected", bool(on))
+        _repolish(self)
+
+
 def _radio_group(layout: QVBoxLayout, choices, current: str) -> QButtonGroup:
     group = QButtonGroup(layout)
     for i, (key, label, help_text) in enumerate(choices):
-        button = QRadioButton(label)
-        button.setProperty("choice", key)
-        button.setChecked(key == current)
-        group.addButton(button, i)
-        layout.addWidget(button)
-        button.help_label = _help(help_text)
-        layout.addWidget(button.help_label)
+        card = ChoiceCard(key, label, help_text)
+        card.button.setChecked(key == current)
+        group.addButton(card.button, i)
+        layout.addWidget(card)
     return group
 
 
@@ -406,21 +470,54 @@ class MicCheckDialog(QDialog):
 
 # ── Pages ────────────────────────────────────────────────────────────────────
 class WelcomePage(QWizardPage):
-    def __init__(self, first_run: bool) -> None:
+    """Thanks, and how you dictate. On a first start nothing is chosen until the user answers."""
+
+    def __init__(self, settings: Settings, first_run: bool) -> None:
         super().__init__()
-        self.setTitle("Set up MyTranscribe Medical")
         layout = QVBoxLayout(self)
-        layout.addWidget(_text(
-            "A few questions about how you will use it: your microphone, whether you say the punctuation, "
-            "where the text should go, and how you start and stop. It takes about three minutes. "
-            "The recommended choice is already selected on each page."))
-        layout.addWidget(_text(
-            "Everything stays on this PC: nothing you dictate is sent anywhere."))
-        layout.addWidget(_text(
-            ("Use recommended settings skips the questions. " if first_run else
-             "Your current choices are filled in. ")
-            + "You can run this again at any time from Options (⚙) → Run setup again."))
+        layout.setSpacing(8)
+        layout.addWidget(_text("MYTRANSCRIBE MEDICAL", "eyebrow"))
+        if first_run:
+            layout.addWidget(_text("Thank you for choosing MyTranscribe", "heroTitle"))
+            layout.addWidget(_text(
+                "It turns what you say into text, here on this PC: nothing you dictate is sent anywhere. "
+                "Setup takes about three minutes, and after this question the recommended answers are "
+                "already chosen.", "heroText"))
+        else:
+            layout.addWidget(_text("Setup", "heroTitle"))
+            layout.addWidget(_text(
+                "Your current choices are filled in. Anything you change is listed before it is saved.",
+                "heroText"))
+        layout.addWidget(_text("How do you dictate?", "question"))
+        current = punctuation_choice(settings)
+        self.group = _radio_group(layout, DICTATION,
+                                  "" if first_run else ("natural" if current == "none" else "traditional"))
+        traditional = self.group.buttons()[0].card
+        example = _text(TRADITIONAL_EXAMPLE, "example")
+        example.setTextFormat(Qt.TextFormat.RichText)
+        traditional.body.addWidget(example)
+        self.every_comma = QCheckBox("I say every comma (leave out any I don't say)")
+        self.every_comma.setObjectName("inCard")
+        self.every_comma.setChecked(current == "every")
+        traditional.body.addWidget(self.every_comma)
+        layout.addWidget(_text(NEW_TO_DICTATION, "hint"))
         layout.addStretch(1)
+        self.group.buttonToggled.connect(lambda *_: self._sync())
+        self._sync()
+
+    def _sync(self) -> None:
+        self.every_comma.setVisible(_checked(self.group) == "traditional")
+        self.completeChanged.emit()
+
+    def isComplete(self) -> bool:                 # noqa: N802 (Qt name): Next waits for an answer
+        return bool(_checked(self.group))
+
+    def choice(self) -> str:
+        """'every' / 'some' (traditional, with or without every comma) or 'none' (natural); '' if unanswered."""
+        style = _checked(self.group)
+        if style == "traditional":
+            return "every" if self.every_comma.isChecked() else "some"
+        return "none" if style == "natural" else ""
 
 
 class ComputerPage(QWizardPage):
@@ -437,7 +534,7 @@ class ComputerPage(QWizardPage):
              "text came 1 to 1.5 seconds after Stop; an older card can take longer."),
             ("fast", "Faster (Whisper large-v3-turbo)", "Quicker on an older card, slightly less accurate.")),
             settings.accuracy)
-        self._choice_widgets = [w for b in self.group.buttons() for w in (b, b.help_label)]
+        self._choice_widgets = [b.card for b in self.group.buttons()]
         info = engines.ENGINES["whisper"]
         self.download = _help(f"If the model is not on this PC yet, MyTranscribe asks before downloading it "
                               f"({info.size}, once). After that it works offline.")
@@ -513,34 +610,6 @@ class MicrophonePage(QWizardPage):
     def validatePage(self) -> bool:        # noqa: N802 (Qt name): Next
         self.panel.stop()
         return True
-
-
-class DictationPage(QWizardPage):
-    def __init__(self, settings: Settings) -> None:
-        super().__init__()
-        self.setTitle("How you dictate")
-        layout = QVBoxLayout(self)
-        layout.addWidget(_text("Do you say the punctuation marks? This matters more than anything else for "
-                               "clean text."))
-        self.group = _radio_group(layout, PUNCTUATION, punctuation_choice(settings))
-        layout.addSpacing(6)
-        self.commands = QCheckBox("I say “new paragraph”, “new line” and “open quote … close quote”")
-        self.commands.setChecked(settings.voice_commands)
-        layout.addWidget(self.commands)
-        self.commands_help = _help("Turns those words into the layout. Needed when you say the punctuation.")
-        layout.addWidget(self.commands_help)
-        layout.addStretch(1)
-        self.group.buttonToggled.connect(lambda *_: self._sync())
-        self._sync()
-
-    def _sync(self) -> None:
-        marks = _checked(self.group) in ("every", "some")
-        if marks:
-            self.commands.setChecked(True)
-        self.commands.setEnabled(not marks)
-
-    def choice(self) -> str:
-        return _checked(self.group) or "none"
 
 
 class OutputPage(QWizardPage):
@@ -689,6 +758,19 @@ class SummaryPage(QWizardPage):
 
 
 # ── The wizard ───────────────────────────────────────────────────────────────
+class _SoftRuler(QObject):
+    """Paints the wizard's line above the buttons in the page's border colour instead of black."""
+
+    def eventFilter(self, obj, event) -> bool:      # noqa: N802 (Qt name)
+        if event.type() != QEvent.Type.Paint:
+            return False
+        p = QPainter(obj)
+        p.fillRect(obj.rect(), QColor("#F5F4ED"))
+        p.fillRect(0, 0, obj.width(), 1, QColor("#E3E1D7"))
+        p.end()
+        return True
+
+
 class SetupWizard(QWizard):
     def __init__(self, settings: Settings, parent=None, first_run: bool = False,
                  hardware: Optional[Callable] = None, devices: Optional[List[str]] = None,
@@ -699,9 +781,13 @@ class SetupWizard(QWizard):
         light_palette(self)
         self.setStyleSheet(WIZARD_STYLE)
         self.setWizardStyle(QWizard.WizardStyle.ClassicStyle)   # the modern header ignores the light theme
+        self._soft_ruler = _SoftRuler(self)
+        for ruler in self.findChildren(QWidget):     # Qt's line above the buttons: a bare 2-pixel QWidget
+            if ruler.metaObject().className() == "QWidget" and ruler.minimumHeight() == ruler.maximumHeight() == 2:
+                ruler.installEventFilter(self._soft_ruler)
         self.setOption(QWizard.WizardOption.NoBackButtonOnStartPage, True)
         self.setOption(QWizard.WizardOption.HaveCustomButton1, first_run)
-        self.setButtonText(QWizard.WizardButton.CustomButton1, "Use recommended settings")
+        self.setButtonText(QWizard.WizardButton.CustomButton1, "Use recommended for the rest")
         self.customButtonClicked.connect(self._use_recommended)
         self.original = settings
         self.first_run = first_run
@@ -712,20 +798,20 @@ class SetupWizard(QWizard):
             default_device = default if default_device is None else default_device
         self.original_device_label = (settings.input_device or
                                       (f"Windows default ({default_device})" if default_device else "Windows default"))
-        self.welcome = WelcomePage(first_run)
+        self.welcome = WelcomePage(settings, first_run)
         self.computer = ComputerPage(settings, hardware)
         self.microphone = MicrophonePage(settings, devices=devices, default_device=default_device,
                                          open_stream=open_stream, bluetooth=bluetooth)
-        self.dictation = DictationPage(settings)
         self.output = OutputPage(settings)
         self.trigger_page = TriggersPage(settings, install_hooks=install_hooks)
         self.summary = SummaryPage(self)
-        for page in (self.welcome, self.computer, self.microphone, self.dictation, self.output,
-                     self.trigger_page, self.summary):
+        for page in (self.welcome, self.computer, self.microphone, self.output, self.trigger_page, self.summary):
             self.addPage(page)
         self.currentIdChanged.connect(self._page_changed)
+        self.welcome.completeChanged.connect(self._sync_recommended)
         self._page_changed(self.startId())
-        self.resize(640, 600)
+        self._sync_recommended()
+        self.resize(660, 640)
 
     def _page_changed(self, page_id: int) -> None:
         buttons = [QWizard.WizardButton.Stretch]
@@ -735,7 +821,12 @@ class SetupWizard(QWizard):
                     QWizard.WizardButton.FinishButton, QWizard.WizardButton.CancelButton]
         self.setButtonLayout(buttons)
 
+    def _sync_recommended(self) -> None:
+        self.button(QWizard.WizardButton.CustomButton1).setEnabled(self.welcome.isComplete())
+
     def _use_recommended(self, which: int) -> None:
+        if not self.welcome.isComplete():
+            return
         self._recommended = True
         self.accept()
 
@@ -744,18 +835,17 @@ class SetupWizard(QWizard):
 
     def result_settings(self) -> Settings:
         """The settings to save (call after exec() returned Accepted)."""
+        punct = self.welcome.choice() or "none"
         if self._recommended:
-            return replace(Settings(), setup_version=SETUP_VERSION)
-        punct, out = self.dictation.choice(), self.output.choice()
+            return replace(Settings(), setup_version=SETUP_VERSION, **dictation_fields(punct))
+        out = self.output.choice()
         triggers = self.trigger_page.config()
         return replace(
             self.original,
             accuracy=self.computer.accuracy(),
             input_device=self.microphone.panel.selected_device(),
             mic_gain=self.microphone.panel.gain.value(),
-            spoken_punctuation=punct in ("every", "some"),
-            only_dictated_commas=punct == "every",
-            voice_commands=self.dictation.commands.isChecked() or punct in ("every", "some"),
+            **dictation_fields(punct),
             autopaste=out == "paste",
             live_insert=out == "live",
             key=triggers.key or "none", key_mode=self.trigger_page.key_mode.currentData(),
