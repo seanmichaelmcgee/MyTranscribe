@@ -49,6 +49,8 @@ PUNCT = ",.;:!?"
 # recordings: 52/58 -> 54/58, no change for the worse elsewhere).
 DICTATION_EXAMPLE = ("The chest is clear, period. New paragraph. No fever, comma, no cough, period. New line. "
                      "Open quote, rest, close quote, period.")
+# The same example for someone who says the layout commands but not the marks (under test).
+LAYOUT_EXAMPLE = "The chest is clear. New paragraph. No fever, no cough. New line. Open quote, rest, close quote."
 _BREAKS = [(re.compile(r"\bnew\s+paragraph\b", re.I), "\n\n"),
            (re.compile(r"\b(?:new|next)\s+line\b", re.I), "\n")]
 _NUMBER_WORDS = {w: str(i) for i, w in enumerate(
@@ -290,6 +292,32 @@ def _open_missing_quotes(text: str) -> str:
     return "".join(parts)
 
 
+# -- A letter's greeting and sign-off, laid out when they were not (natural speech, or a
+# command the model dropped). Only these two: a body's paragraphs cannot be told from the
+# words alone.
+_SALUTATION = re.compile(r"(^|\n)([ \t]*(?:Dear\b[^\n,:!?]{1,60}|To whom it may concern)[,:])[ \t]+(?=[A-Z])")
+_CLOSING = (r"(?:(?:With )?[Kk]ind regards|Best regards|Warm regards|Regards|Yours sincerely|Sincerely|"
+            r"Yours truly|Yours faithfully|Best wishes|Many thanks|With thanks|Thank you|Thanks)")
+_NAME = r"(?:(?:Dr\.?|Doctor)[ \t]+)?[A-Z][\w'’-]*\.?(?:[ \t]+[A-Z][\w'’-]*\.?){0,3}"
+_GREETING_STOP = re.compile(r"(?:^|(?<=\n))([ \t]*Dear\b[^\n!?]{1,60}?)\.(?=[ \t]*\n)")
+_SIGN_OFF = re.compile(r"(?:(?<=[.!?])[ \t]+|(\n+))(" + _CLOSING + r")[,.]?[ \t]+(" + _NAME + r")[ \t]*$")
+
+
+def letter_layout(text: str) -> str:
+    """
+    'Dear Dr. Mbeki, I would be grateful ...' -> greeting on its own line, a blank line after;
+    '... treatment. Kind regards, Dr. Owen Gallagher.' -> 'Kind regards,' in a paragraph of its
+    own with the name on the next line. Text already laid out is left as it is.
+    """
+    text = _SALUTATION.sub(lambda m: m.group(1) + m.group(2) + "\n\n", text, count=1)
+    text = _GREETING_STOP.sub(r"\1,", text, count=1)          # "Dear Dr. Castillo." -> "Dear Dr. Castillo,"
+
+    def sign_off(m):
+        name = m.group(3).rstrip(".") if not re.search(r"\b[A-Z]\.$", m.group(3)) else m.group(3)
+        return (m.group(1) or "\n\n") + m.group(2) + ",\n" + name
+    return _SIGN_OFF.sub(sign_off, text, count=1)
+
+
 def apply(text: str, lenient: bool = False, punctuation: bool = False, only_dictated_commas: bool = False) -> str:
     """
     Return `text` with spoken formatting commands turned into formatting.
@@ -322,6 +350,7 @@ def apply(text: str, lenient: bool = False, punctuation: bool = False, only_dict
     text = re.sub(r"[ \t]+\n", "\n", text)
     text = re.sub(r"\n[ \t]+", "\n", text)
     text = re.sub(r"[ \t]{2,}", " ", text).strip(" \n")
+    text = letter_layout(text)
     text = _LIST_ITEM.sub(lambda m: f"{m.group(1)}{_NUMBER_WORDS.get(m.group(2).lower(), m.group(2))}. ", text)
     # Capitalise the first letter of each new line / list item (and of a quote opening
     # it). The very start of the text is left as dictated: it may be pasted mid-sentence.

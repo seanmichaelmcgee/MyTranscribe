@@ -182,3 +182,30 @@ def test_only_dictated_commas_drops_the_ones_the_model_added():
     assert kept == 'Heart sounds were normal with no murmurs. He takes ramipril, metformin 1,000 mg and rosuvastatin.\n\n"Rest".'
     assert ", with no murmurs" in apply(raw, lenient=True, punctuation=True)          # the default keeps them
     assert apply("stable, today", lenient=True, only_dictated_commas=True) == "stable, today"   # needs spoken punctuation
+
+
+# ── A letter's greeting and sign-off (natural speech, or a dropped command) ──
+@pytest.mark.parametrize("raw, want", [
+    ("Dear Dr. Abiodun, Thank you for seeing Ms. Martin. I would be grateful for your advice. "
+     "Kind regards, Dr. Owen Gallagher.",
+     "Dear Dr. Abiodun,\n\nThank you for seeing Ms. Martin. I would be grateful for your advice.\n\n"
+     "Kind regards,\nDr. Owen Gallagher"),
+    ("Thank you for seeing him. Thank you, Dr. Priya Raman.", "Thank you for seeing him.\n\nThank you,\nDr. Priya Raman"),
+    ("Please call Mrs. Whitfield. Thanks, Sarah.", "Please call Mrs. Whitfield.\n\nThanks,\nSarah"),
+    ("To whom it may concern: Mr. Ruiz was seen today.", "To whom it may concern:\n\nMr. Ruiz was seen today."),
+    # already laid out by spoken commands: unchanged apart from the name's own line
+    ("Dear Dr. Lee, new paragraph. Seen today. New paragraph. Kind regards, Dr. Ade Bankole.",
+     "Dear Dr. Lee,\n\nSeen today.\n\nKind regards,\nDr. Ade Bankole"),
+])
+def test_letter_greeting_and_sign_off(raw, want):
+    assert apply(raw, lenient=True) == want
+
+
+@pytest.mark.parametrize("text", [
+    "Thank you for seeing him.",                          # a body sentence, not a sign-off
+    "To be seen in 2 weeks, Dr. Smith will review.",
+    "Kind regards to his wife. He is well.",              # no name at the end
+    "dear doctor smith, thanks.",                         # not a letter's greeting as written
+])
+def test_ordinary_text_is_not_laid_out_as_a_letter(text):
+    assert apply(text, lenient=True) == text
