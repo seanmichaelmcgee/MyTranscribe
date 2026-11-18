@@ -1,0 +1,22 @@
+{
+  "language": "en",
+  "set": "synthetic_set_en_v1.txt",
+  "engine": "openai",
+  "model": "gpt-4o-mini-tts",
+  "terms_read": "2026-11-18",
+  "note": "One engine for now (only an OpenAI key is available); a second engine is to be added so that no result rests on one synthesiser. Accents come from the instruction and are unverified until heard. Sex is as the voice sounds, not a property OpenAI states. See docs/testing/SYNTHETIC_VOICES.md.",
+  "voices": [
+    {"id": "V01", "voice": "marin",   "accent": "Canadian English",                                "sex": "F", "pace": "normal", "stop": "period",    "mic": "headset",    "split": "dev"},
+    {"id": "V02", "voice": "cedar",   "accent": "Canadian English",                                "sex": "M", "pace": "fast",   "stop": "period",    "mic": "conference", "split": "dev"},
+    {"id": "V03", "voice": "coral",   "accent": "French-Canadian (Quebec) accent in English",      "sex": "F", "pace": "normal", "stop": "period",    "mic": "noisy",      "split": "dev"},
+    {"id": "V04", "voice": "ash",     "accent": "Nigerian English",                                "sex": "M", "pace": "normal", "stop": "full stop", "mic": "headset",    "split": "dev"},
+    {"id": "V05", "voice": "sage",    "accent": "English spoken by a native Arabic speaker",       "sex": "F", "pace": "slow",   "stop": "period",    "mic": "conference", "split": "dev"},
+    {"id": "V06", "voice": "onyx",    "accent": "English spoken by a native Mandarin speaker",     "sex": "M", "pace": "normal", "stop": "period",    "mic": "noisy",      "split": "held"},
+    {"id": "V07", "voice": "nova",    "accent": "Southern British English",                        "sex": "F", "pace": "normal", "stop": "full stop", "mic": "conference", "split": "dev"},
+    {"id": "V08", "voice": "ballad",  "accent": "Northern English (Yorkshire)",                    "sex": "M", "pace": "slow",   "stop": "full stop", "mic": "noisy",      "split": "dev"},
+    {"id": "V09", "voice": "echo",    "accent": "Australian English",                              "sex": "M", "pace": "fast",   "stop": "full stop", "mic": "headset",    "split": "dev"},
+    {"id": "V10", "voice": "verse",   "accent": "Indian English",                                  "sex": "M", "pace": "normal", "stop": "full stop", "mic": "conference", "split": "dev"},
+    {"id": "V11", "voice": "shimmer", "accent": "Irish English",                                   "sex": "F", "pace": "normal", "stop": "full stop", "mic": "noisy",      "split": "dev"},
+    {"id": "V12", "voice": "alloy",   "accent": "South African English",                           "sex": "F", "pace": "normal", "stop": "full stop", "mic": "headset",    "split": "held"}
+  ]
+}

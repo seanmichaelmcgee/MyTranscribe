@@ -1,8 +1,12 @@
 # Synthetic voice test set: plan
 
-**Status (2026-11-18): the English scripts are written** and checked by
-`tests/test_synthetic_set.py`; the owner has not reviewed them yet. No audio has been made.
-The owner listens to the voices first, and paid generation waits for the owner's go-ahead.
+**Status (2026-11-18):**
+- **Scripts:** the English scripts are written and checked by `tests/test_synthetic_set.py`.
+  The owner has not reviewed them yet.
+- **Generator:** `scripts/synth_voices.py` is built and tested, with no network in the tests.
+- **Audio:** none made yet. The owner has decided to start without listening first and will
+  save an OpenAI key.
+
 Terms and principles are in [README.md](README.md).
 
 ## Purpose
@@ -14,36 +18,66 @@ Terms and principles are in [README.md](README.md).
 
 Not for accuracy claims or training.
 
-## Voices: 12, a draft until the owner has listened
+## Voices: 12 OpenAI voices
 
-Two engines, so no result rests on one synthesiser's quirks.
+The panel is `validation/synthetic_voices_en_v1.json`.
+
+**One engine for now.** Only an OpenAI key is available, so all 12 come from OpenAI
+(`gpt-4o-mini-tts`). The plan was 6 from Amazon as well, so that no result rests on one
+synthesiser's quirks. A second engine, Amazon or a local open model, is still to be added.
+Until then, a finding that holds for only some voices is treated with care.
 
 The accents are those of the clinicians likely to use the app: Canadian, French-Canadian and
 other Commonwealth English, plus speakers educated abroad. That makes 6 women and 6 men, at
-mixed paces. OpenAI's accent comes from an instruction and is unverified: a voice that sounds
-like a caricature, or whose accent drifts, is dropped.
+mixed paces.
 
-One whole voice per engine is held out. It is used only for the final check.
+Each accent comes from an instruction and is unverified until heard. A voice that sounds like
+a caricature, or whose accent drifts, is replaced by the spare (`fable`). "Sex" is how the
+voice sounds; OpenAI does not state it.
 
-| Id | Engine, voice | Accent | Sex | Pace | Mark word | Home mic | Split |
+Two whole voices are held out and used only for the final check.
+
+| Id | Voice | Accent | Sex | Pace | Mark word | Home mic | Split |
 |---|---|---|---|---|---|---|---|
-| O1 | OpenAI `marin` | Canadian | F | normal | period | headset | dev |
-| O2 | OpenAI `cedar` | Canadian | M | fast | period | conference | dev |
-| O3 | OpenAI `coral` | French-Canadian | F | normal | period | noisy | dev |
-| O4 | OpenAI `ash` | Nigerian | M | normal | full stop | headset | dev |
-| O5 | OpenAI `sage` | Arabic-speaking | F | slow | period | conference | dev |
-| O6 | OpenAI `onyx` | Mandarin-speaking | M | normal | period | noisy | **held** |
-| A1 | Amazon Amy (generative) | British | F | normal | full stop | conference | dev |
-| A2 | Amazon Brian (generative) | British | M | slow | full stop | noisy | dev |
-| A3 | Amazon Russell (generative) | Australian | M | fast | full stop | headset | dev |
-| A4 | Amazon Arjun (generative) | Indian | M | normal | full stop | conference | dev |
-| A5 | Amazon Niamh (generative) | Irish | F | normal | full stop | noisy | dev |
-| A6 | Amazon Ayanda (generative) | South African | F | normal | full stop | headset | **held** |
+| V01 | `marin` | Canadian | F | normal | period | headset | dev |
+| V02 | `cedar` | Canadian | M | fast | period | conference | dev |
+| V03 | `coral` | French-Canadian | F | normal | period | noisy | dev |
+| V04 | `ash` | Nigerian | M | normal | full stop | headset | dev |
+| V05 | `sage` | Arabic-speaking | F | slow | period | conference | dev |
+| V06 | `onyx` | Mandarin-speaking | M | normal | period | noisy | **held** |
+| V07 | `nova` | Southern British | F | normal | full stop | conference | dev |
+| V08 | `ballad` | Northern English | M | slow | full stop | noisy | dev |
+| V09 | `echo` | Australian | M | fast | full stop | headset | dev |
+| V10 | `verse` | Indian | M | normal | full stop | conference | dev |
+| V11 | `shimmer` | Irish | F | normal | full stop | noisy | dev |
+| V12 | `alloy` | South African | F | normal | full stop | headset | **held** |
 
-**Spares, if a voice fails the listening test:**
-- OpenAI: `alloy`, `ballad`, `echo`, `fable`, `nova`, `shimmer`, `verse`;
-- Amazon: Olivia (Australian), Kajal (Indian), Aria (New Zealand), Jasmine (Singaporean),
-  Matthew or Ruth (US).
+## Making the audio
+
+1. **Save the key once,** encrypted for this Windows account, in your own PowerShell window.
+   It is never pasted into chat or written in the repository.
+
+   ```powershell
+   powershell -NoProfile -ExecutionPolicy Bypass -File scripts\synth_voices_key.ps1
+   ```
+
+   Add `-Status` to check whether a key is saved. The file is
+   `results_1060/synthetic_voices/secrets/openai.dpapi`.
+
+2. **See the cost** with `python scripts/synth_voices.py plan`. No network.
+3. **Make the audio** with `python scripts/synth_voices.py make --go`.
+   - It stops before starting if the estimate is over `--budget-usd`, which defaults to $5.
+   - It skips clips already made.
+   - It writes 24 kHz originals and 16 kHz copies to `results_1060/synthetic_voices/en_v1/`.
+   - `manifest.jsonl` records the voice, instruction, exact text, length, checksum and date
+     for each clip.
+
+What the voice is given is the spoken form of the script, with two changes:
+- units are spelled out ("500 milligrams");
+- a short pause follows each spoken command, as a dictating person's would.
+
+OpenAI's current voice models shut down on 6 Jan 2027, so the originals are kept: they
+cannot be remade after that date.
 
 ## Dictation styles: 5 guidelines, not fixed rules
 
@@ -106,9 +140,11 @@ Every voice reads every style: 60 pseudo-users.
 
 - **Volume:** each voice reads all 40 scripts. That is about 3,000 spoken words with the
   marks, or about 22 minutes per voice, so about 4.3 hours for 12 voices.
-- **Amazon:** about 120,000 characters at $30 per million (generative) is **about $3.60**.
-- **OpenAI:** about 130 minutes at its earlier estimate of 1.5 cents a minute is **about $2**.
-  It bills $12 per million audio tokens; the per-minute figure is unverified.
+- **Cost, all 12 voices from OpenAI:** about 4.3 hours at its earlier estimate of 1.5 cents a
+  minute is **about $4**. It bills $12 per million audio tokens; the per-minute figure is
+  unverified. `synth_voices.py plan` prints the current estimate.
+- **Amazon, if added later:** about $3.60 for 6 voices, at $30 per million characters
+  (generative).
 - **Each clip is used twice:** clean, and through its voice's home microphone (simulated by
   `make_test_dictation.py`). Both are made locally at no cost.
 
@@ -162,14 +198,13 @@ They are reported by style, voice, engine and microphone, as paired differences 
 - it adds no clinical error;
 - it is then confirmed on the held voices and on the owner's real recordings.
 
-## Steps, each with the owner's go-ahead
+## Steps
 
-1. Write the scripts. **Drafted 2026-11-18;** the owner reviews them.
-2. The owner listens:
-   - at [OpenAI.fm](https://www.openai.fm/): voice, accent instruction, a script;
-   - to Amazon Polly in the AWS console.
-
-   This fixes the 12 voices and their instructions.
-3. Generate the audio, from 20 Nov 2026, with the owner's own API keys held in environment
-   variables. This step costs money.
-4. Build the suite runner, run it, and write up the results in `docs/optimization/`.
+1. **Write the scripts.** Drafted 2026-11-18; the owner reviews them.
+2. **Listen.** On 2026-11-18 the owner chose to skip listening first. A voice whose accent
+   fails is replaced after the pilot.
+3. **Generate the audio** ([Making the audio](#making-the-audio)).
+   - The owner approved it on 2026-11-18, with their own OpenAI key and the $5 cap.
+   - It was allowed under the terms in force that day (see [README.md](README.md)).
+   - It starts with a small pilot to check the voices and the text before the full run.
+4. **Build the suite runner,** run it, and write up the results in `docs/optimization/`.
