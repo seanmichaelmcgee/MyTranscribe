@@ -115,6 +115,13 @@ minutes, about $0.10.
 - **The one clip left:** V08 (`ballad`) reading e02 ends before its sign-off in all three
   tries. Rule for the suite: a clip whose only flag is a missing sign-off is scored without
   that sign-off; any other flagged clip is left out. Flags are in `fidelity.jsonl`.
+- **Found later (2026-11-18): voices sometimes read the commands as pauses.** In 43 of
+  the 270 clips that should contain layout commands, not one command reached the text under
+  any prompt. Where the command belongs, the audio holds no more sound than an ordinary pause
+  between sentences (about 0.35 s, against about 0.7 s to say "new paragraph"). Spoken marks
+  ("comma") go missing the same way. The fidelity check cannot see this, because it does not
+  count command words. So the suite's figures for kept commands are a floor: about three
+  quarters of the commands it counts as lost were probably never said.
 - **Sampler for listening:** each voice reading n02 is in the owner's Google Drive
   ("MyTranscribe validation/synthetic voice samples"), private to the owner.
 
@@ -169,11 +176,11 @@ Every voice reads every style: 60 pseudo-users.
     - *"A1c" after a dictated comma* was lower-cased to "a1c".
     - *"New line" before "On examination"* was read as a noun phrase when the model wrote no
       punctuation.
+    - *A speaker who says no marks* got "Dear Dr. X." with a full stop; the letter layout
+      now writes the comma.
   - **Still open:**
     - *A mid-sentence quote* is converted only when punctuation sets it off. It is item e03,
       listed as a known gap in the test.
-    - *A speaker who says no marks* gets "Dear Dr. X." with a full stop. This is for the
-      phase 4 letter layout.
 - **Before audio is made,** the generator must spell units out for the voices (mg as
   milligrams, mmol/L as millimoles per litre). The written form keeps the abbreviations.
 - **If decisions come out close,** a second pool of 8 scripts per style is added, read by half
