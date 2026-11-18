@@ -14,7 +14,8 @@ drug name is easier: it sits in a recognisable place ("takes ___ 5 mg daily",
                 ("Ram and Pearl 5 mg" -> "ramipril"), and a leading digit read
                 as a syllable ("4-Motorol" -> "formoterol")
 
-Names come from vocab/drug_names.txt (RxNorm generic names, public domain).
+Names come from vocab/drug_names.txt (RxNorm generic names, public domain), plus
+the brand names in the vocabulary files and the user's medications list.
 Part of Extra corrections; English only. Needs rapidfuzz, jellyfish and
 wordfreq (as the spelling corrector does); without them text passes unchanged.
 Nothing is logged.
@@ -77,13 +78,15 @@ class DrugNameCorrector:
                  extract: Optional[Callable] = None, common: Iterable[str] = (), known: Iterable[str] = (),
                  preferred: Iterable[str] = (), brands: Iterable[str] = ()):
         self.ratio, self.phonetic, self.zipf, self._extract = ratio, phonetic, zipf, extract
-        self.names = sorted({n.lower() for n in names if len(n) >= MIN_LEN})
+        # Brand names written in lower case get their capital ("ozempic" -> Ozempic); a brand
+        # that is also an everyday word is left alone. Brands are also names a misheard word
+        # may be corrected to ("Jardientz 25 mg" -> Jardiance), written with their capital.
+        self.brands = {b.lower(): b for b in brands if len(b) >= 4 and b[0].isupper() and self.zipf(b.lower()) < 3.0}
+        self.names = sorted({n.lower() for n in names if len(n) >= MIN_LEN}
+                            | {b for b in self.brands if len(b) >= MIN_LEN})
         self.name_set: Set[str] = set(self.names)
         self.common = {c.lower() for c in common} & self.name_set
         self.preferred = {p.lower() for p in preferred} & self.name_set
-        # Brand names written in lower case get their capital ("ozempic" -> Ozempic); a brand
-        # that is also an everyday word is left alone.
-        self.brands = {b.lower(): b for b in brands if len(b) >= 4 and b[0].isupper() and self.zipf(b.lower()) < 3.0}
         self._brand_re = (re.compile(r"\b(" + "|".join(sorted(map(re.escape, self.brands), key=len, reverse=True))
                                      + r")\b") if self.brands else None)
         self.known = {k.lower() for k in known} | self.name_set        # words never to change
@@ -192,6 +195,7 @@ class DrugNameCorrector:
                     break
             if fixed:
                 start, end, hit = fixed
+                hit = self.brands.get(hit, hit)
                 if self._starts_sentence(s[:start], before_all):
                     hit = hit[0].upper() + hit[1:]
                 out.append(s[last:start] + hit)
