@@ -91,6 +91,11 @@ def voice_text(spoken: str, mode: str = "every") -> str:
     if mode != "natural":
         for pattern, repl in _PAUSE_AFTER:
             text = pattern.sub(repl, text)
+    # Voices tend to skip a letter's last line ("Dr. Priya Raman") as if it were a signature
+    # block (full run, 2026-11-18); said as a sentence, it is read.
+    text = re.sub(r"(new line[.,]?\s+|\n)Dr\. ", r"\1Doctor ", text)
+    if text and text[-1] not in ".?!":
+        text += "."
     return text
 
 
@@ -294,7 +299,11 @@ _SAME = {"mg": "milligrams", "milligram": "milligrams", "mcg": "micrograms", "mi
          "g": "grams", "gram": "grams", "kg": "kilograms", "kilogram": "kilograms", "l": "litres",
          "litre": "litres", "liter": "litres", "liters": "litres", "cm": "centimetres", "dr": "doctor"}
 _NOT_COUNTED = {"period", "full", "stop", "comma", "colon", "semicolon", "question", "mark", "new", "line",
-                "paragraph", "open", "close", "quote", "um", "uh", "sorry", "percent", "over", "minus"}
+                "paragraph", "open", "close", "quote", "um", "uh", "sorry", "percent", "over", "minus",
+                "hundred", "thousand"}
+# Phrases Whisper is known to invent over silence or at the end of audio; not the voice's.
+_INVENTED = re.compile(r"\b(?:thanks? (?:you )?for watching|we'?ll be right back|please subscribe|"
+                       r"like and subscribe|subtitles by[^.]*)\b[.!]?", re.I)
 GAP_WORDS = 3
 
 
@@ -315,8 +324,9 @@ def fidelity_gaps(said: str, heard: str) -> list:
     for op, i1, i2, j1, j2 in difflib.SequenceMatcher(None, a, b, autojunk=False).get_opcodes():
         if op == "equal":
             continue
-        lost = [t for t in a[i1:i2] if t not in _NOT_COUNTED]
-        added = [t for t in b[j1:j2] if t not in _NOT_COUNTED]
+        counted = lambda t: t not in _NOT_COUNTED and not t[0].isdigit()   # noqa: E731  "225" vs "2 hundred 20 5"
+        lost = [t for t in a[i1:i2] if counted(t)]
+        added = [t for t in b[j1:j2] if counted(t)]
         if max(len(lost), len(added)) - min(len(lost), len(added)) >= GAP_WORDS:
             gaps.append((" ".join(a[i1:i2]), " ".join(b[j1:j2])))
     return gaps
@@ -324,6 +334,7 @@ def fidelity_gaps(said: str, heard: str) -> list:
 
 def judge(clip: dict, heard: str) -> list:
     """The smaller set of gaps, against what was said with or without the said-only parts."""
+    heard = _INVENTED.sub(" ", heard)
     with_extras = fidelity_gaps(clip["input"], heard)
     without = fidelity_gaps(clip.get("required", clip["input"]), heard)
     return min(with_extras, without, key=len)
@@ -336,7 +347,11 @@ def _whisper(model_path: str):
     model = WhisperModel(model_path, device="cuda", compute_type="float16")
 
     def transcribe(path: Path) -> str:
-        segs, _ = model.transcribe(str(path), language="en", beam_size=5, condition_on_previous_text=False)
+        with wave.open(str(path)) as w:
+            audio = np.frombuffer(w.readframes(w.getnframes()), dtype="<i2").astype(np.float32) / 32768
+        pad = np.zeros(RATE, dtype=np.float32)        # a second of silence each side: the voice's audio
+        audio = np.concatenate([pad, audio, pad])     # stops dead, and Whisper can then drop the last words
+        segs, _ = model.transcribe(audio, language="en", beam_size=5, condition_on_previous_text=False)
         return " ".join(s.text.strip() for s in segs)
     return transcribe
 
@@ -355,12 +370,11 @@ def cmd_check(args, panel, transcribe=None):
         transcribe = _whisper(model)
     flagged = 0
     for r in rows:
-        clip = clips.get((r["voice_id"], r["item"]))
-        if clip is None or r["sha256"] in seen:
+        if (r["voice_id"], r["item"]) not in clips or r["sha256"] in seen:
             flagged += bool(seen.get(r["sha256"], {}).get("flagged"))
             continue
         heard = transcribe(args.out / r["wav"])
-        gaps = judge(clip, heard)
+        gaps = judge(r, heard)                        # against the exact text this clip was given
         result = {"voice_id": r["voice_id"], "item": r["item"], "sha256": r["sha256"], "flagged": bool(gaps),
                   "gaps": gaps, "heard": heard}
         with open(path, "a", encoding="utf-8") as f:

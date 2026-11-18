@@ -92,6 +92,15 @@ def test_fidelity_forgives_formatting_but_flags_a_skipped_sign_off():
     assert len(gaps) == 1 and "priya raman" in gaps[0][0]
 
 
+def test_the_last_line_is_said_as_a_sentence_and_invented_endings_are_ignored():
+    clip = next(c for c in sv.plan(sv.load_panel(), ["V01"], ["e02"]))
+    assert clip["input"].endswith("new line. Doctor Owen Gallagher.")
+    natural = next(c for c in sv.plan(sv.load_panel(), ["V01"], ["n01"]))
+    assert natural["input"].endswith("Kind regards,\nDoctor Ade Bankole.")
+    assert sv.judge(clip, clip["input"] + " Thanks for watching!") == []
+    assert sv.judge(clip, clip["input"].replace("225", "two hundred twenty five")) == []
+
+
 def test_a_self_correction_the_recogniser_tidied_away_is_not_the_voices_fault():
     clip = next(c for c in sv.plan(sv.load_panel(), ["V04"], ["n02"]))
     assert "sorry" in clip["input"] and "sorry" not in clip["required"]
@@ -104,7 +113,7 @@ def test_check_then_reject_sets_a_flagged_clip_aside_for_remaking(tmp_path):
     for item, sha in (("e07", "a" * 64), ("n02", "b" * 64)):
         sv.write_wav(tmp_path / "V01" / f"{item}.wav", np.zeros(1600), sv.RATE)
         sv.write_wav(tmp_path / "V01" / f"{item}.24k.wav", np.zeros(2400), sv.SOURCE_RATE)
-        rows.append({"voice_id": "V01", "item": item, "wav": f"V01/{item}.wav", "sha256": sha})
+        rows.append(dict(clips[item], wav=f"V01/{item}.wav", sha256=sha))
     (tmp_path / "manifest.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows), encoding="utf-8")
     heard = {"e07.wav": clips["e07"]["input"], "n02.wav": clips["n02"]["required"].split("Yours")[0]}
     args = sv.argparse.Namespace(out=tmp_path, voices=["V01"], items=["e07", "n02"], model=None)

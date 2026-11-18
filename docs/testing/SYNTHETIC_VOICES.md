@@ -4,8 +4,8 @@
 - **Scripts:** the English scripts are written and checked by `tests/test_synthetic_set.py`.
   The owner has not reviewed them yet.
 - **Generator:** `scripts/synth_voices.py` is built and tested, with no network in the tests.
-- **Audio:** none made yet. The owner has decided to start without listening first and will
-  save an OpenAI key.
+- **Audio:** all 480 clips made and checked. 479 say their text in full; the one exception
+  is recorded below.
 
 Terms and principles are in [README.md](README.md).
 
@@ -97,6 +97,26 @@ minutes, about $0.10.
   Self-corrections are now marked as said but not written, so the expected text is the
   corrected one.
 - **The audio is kept in `en_v1_pilot/`.** The full set uses the new instruction throughout.
+
+**Full run, 2026-11-18:** 480 clips, 284 minutes, about $4.26 at OpenAI's estimate.
+- **What the first check flagged:** 55 clips.
+  - **Five were the check's own errors.** Whisper invented phrases at the end ("thanks for
+    watching"), wrote a number as words, or misheard a drug name. The check now pads each clip
+    with a second of silence, ignores those invented phrases and number spelling, and judges
+    each clip against the exact text it was given.
+- **The other 50 were real:** the voice stopped before the last line.
+  - Most were a letter's sign-off name ("Dr. Priya Raman"), which voices treat like a
+    signature block.
+  - The rest were a script's last sentence.
+- **For the remakes,** the name is given to the voice as a sentence ("Doctor Priya Raman.").
+- **Remakes:** three rounds left 12, then 5, then 1 clip flagged. They added 40, 11 and
+  5 minutes, about $0.84, so the full run came to **about $5.10 by the estimate** ($5.20 with
+  the pilot). The actual charge is on the owner's OpenAI usage page.
+- **The one clip left:** V08 (`ballad`) reading e02 ends before its sign-off in all three
+  tries. Rule for the suite: a clip whose only flag is a missing sign-off is scored without
+  that sign-off; any other flagged clip is left out. Flags are in `fidelity.jsonl`.
+- **Sampler for listening:** each voice reading n02 is in the owner's Google Drive
+  ("MyTranscribe validation/synthetic voice samples"), private to the owner.
 
 OpenAI's current voice models shut down on 6 Jan 2027, so the originals are kept: they
 cannot be remade after that date.
