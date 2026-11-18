@@ -22,8 +22,8 @@ November 2026. Lower word error rate (WER) is better; higher recall is better.
 | **0.8 s** | median wait from Stop to finished text in the live app (graphics card) |
 | **0** | bytes of audio or text sent anywhere |
 
-Images of these results for sharing are in [images/](images/) (redraw them with
-`python scripts/make_promo_images.py` after changing a figure here).
+Images of these results for sharing are in [images/](images/). To redraw them after changing
+a figure here, and for the rules they follow, see [images/README.md](images/README.md).
 
 ## Head to head: the same audio through every system
 
