@@ -19,6 +19,8 @@ Word. Nothing you say leaves the computer.
   the speech model was also tested on telephone-quality and noisy-ward recordings.
 - **Free and open source** (MIT licence). The speech model is OpenAI's Whisper large-v3 (MIT).
 
+![Accurate medical dictation that stays on your PC: 7.0% word errors on real clinicians' dictation, 2.1% on the developer's reading of consult letters, 0 bytes sent anywhere](docs/images/share_card.png)
+
 ## How accurate is it?
 
 **In our testing, its word error rates are similar to or better than commercial-grade medical
@@ -27,6 +29,8 @@ with every test set and condition, is in **[docs/BENCHMARKS.md](docs/BENCHMARKS.
 
 "Word errors" is the share of words wrong, missing or added compared with what was meant to be
 said; lower is better.
+
+![Word errors, the same audio through every system: MyTranscribe Medical is the most accurate open model and close to commercial dictation on clinicians it was never tuned on](docs/images/head_to_head.png)
 
 | Same audio, word errors | **MyTranscribe Medical** | MedASR (Google) | Parakeet 0.6B (NVIDIA) | Canary 1B (NVIDIA) | Commercial medical dictation |
 |---|---|---|---|---|---|
@@ -40,6 +44,10 @@ said; lower is better.
   right overall, 92% over telephone-quality audio, 81% in a simulated busy ward.
 - **On voices it was not tuned to** (Corti), it is about one point behind the commercial
   system; on the developer's own voice it makes fewer than half the errors.
+- **Against Whisper on its own**, with the dictated punctuation converted, it makes half the
+  word errors (14.2% → 7.0% on real clinicians, 5.9% → 2.9% on the developer's voice).
+
+![The same Whisper large-v3 model as it comes, then with each step MyTranscribe Medical adds](docs/images/steps.png)
 
 
 ### Why we think it is fit for clinical dictation, and what is not yet shown
