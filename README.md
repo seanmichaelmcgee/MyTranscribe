@@ -180,8 +180,8 @@ computer voices and, for French only, on seven real dictated notes (8.7%). Swahi
 ## Computers without an NVIDIA card
 
 Without an NVIDIA card the app runs on the processor with a smaller model (small.en).
-- **Speed:** on laptop-class processor cores, the text comes 3 to 4 seconds after a short
-  message and 6 to 9 after a long one. An older laptop is slower.
+- **Speed:** on laptop-class processor cores, the text comes about 2 seconds after a short
+  message and 4 to 8 after a long one. An older laptop is slower.
 - **Accuracy:** it makes more mistakes, especially in drug names (9.98% word errors, against
   7.47% for large-v3 on a graphics card, on the developer's recordings).
 

@@ -4,7 +4,7 @@ MyTranscribe Medical: trying the installer on a PC without an NVIDIA graphics ca
 What to expect
 --------------
 - It runs on the processor with a smaller speech model (small.en). On laptop-class cores the
-  text came 3 to 4 seconds after a short message in testing, and 6 to 9 seconds after a long
+  text came about 2 seconds after a short message in testing, and 4 to 8 seconds after a long
   letter; an older laptop is slower.
 - It makes more mistakes than the desktop version, especially in drug names. Read the text
   before it goes anywhere.

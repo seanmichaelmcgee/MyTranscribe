@@ -60,6 +60,18 @@ Accuracy was measured on the owner's 47 real recordings. A 5-year-old laptop is 
 - **Fix found on the way:** a piece that ended in silence was decoded a second time, which nearly
   doubled the wait after a long letter (11.7 s down to 6.6 s).
 
+**Then, on the installed build itself** (2026.11.19 plus update 2026.11.19.3, its own Python and
+model, same cores and recordings, 2026-11-19):
+- **Short encoder windows:** a piece with up to 16 s of speech is encoded in a window of its
+  speech plus 2 s instead of 30 s. The encoder costs the same for 3 s of speech as for 30, so
+  this is most of the wait after a short message.
+- **No second listen on the processor** for a dropped "new paragraph": a whole model pass each,
+  and it recovered nothing on the owner's recordings.
+- **Wait after Stop:** median 3.6 s -> 1.9 s. Short messages 3.0-3.8 s -> 1.3-2.1 s; long
+  letters 5.5-10.5 s -> 4.3-7.5 s.
+- **Accuracy:** word errors 5.58% -> 5.95% (live runs of one build vary by about 0.3); medical
+  words wrong 16 -> 14 of 115; commands 55/56 and layout 11/12 both times.
+
 ## Building
 
 Build with the app's development environment (the venv the tests use), on Windows:
