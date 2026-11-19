@@ -12,3 +12,6 @@ venvmedasr/
 models_medasr/
 results_medasr/
 models_whisper/
+
+# Installer builds (installer/build_installer.py)
+dist/

@@ -115,6 +115,15 @@ def tuned_model(language: str) -> Optional[Path]:
     return folder if language and (folder / "model.bin").is_file() else None
 
 
+def bundled_model(name: str) -> Optional[Path]:
+    """
+    A Whisper model shipped with the installer (models/faster-whisper-<name>/ beside src/),
+    used as it is: no download and no hub. None in a development checkout.
+    """
+    folder = ROOT / "models" / f"faster-whisper-{name}"
+    return folder if name and (folder / "model.bin").is_file() else None
+
+
 def build(name: str = DEFAULT, accurate: bool = True, allow_download: bool = False, language: str = "en"):
     """
     Load and warm up the recogniser `name`. With allow_download the hub is
@@ -158,6 +167,8 @@ def _build(name: str, accurate: bool, language: str = "en"):
         tuned = tuned_model(language)
         if tuned is not None:
             cfg.model = str(tuned)                # a model fine-tuned for this language
+        elif bundled_model(cfg.model) is not None:
+            cfg.model = str(bundled_model(cfg.model))   # installed with the app
         logger.info("Engine config: model=%s device=%s compute=%s threads=%d (%s)",
                     cfg.model, cfg.device, cfg.compute_type, cfg.cpu_threads, cfg.reason)
         engine = FasterWhisperEngine(cfg)
