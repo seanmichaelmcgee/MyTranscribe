@@ -322,10 +322,35 @@ def test_quick_listen_is_greedy():
     assert eng.model.kwargs["beam_size"] == 1 and eng.model.kwargs["patience"] == 1.0
 
 
+def _speech(seconds, spans):
+    """Silence with noise where speech is, spans = [(start_s, end_s)]."""
+    audio = np.zeros(int(seconds * SR), dtype=np.float32)
+    rng = np.random.default_rng(0)
+    for a, b in spans:
+        audio[int(a * SR):int(b * SR)] = (rng.standard_normal(int((b - a) * SR)) * 0.05).astype(np.float32)
+    return audio
+
+
 def test_real_audio_left_after_an_early_stop_is_kept():
     eng = _engine([_segment(0, ("Plan.", 0.2, 0.8)),
                    _segment(100, ("Repeat", 1.5, 2.0), ("labs.", 2.1, 2.9))], heard_s=6.0)
-    assert len(eng.transcribe_words(np.zeros(6 * SR, dtype=np.float32))) == 3
+    assert len(eng.transcribe_words(_speech(6, [(0.2, 0.8), (1.5, 2.9)]))) == 3
+
+
+def test_silence_after_the_last_word_is_not_decoded():
+    # A 25 s piece that ends in 3 s of silence (the speaker stopped): asking for another window
+    # costs a whole decode, 5 s on a laptop processor, for nothing.
+    asked = []
+
+    def segments():
+        yield _segment(0, ("Plan", 0.2, 10.0), ("follows.", 10.1, 22.0))
+        asked.append("second window")
+        yield _segment(2200, ("Thank", 22.5, 22.8), ("you.", 22.8, 23.0))
+
+    eng = _engine([], heard_s=22.4)
+    eng.model.segments = segments()
+    out = eng.transcribe_words(_speech(25, [(0.2, 22.0)]))
+    assert [w.strip() for w, _s, _e in out] == ["Plan", "follows."] and asked == []
 
 
 def test_next_full_window_is_kept():

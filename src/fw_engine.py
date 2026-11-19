@@ -104,6 +104,26 @@ def register_cuda_dll_dirs(
     return added
 
 
+TAIL_SPEECH_MIN_S = 0.3           # sound after the last word that may still be an unheard word
+TAIL_FLOOR_RMS = 80 / 32768       # never call quieter than this speech (the app's fixed threshold)
+
+
+def speech_after(audio: np.ndarray, t: float) -> bool:
+    """
+    Whether the audio after `t` seconds holds enough sound to be speech: at least
+    TAIL_SPEECH_MIN_S of 50 ms frames 12 dB over the clip's own noise floor (its quietest
+    tenth of frames). Trailing silence, a breath or a click is not.
+    """
+    win = SAMPLE_RATE // 20
+    usable = (audio.size // win) * win
+    if usable == 0:
+        return False
+    rms = np.sqrt(np.mean(np.square(audio[:usable].astype(np.float32).reshape(-1, win)), axis=1))
+    level = max(TAIL_FLOOR_RMS, 4.0 * float(np.percentile(rms, 10)))
+    rest = rms[int(t * 20):]
+    return float(np.count_nonzero(rest >= level)) / 20 >= TAIL_SPEECH_MIN_S
+
+
 class FasterWhisperEngine:
     """
     Owns one faster-whisper WhisperModel.
@@ -222,8 +242,11 @@ class FasterWhisperEngine:
                           for w in (s.words or [])]
             else:
                 words += [(w.word, float(w.start), float(w.end)) for w in (s.words or [])]
-            if audio_s <= WINDOW_SECONDS and words and audio_s - words[-1][2] < TAIL_REDECODE_MIN_S:
-                break                     # nothing left worth decoding: don't even ask
+            if audio_s <= WINDOW_SECONDS and words and (audio_s - words[-1][2] < TAIL_REDECODE_MIN_S
+                                                        or not speech_after(audio, words[-1][2])):
+                # Nothing left worth decoding: don't even ask. Asking costs a whole window: on a
+                # processor, a 25 s piece that ended in 3 s of silence took 11 s instead of 5.
+                break
         return words
 
     def _decode(self, audio: np.ndarray, prompt: Optional[str], extra: dict):
