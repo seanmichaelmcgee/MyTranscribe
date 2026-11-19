@@ -164,7 +164,8 @@ static class Ui
         {
             Text = text, FlatStyle = FlatStyle.Flat, Font = new Font("Segoe UI", 9.5f),
             BackColor = primary ? Accent : Color.White, ForeColor = primary ? Color.White : Ink,
-            Size = new Size(120, 34), Cursor = Cursors.Hand
+            Size = new Size(120, 34), Cursor = Cursors.Hand,
+            AccessibleName = text, AccessibleRole = AccessibleRole.PushButton   // announced as a button
         };
         b.FlatAppearance.BorderColor = primary ? Accent : Color.FromArgb(0xDA, 0xD8, 0xCD);
         return b;
@@ -519,7 +520,7 @@ class InstallForm : Form
                     "shortcut to your desktop and Start menu.", 10f, false, Ui.Ink),
             Ui.Text("Version " + payload.Version + "  ·  needs " + gb.ToString("0.0") + " GB of disk space\n" +
                     "Installs to " + folder, 9f, false, Ui.Muted));
-        primary.Text = update ? "Update" : "Install";
+        primary.Text = primary.AccessibleName = update ? "Update" : "Install";
     }
 
     void OnPrimary(object sender, EventArgs e)
@@ -576,6 +577,7 @@ class InstallForm : Form
         }
         state = "done";
         startNow.Text = "Start MyTranscribe now";
+        startNow.AccessibleRole = AccessibleRole.CheckButton;
         startNow.Checked = true;
         startNow.Font = new Font("Segoe UI", 10f);
         startNow.Height = 28;
@@ -585,7 +587,7 @@ class InstallForm : Form
                     : "Start it from the shortcut on your desktop or from the Start menu. The first start asks " +
                       "a few questions to set it up (about three minutes).", 10f, false, Ui.Ink),
             startNow);
-        primary.Text = "Finish";
+        primary.Text = primary.AccessibleName = "Finish";
         primary.Enabled = true;
         secondary.Visible = false;
     }
