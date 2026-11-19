@@ -47,6 +47,13 @@ DEFAULT_PATIENCE = 2.0
 # the vocabulary prompt is what costs time, and patience 2 doubles that.
 CPU_BEAM_SIZE = 3
 CPU_PATIENCE = 1.0
+# Pause-aware dictation listens again to a gap that may hold a spoken command the model left
+# out ("new paragraph"). Each second listen is a whole model pass: a tenth of a second on a
+# graphics card, 2 to 2.5 s on four laptop-class cores, added to the wait when it falls in
+# the last piece. On the processor (small.en, owner's 47 recordings, 2026-11-19) they ran 8
+# times and changed nothing: the same text, commands (109/114) and layout (23/25) without them.
+# So the engine on the processor says no (ChunkedTranscriber reads `second_listen`).
+SECOND_LISTEN_ON_CPU = False
 # Runaway guard: Whisper can loop ("thank you. thank you. ...") or, with
 # temperature fallback, decode garbage until the 448-token window is full. A
 # chunk never needs more than ~10 tokens per second of audio (fast dictation is
@@ -155,6 +162,7 @@ class FasterWhisperEngine:
                 beam_size = default_beam
         self.beam_size = max(1, beam_size)
         self.patience = CPU_PATIENCE if on_cpu else DEFAULT_PATIENCE
+        self.second_listen = SECOND_LISTEN_ON_CPU if on_cpu else True
 
         if model_factory is None:
             from faster_whisper import WhisperModel
@@ -188,6 +196,7 @@ class FasterWhisperEngine:
                 reason=f"CUDA load failed: {exc}",
             )
             self.patience = CPU_PATIENCE
+            self.second_listen = SECOND_LISTEN_ON_CPU
             return model_factory(
                 self.config.model,
                 device="cpu",

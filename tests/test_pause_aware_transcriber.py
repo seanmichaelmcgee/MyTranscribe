@@ -142,6 +142,33 @@ def test_dropped_command_is_put_back_and_converted():
     assert engine.hole_calls[0] < 4 * SR              # to the hole only, not the chunk
 
 
+def test_engine_that_declines_second_listens_gets_none():
+    # On the processor a second listen is a whole model pass (2-2.5 s on laptop cores) and
+    # rescued nothing on the owner's recordings: the engine says no and the text is the first pass.
+    first = [("normal.", 0.3, 1.0), ("Ibuprofen", 3.0, 3.8), ("daily.", 3.9, 4.5)]
+    engine = WordEngine([first], holes=[[("New", 0.4, 0.6), ("paragraph.", 0.6, 1.2)]])
+    engine.second_listen = False
+    t = run(QUIET_EDGES, engine)
+    assert engine.hole_calls == [] and t.rescued_commands == 0
+    assert t.text == "normal. Ibuprofen daily."
+
+
+@pytest.mark.parametrize("device, listens", [("cpu", False), ("cuda", True)])
+def test_second_listens_only_on_a_graphics_card(device, listens):
+    eng = FasterWhisperEngine(EngineConfig("small.en", device, "int8", 4, "test"),
+                              model_factory=lambda *a, **k: SimpleNamespace())
+    assert eng.second_listen is listens
+
+
+def test_graphics_card_that_fails_to_load_falls_back_without_second_listens():
+    def factory(model, device, compute_type, cpu_threads):
+        if device == "cuda":
+            raise RuntimeError("cublas64_12.dll not found")
+        return SimpleNamespace()
+    eng = FasterWhisperEngine(EngineConfig("large-v3", "cuda", "int8_float32", 2, "test"), model_factory=factory)
+    assert eng.config.device == "cpu" and eng.second_listen is False
+
+
 def test_hole_with_other_speech_changes_nothing():
     first = [("normal.", 0.3, 1.0), ("Ibuprofen", 3.0, 3.8), ("daily.", 3.9, 4.5)]
     engine = WordEngine([first], holes=[[("Thank", 0.4, 0.6), ("you.", 0.6, 0.9)]])

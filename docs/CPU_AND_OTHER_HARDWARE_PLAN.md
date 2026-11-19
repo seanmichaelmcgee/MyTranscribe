@@ -62,6 +62,8 @@ What it says:
   - on the processor, 3 beams with patience 1: same accuracy as 5 beams and patience 2, about
     30% faster;
   - one thread per physical core;
+  - no second listen for a dropped "new paragraph" on the processor (each is a whole model
+    pass, 2 to 2.5 s on those cores; on the 47 recordings they ran 8 times and changed nothing);
   - an NVIDIA card without its libraries uses the processor;
   - the wizard states the expected wait and the extra errors.
 - **Distribution:** `installer/` builds a per-user Windows installer, with Python, the packages

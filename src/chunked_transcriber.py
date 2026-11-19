@@ -561,10 +561,11 @@ class ChunkedTranscriber:
         if words is None:
             self.transcriptions.append(f"{ERROR_PREFIX} {error}]")
             return None
-        try:
-            words = self._rescue_commands(chunk, words, audio_s)
-        except Exception:
-            logger.error("Command recovery failed; keeping the decoded text", exc_info=True)
+        if getattr(self.engine, "second_listen", True):     # off on the processor (fw_engine)
+            try:
+                words = self._rescue_commands(chunk, words, audio_s)
+            except Exception:
+                logger.error("Command recovery failed; keeping the decoded text", exc_info=True)
         carry = None
         if not final:
             words, carry_from = pause_flow.split_for_carry(words, audio_s, self.carry_max_s)
