@@ -1,5 +1,6 @@
 """fw_engine: faster-whisper call parameters, CPU fallback, Windows DLL dirs."""
 
+import sys
 from types import SimpleNamespace
 
 import numpy as np
@@ -138,34 +139,48 @@ def test_short_window_only_for_short_speech(speech_s, window_s):
     assert fw_engine.short_window_frames(int(speech_s * 100)) == window_s * 100
 
 
-def test_short_window_pads_only_inside_an_engine_scope_on_its_thread():
+def _pad_to(array, length=3000, *, axis=-1):
+    """faster-whisper's pad_or_trim, for a stand-in transcribe module (the real one is not imported)."""
+    widths = [(0, 0)] * array.ndim
+    widths[axis] = (0, max(0, length - array.shape[axis]))
+    return np.pad(array, widths).take(range(length), axis=axis)
+
+
+@pytest.fixture
+def fake_fw(monkeypatch):
+    """A stand-in for faster_whisper.transcribe where the engine looks for it."""
+    module = SimpleNamespace(pad_or_trim=_pad_to)
+    monkeypatch.setitem(sys.modules, "faster_whisper.transcribe", module)
+    return module
+
+
+def test_short_window_pads_only_inside_a_scope_on_its_thread(fake_fw):
     import threading
-    import faster_whisper.transcribe as fwt
-    assert fw_engine._ShortWindow.install()
-    feats = np.ones((80, 300), dtype=np.float32)              # 3 s of speech
-    assert fwt.pad_or_trim(feats).shape == (80, 3000)          # nobody asked: Whisper's 30 s
-    with fw_engine._ShortWindow.active(True):
-        padded = fwt.pad_or_trim(feats)
+    assert fw_engine.install_short_window()
+    assert fw_engine.install_short_window()                    # once: not wrapped twice
+    feats = np.ones((80, 300), dtype=np.float32)               # 3 s of speech
+    assert fake_fw.pad_or_trim(feats).shape == (80, 3000)      # nobody asked: Whisper's 30 s
+    with fw_engine.short_window_scope(True):
+        padded = fake_fw.pad_or_trim(feats)
         assert padded.shape == (80, 1000) and np.all(padded[:, 300:] == 0)
-        assert fwt.pad_or_trim(feats, 500).shape == (80, 500)  # an explicit length is kept
+        assert fake_fw.pad_or_trim(feats, 500).shape == (80, 500)   # an explicit length is kept
         other = []
-        t = threading.Thread(target=lambda: other.append(fwt.pad_or_trim(feats).shape))
+        t = threading.Thread(target=lambda: other.append(fake_fw.pad_or_trim(feats).shape))
         t.start()
         t.join()
-        assert other == [(80, 3000)]                           # another thread is untouched
-        with fw_engine._ShortWindow.active(False):
-            assert fwt.pad_or_trim(feats).shape == (80, 3000)
-        assert fwt.pad_or_trim(feats).shape == (80, 1000)      # restored after the inner scope
-    assert fwt.pad_or_trim(feats).shape == (80, 3000)
+        assert other == [(80, 3000)]                            # another thread is untouched
+        with fw_engine.short_window_scope(False):
+            assert fake_fw.pad_or_trim(feats).shape == (80, 3000)
+        assert fake_fw.pad_or_trim(feats).shape == (80, 1000)   # restored after the inner scope
+    assert fake_fw.pad_or_trim(feats).shape == (80, 3000)
 
 
-def test_processor_engine_uses_short_windows_while_it_decodes():
-    import faster_whisper.transcribe as fwt
+def test_processor_engine_uses_short_windows_while_it_decodes(fake_fw):
     seen = []
 
     class Model(FakeWhisperModel):
         def transcribe(self, audio, **kw):
-            seen.append(fwt.pad_or_trim(np.ones((80, 400), dtype=np.float32)).shape[1])
+            seen.append(fake_fw.pad_or_trim(np.ones((80, 400), dtype=np.float32)).shape[1])
             return super().transcribe(audio, **kw)
 
     cpu = FasterWhisperEngine(EngineConfig("small.en", "cpu", "int8", 4, "test"), model_factory=Model)
@@ -174,10 +189,16 @@ def test_processor_engine_uses_short_windows_while_it_decodes():
     cpu.transcribe(np.zeros(16000, dtype=np.float32))
     gpu.transcribe(np.zeros(16000, dtype=np.float32))
     assert seen == [1000, 3000]
-    assert fwt.pad_or_trim(np.ones((80, 400), dtype=np.float32)).shape[1] == 3000
+    assert fake_fw.pad_or_trim(np.ones((80, 400), dtype=np.float32)).shape[1] == 3000
 
 
-def test_graphics_card_that_falls_back_to_the_processor_uses_short_windows():
+def test_graphics_card_that_falls_back_to_the_processor_uses_short_windows(fake_fw):
     factory = lambda *a, **k: FakeWhisperModel(*a, fail_cuda=True, **k)
     eng = FasterWhisperEngine(CUDA_CFG, model_factory=factory)
     assert eng.config.device == "cpu" and eng.short_window
+
+
+def test_without_faster_whisper_loaded_every_piece_keeps_the_full_window(monkeypatch):
+    monkeypatch.delitem(sys.modules, "faster_whisper.transcribe", raising=False)
+    eng = FasterWhisperEngine(EngineConfig("small.en", "cpu", "int8", 4, "test"), model_factory=FakeWhisperModel)
+    assert not eng.short_window
