@@ -83,9 +83,11 @@ def test_options_lists_engines_and_disables_unavailable_ones(qapp, monkeypatch):
     from options_dialog import OptionsDialog
     monkeypatch.setattr(engines, "availability",
                         lambda name, **k: (name in ("whisper", "parakeet"), "" if name != "medasr" else "no model"))
+    monkeypatch.setattr(engines, "missing_packages", lambda name, *a: [])
     d = OptionsDialog(st.Settings())
     names = [d.engine.itemData(i) for i in range(d.engine.count())]
     assert names == ["whisper", "medasr"]                   # Parakeet and Canary are trial-only
+    assert not d.engine.isHidden()
     assert d.engine.currentData() == "whisper" and d.accuracy.isEnabled()
     assert not d.engine.model().item(names.index("medasr")).isEnabled()
     assert "no model" in d.engine.itemText(names.index("medasr"))
@@ -96,10 +98,32 @@ def test_options_lists_engines_and_disables_unavailable_ones(qapp, monkeypatch):
     assert d2.result_settings().engine == "parakeet"
 
 
+def test_recognisers_without_their_packages_are_not_offered():
+    have_all = lambda pkg: object()                           # noqa: E731
+    whisper_only = lambda pkg: object() if pkg == "faster_whisper" else None   # noqa: E731  (an installed copy)
+    assert engines.offered(find_spec=have_all) == ["whisper", "medasr"]
+    assert engines.offered(find_spec=whisper_only) == ["whisper"]
+    assert engines.offered("parakeet", find_spec=whisper_only) == ["whisper", "parakeet"]   # the current one stays
+    assert engines.offered("bogus", find_spec=whisper_only) == ["whisper"]
+    assert engines.missing_packages("medasr", whisper_only) == ["torch", "transformers"]
+
+
+def test_options_hide_the_recogniser_choice_when_only_whisper_is_installed(qapp, monkeypatch):
+    import settings as st
+    from options_dialog import OptionsDialog
+    monkeypatch.setattr(engines, "missing_packages", lambda name, *a: [] if name == "whisper" else ["torch"])
+    d = OptionsDialog(st.Settings(), devices=["Mic"], default_device="Mic")
+    assert [d.engine.itemData(i) for i in range(d.engine.count())] == ["whisper"]
+    assert d.engine.isHidden() and not d.accuracy.isHidden()
+    assert "MedASR" not in d.engine_note.text()
+    assert d.result_settings().engine == "whisper"
+
+
 def test_medasr_choice_says_the_licence_must_be_accepted(qapp, monkeypatch):
     import settings as st
     from options_dialog import OptionsDialog
     monkeypatch.setattr(engines, "availability", lambda name, **k: (True, ""))
+    monkeypatch.setattr(engines, "missing_packages", lambda name, *a: [])
     d = OptionsDialog(st.Settings())
     d.engine.setCurrentIndex(d.engine.findData("medasr"))
     note = d.engine_note.text()
@@ -213,6 +237,7 @@ def test_options_offers_languages_and_explains_what_changes(qapp, monkeypatch):
     import settings as st
     from options_dialog import OptionsDialog
     monkeypatch.setattr(engines, "availability", lambda name, **k: (True, ""))
+    monkeypatch.setattr(engines, "missing_packages", lambda name, *a: [])
     d = OptionsDialog(st.Settings())
     assert [d.language.itemData(i) for i in range(d.language.count())] == ["en", "es", "fr"]   # Swahili not offered
     assert "(experimental)" in d.language.itemText(1) and "(experimental)" not in d.language.itemText(0)

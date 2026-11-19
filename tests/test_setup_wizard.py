@@ -294,12 +294,21 @@ def test_download_note_says_where_the_model_comes_from(monkeypatch):
     assert "3 GB" in setup_wizard.download_note(HardwareInfo(cuda_device_count=1, vram_mb=8000))
 
 
-def test_options_say_accuracy_does_not_apply_without_a_graphics_card(qapp):
+def test_options_say_accuracy_does_not_apply_without_a_graphics_card(qapp, monkeypatch):
+    import engines
     from options_dialog import OptionsDialog
+    monkeypatch.setattr(engines, "bundled_model", lambda name: None)
     d = OptionsDialog(st.Settings(), devices=["Mic"], default_device="Mic", processor_only=True)
-    assert not d.accuracy.isEnabled()
+    assert not d.accuracy.isEnabled() and d.accuracy.isHidden()
+    assert not d.model_label.isHidden() and "small.en, on the processor" in d.model_label.text()
+    note = d.engine_note.text()
+    assert "small.en" in note and "large-v3 on" not in note and "3 GB" not in note and "0.5 GB" in note
+    assert d.result_settings().accuracy == "best"             # kept for a PC with a graphics card
+    monkeypatch.setattr(engines, "bundled_model", lambda name: "x" if name == "small.en" else None)
+    bundled = OptionsDialog(st.Settings(), devices=["Mic"], default_device="Mic", processor_only=True)
+    assert "came with the installer" in bundled.engine_note.text() and "GB" not in bundled.engine_note.text()
     gpu = OptionsDialog(st.Settings(), devices=["Mic"], default_device="Mic")
-    assert gpu.accuracy.isEnabled()
+    assert gpu.accuracy.isEnabled() and not gpu.accuracy.isHidden() and gpu.model_label.isHidden()
 
 
 def test_hardware_descriptions():
