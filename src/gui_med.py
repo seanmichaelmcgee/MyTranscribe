@@ -1061,10 +1061,20 @@ class MedTranscriptionWindow(TranscriptionWindow):
         if self._triggers.config.hold_for(source) and self._state == AppState.NORMAL_RECORDING:
             self.on_hotkey()
 
-    def _open_options(self) -> None:
+    def _runs_on_processor(self) -> bool:
+        """Whisper runs on the processor here: from the loaded model, or (still loading) from the hardware."""
         config = getattr(self._engine, "config", None)
-        dlg = OptionsDialog(self._settings, parent=self,
-                            processor_only=getattr(config, "device", "") == "cpu")
+        if config is not None:
+            return getattr(config, "device", "") == "cpu"
+        try:
+            from hw_profile import choose_config, detect_hardware
+            return choose_config(detect_hardware()).device == "cpu"
+        except Exception:
+            logger.debug("Hardware check for Options failed", exc_info=True)
+            return False
+
+    def _open_options(self) -> None:
+        dlg = OptionsDialog(self._settings, parent=self, processor_only=self._runs_on_processor())
         accepted = dlg.exec()
         if dlg.log_window is not None and dlg.log_window.isVisible():
             # Keep the log open after Options closes: it becomes this window's.

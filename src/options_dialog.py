@@ -188,9 +188,7 @@ class OptionsDialog(QDialog):
         acc_form = QFormLayout()
         acc_form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
         self.engine = QComboBox()
-        offered = list(engines.OFFERED)
-        if settings.engine not in offered and settings.engine in engines.ENGINES:
-            offered.append(settings.engine)          # a trial engine chosen by environment variable
+        offered = engines.offered(settings.engine)
         for name in offered:
             info = engines.ENGINES[name]
             ok, why = engines.availability(name)
@@ -200,8 +198,14 @@ class OptionsDialog(QDialog):
                 item.setEnabled(False)
         self.engine.setCurrentIndex(max(0, self.engine.findData(settings.engine)))
         acc_form.addRow("Recogniser:", self.engine)
+        acc_form.setRowVisible(self.engine, len(offered) > 1)    # only Whisper here: nothing to choose
         self.accuracy = self._combo(ACCURACY, settings.accuracy)
         acc_form.addRow("Accuracy:", self.accuracy)
+        from hw_profile import CPU_DEFAULT_MODEL
+        self.model_label = QLabel(f"Whisper {CPU_DEFAULT_MODEL}, on the processor")
+        self.model_label.setObjectName("fixedBinding")
+        acc_form.addRow("Model:", self.model_label)               # instead of Accuracy, without a graphics card
+        self._speech_form = acc_form
         languages = [(code, name + (" (experimental)" if code in EXPERIMENTAL_LANGUAGES else ""))
                      for code, name in lang_packs.LANGUAGES
                      if code in SHOWN_LANGUAGES or code == settings.language]
@@ -356,12 +360,21 @@ class OptionsDialog(QDialog):
         """Accuracy only applies to Whisper; say what the chosen model is and where it comes from."""
         name = self.engine.currentData()
         info = engines.ENGINES[name]
+        on_processor = name == "whisper" and self._processor_only
         self.accuracy.setEnabled(name == "whisper" and not self._processor_only)
-        note = (f"{info.note} Download: {info.size}. Licence: {info.licence}. "
-                "Saving a change reloads the model; you are asked before any download.")
-        if name == "whisper" and self._processor_only:
-            note += (" This PC has no usable NVIDIA graphics card, so Whisper runs small.en on the processor "
-                     "and Accuracy does not apply.")
+        self._speech_form.setRowVisible(self.accuracy, not on_processor)
+        self._speech_form.setRowVisible(self.model_label, on_processor)
+        if on_processor:
+            from hw_profile import CPU_DEFAULT_MODEL
+            where = ("It came with the installer: nothing is downloaded." if engines.bundled_model(CPU_DEFAULT_MODEL)
+                     else "If it is not on this PC yet, you are asked before it is downloaded (about 0.5 GB, once).")
+            note = (f"This PC has no usable NVIDIA graphics card, so Whisper runs its smaller model, "
+                    f"{CPU_DEFAULT_MODEL}, on the processor: the text comes a few seconds after you stop, and it "
+                    f"makes more mistakes than the large model on a graphics card, especially in drug names. "
+                    f"{where} Licence: {info.licence}.")
+        else:
+            note = (f"{info.note} Download: {info.size}. Licence: {info.licence}. "
+                    "Saving a change reloads the model; you are asked before any download.")
         pack = lang_packs.get(self.language.currentData())
         if pack is not None:
             note += (f" {pack.name} is experimental: spoken commands and punctuation use that language's words, "

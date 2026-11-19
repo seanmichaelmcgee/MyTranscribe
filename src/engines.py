@@ -2,8 +2,9 @@
 engines.py — the speech recognisers the app can use, and what each needs.
 
 Options -> Speech model picks one. Whisper (faster-whisper) is the default and
-the only one the standard install provides; the others are optional and appear
-as unavailable, with the reason, until their packages and model are present.
+the only one the standard install provides (the installer has nothing else). The
+others are optional: Options lists one only when its packages are installed, as
+unavailable, with the reason, until its model is present too.
 
 Nothing is downloaded behind the user's back: the app runs with the Hugging
 Face hub offline. When a model is not on the PC yet, loading raises
@@ -17,7 +18,7 @@ import logging
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 
 logger = logging.getLogger("engines")
 ROOT = Path(__file__).resolve().parent.parent
@@ -87,12 +88,28 @@ def medasr_snapshot(env: Optional[dict] = None) -> Optional[Path]:
     return None
 
 
+def missing_packages(name: str, find_spec=importlib.util.find_spec) -> List[str]:
+    """The packages recogniser `name` needs that this Python cannot import."""
+    info = ENGINES.get(name)
+    return [p for p in info.needs if find_spec(p) is None] if info else []
+
+
+def offered(current: str = "", find_spec=importlib.util.find_spec) -> List[str]:
+    """
+    What Options -> Recogniser lists: Whisper, the other offered recognisers whose packages are
+    installed here (none in an installed copy, so there is nothing to choose), and the current one.
+    """
+    names = [n for n in OFFERED if n == DEFAULT or not missing_packages(n, find_spec)]
+    if current in ENGINES and current not in names:
+        names.append(current)                    # e.g. a trial engine chosen by environment variable
+    return names
+
+
 def availability(name: str, find_spec=importlib.util.find_spec, env: Optional[dict] = None) -> Tuple[bool, str]:
     """(usable now?, why not). A missing model that can be downloaded still counts as usable."""
-    info = ENGINES.get(name)
-    if info is None:
+    if name not in ENGINES:
         return False, "unknown recogniser"
-    missing = [p for p in info.needs if find_spec(p) is None]
+    missing = missing_packages(name, find_spec)
     if missing:
         return False, "not installed: " + ", ".join(missing)
     if name == "medasr" and medasr_snapshot(env) is None:
