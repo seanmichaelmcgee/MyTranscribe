@@ -30,7 +30,19 @@ def step(name, fn):
 def imports():
     import ctranslate2, faster_whisper, numpy, pyaudio, pynput, psutil, rapidfuzz, jellyfish, wordfreq  # noqa
     from PyQt6 import QtCore, QtGui, QtWidgets  # noqa
+    import gui_med, setup_wizard, options_dialog, drug_names, voice_commands  # noqa  (the whole app)
     return f"python {sys.version.split()[0]} at {sys.executable}"
+
+
+def text_pipeline():
+    """The clean-up steps that need data files and libraries: drug names, vocabulary, commands."""
+    import text_fixes
+    import voice_commands
+    out = voice_commands.apply(text_fixes.finish("She takes Jardientz 25 mg daily comma um no fever period"),
+                               lenient=True, punctuation=True)
+    if "Jardiance 25 mg daily, no fever." not in out:
+        raise AssertionError(out)
+    return out
 
 
 def engine():
@@ -50,6 +62,7 @@ def decode(eng):
 
 if __name__ == "__main__":
     step("imports", imports)
+    step("text clean-up", text_pipeline)
     import hw_profile
     hw = step("hardware", lambda: hw_profile.detect_hardware())
     cfg = hw_profile.choose_config(hw, accurate=True)

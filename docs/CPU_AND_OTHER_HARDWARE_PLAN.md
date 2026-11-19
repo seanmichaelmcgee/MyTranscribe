@@ -1,6 +1,7 @@
 # Running without an NVIDIA card: test and distribution plan
 
-Status: plan, 2026-11-17. Windows first; other graphics cards (Vulkan) next; Apple (Metal) later.
+Status: phase 1 built 2026-11-19 (small.en on the processor, and a Windows installer); not yet
+tried on a real laptop. Other graphics cards (Vulkan) next; Apple (Metal) later.
 
 The goal stays the same: high-quality English medical dictation with an ordinary microphone.
 A setup is only offered to testers once it has been measured on the same fictional reading
@@ -42,6 +43,32 @@ What it says:
   wait: for short pieces the fixed cost of reading the audio (the encoder) dominates, and only
   a smaller model reduces that.
 - So the processor-only build needs a smaller model, chosen by measurement, not by guess.
+
+### Phase 1 result (2026-11-19): small.en, 3 beams, and an installer
+
+- **The four candidates were measured** (`large-v3-turbo`, `distil-large-v3.5`, `medium.en`,
+  `small.en`):
+  - speed on four laptop-class cores (this PC's efficiency cores, pinned);
+  - accuracy on the owner's 47 real recordings.
+
+  Only small.en keeps up on a laptop: about 3 s after a 7.5 s message and 6 s for 30 s of
+  speech on those cores. The larger models need 10 to 12 s for the same message. Full table:
+  [installer/README.md](../installer/README.md).
+- **The real app in real time on those cores** (23 held-out recordings): median wait after Stop
+  3.6 s (3.0 to 9.3 s), and 5.88% word errors.
+- **Cost:** small.en makes 9.98% word errors and gets 36 of 314 medical words wrong, against
+  7.47% and 12 for large-v3 on a graphics card.
+- **App changes:**
+  - on the processor, 3 beams with patience 1: same accuracy as 5 beams and patience 2, about
+    30% faster;
+  - one thread per physical core;
+  - an NVIDIA card without its libraries uses the processor;
+  - the wizard states the expected wait and the extra errors.
+- **Distribution:** `installer/` builds a per-user Windows installer, with Python, the packages
+  and small.en inside, and no NVIDIA libraries. Code signing and the licences of the bundled
+  parts are still to decide before testers get it.
+- **Not yet measured:** a real 5-year-old laptop. The decision rule below (under 3 s after a
+  short message) is probably missed by a few seconds on one.
 
 ## Phase 1: processor-only Windows (now)
 

@@ -53,6 +53,13 @@ Accuracy was measured on the owner's 47 real recordings. A 5-year-old laptop is 
 - **The accuracy cost is real.** The processor-only build makes about three times as many
   medical-word errors as large-v3 on a graphics card. The setup wizard says so.
 
+**The real app, in real time, on the same four cores** (`scripts/live_app_trial.py`; the owner's
+23 held-out recordings played through a virtual cable):
+- **Wait after Stop:** median 3.6 s. Short messages took 3.0 to 3.8 s; long letters 5.5 to 9.3 s.
+- **Word errors:** 5.88%. All 56 layout commands were kept.
+- **Fix found on the way:** a piece that ended in silence was decoded a second time, which nearly
+  doubled the wait after a long letter (11.7 s down to 6.6 s).
+
 ## Building
 
 Build with the app's development environment (the venv the tests use), on Windows:
