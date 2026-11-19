@@ -40,6 +40,13 @@ SAMPLE_RATE = 16000
 # $MYTRANSCRIBE_BEAM_SIZE=1 trades accuracy for speed.
 DEFAULT_BEAM_SIZE = 5
 DEFAULT_PATIENCE = 2.0
+# Processor only (no usable NVIDIA card; small.en): 3 beams, patience 1. On the owner's 47
+# real recordings (2026-11-19) this kept beam 5's accuracy (9.98% word errors, 36 of 314
+# medical words wrong; greedy: 10.48%, 43 of 314) and, on four laptop-class cores, cut a 7.5 s
+# message from 4.8 s to 3.3 s and 30 s of speech from 7.2 s to 5.7 s. With more than one beam
+# the vocabulary prompt is what costs time, and patience 2 doubles that.
+CPU_BEAM_SIZE = 3
+CPU_PATIENCE = 1.0
 # Runaway guard: Whisper can loop ("thank you. thank you. ...") or, with
 # temperature fallback, decode garbage until the 448-token window is full. A
 # chunk never needs more than ~10 tokens per second of audio (fast dictation is
@@ -119,12 +126,15 @@ class FasterWhisperEngine:
         # trial scripts set it, e.g. {"vad_parameters": {...}} or {"vad_filter": False}.
         self.decode_overrides: dict = {}
         self.language = "en"            # Whisper language code; Options -> Dictation language sets it
+        on_cpu = config.device == "cpu"
+        default_beam = CPU_BEAM_SIZE if on_cpu else DEFAULT_BEAM_SIZE
         if beam_size is None:
             try:
-                beam_size = int(os.environ.get("MYTRANSCRIBE_BEAM_SIZE", DEFAULT_BEAM_SIZE))
+                beam_size = int(os.environ.get("MYTRANSCRIBE_BEAM_SIZE", default_beam))
             except ValueError:
-                beam_size = DEFAULT_BEAM_SIZE
+                beam_size = default_beam
         self.beam_size = max(1, beam_size)
+        self.patience = CPU_PATIENCE if on_cpu else DEFAULT_PATIENCE
 
         if model_factory is None:
             from faster_whisper import WhisperModel
@@ -154,9 +164,10 @@ class FasterWhisperEngine:
             logger.error("CUDA model load failed (%s); falling back to CPU int8", exc)
             self.config = EngineConfig(
                 model=config.model, device="cpu", compute_type="int8",
-                cpu_threads=max(1, (os.cpu_count() or 2) - 1),
+                cpu_threads=max(1, min(8, (os.cpu_count() or 2) // 2)),
                 reason=f"CUDA load failed: {exc}",
             )
+            self.patience = CPU_PATIENCE
             return model_factory(
                 self.config.model,
                 device="cpu",
@@ -222,7 +233,7 @@ class FasterWhisperEngine:
             language=self.language,
             task="transcribe",
             beam_size=self.beam_size,
-            patience=DEFAULT_PATIENCE if self.beam_size > 1 else 1.0,
+            patience=self.patience if self.beam_size > 1 else 1.0,
             initial_prompt=prompt or None,
             condition_on_previous_text=False,
             vad_filter=True,
