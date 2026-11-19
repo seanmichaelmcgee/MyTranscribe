@@ -283,6 +283,17 @@ def test_summary_names_the_model_this_pc_runs(make_wizard, qapp):
     assert "most accurate (large-v3)" in w2.summary.lines.text()
 
 
+def test_download_note_says_where_the_model_comes_from(monkeypatch):
+    from hw_profile import HardwareInfo
+    import setup_wizard
+    cpu = HardwareInfo(cuda_device_count=0)
+    monkeypatch.setattr(setup_wizard.engines, "bundled_model", lambda name: None)
+    assert "0.5 GB" in setup_wizard.download_note(cpu) and "asks before" in setup_wizard.download_note(cpu)
+    monkeypatch.setattr(setup_wizard.engines, "bundled_model", lambda name: "x" if name == "small.en" else None)
+    assert "came with the installer" in setup_wizard.download_note(cpu)
+    assert "3 GB" in setup_wizard.download_note(HardwareInfo(cuda_device_count=1, vram_mb=8000))
+
+
 def test_options_say_accuracy_does_not_apply_without_a_graphics_card(qapp):
     from options_dialog import OptionsDialog
     d = OptionsDialog(st.Settings(), devices=["Mic"], default_device="Mic", processor_only=True)

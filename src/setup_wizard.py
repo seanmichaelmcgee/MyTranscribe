@@ -167,6 +167,18 @@ def model_line(s: Settings, hw=None) -> str:
     return f"Model: {model}{extra}"
 
 
+def download_note(hw) -> str:
+    """Where the speech model comes from on this PC: shipped with the installer, or asked for."""
+    from hw_profile import CPU_DEFAULT_MODEL, GPU_ACCURATE_MODEL, GPU_DEFAULT_MODEL
+    processor = hw is not None and not hw.cuda_device_count
+    names = [CPU_DEFAULT_MODEL] if processor else [GPU_ACCURATE_MODEL, GPU_DEFAULT_MODEL]
+    if any(engines.bundled_model(n) is not None for n in names):
+        return "The speech model came with the installer: nothing is downloaded, and it works offline."
+    size = "about 0.5 GB" if processor else "about 3 GB, or 1.6 GB for the faster model"
+    return f"If the model is not on this PC yet, MyTranscribe asks before downloading it ({size}, once). " \
+           "After that it works offline."
+
+
 def summary_lines(s: Settings, device_label: str, hw=None) -> List[str]:
     out = {k: label for k, label, _ in OUTPUT}[output_choice(s)]
     triggers = s.triggers().describe()
@@ -561,9 +573,7 @@ class ComputerPage(QWizardPage):
             ("fast", "Faster (Whisper large-v3-turbo)", "Quicker on an older card, slightly less accurate.")),
             settings.accuracy)
         self._choice_widgets = [b.card for b in self.group.buttons()]
-        info = engines.ENGINES["whisper"]
-        self.download = _help(f"If the model is not on this PC yet, MyTranscribe asks before downloading it "
-                              f"({info.size}, once). After that it works offline.")
+        self.download = _help(download_note(None))
         layout.addWidget(self.download)
         if settings.engine != "whisper":
             layout.addWidget(_help(f"The recogniser chosen in Options is {engines.ENGINES[settings.engine].label}; "
@@ -611,6 +621,7 @@ class ComputerPage(QWizardPage):
         for w in self._choice_widgets:
             w.setEnabled(choice)
             w.setVisible(choice)
+        self.download.setText(download_note(self._result))
 
     def accuracy(self) -> str:
         return _checked(self.group) or "best"
@@ -676,7 +687,8 @@ class TriggersPage(QWizardPage):
         layout.addLayout(form)
         layout.addWidget(_help("Hold to talk: dictation runs while you hold it down. Toggle: press once to start "
                                "and again to stop. Ctrl+Alt+Q always toggles, and Space works when the "
-                               "MyTranscribe window is in front."))
+                               "MyTranscribe window is in front. On many laptops the F keys work only with "
+                               "the Fn key held: if yours does not register below, choose another key."))
         layout.addSpacing(6)
         self.seen = _text("Try it: press your key or mouse button now.", "pageText")
         layout.addWidget(self.seen)
