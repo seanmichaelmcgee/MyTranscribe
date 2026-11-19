@@ -38,8 +38,9 @@ CABLE_CAPTURE_PREFIX = "CABLE Output"
 OPTIONS = ("pause_aware", "spoken_punctuation", "extra_fixes", "only_dictated_commas")
 
 
-def cable_stream_factory():
-    """Open the cable's recording end as the app's microphone: (stream, pyaudio)."""
+def cable_stream_factory(device=None):
+    """Open the cable's recording end as the app's microphone: (stream, pyaudio). The app passes
+    its chosen microphone (Options); the trial always uses the cable instead."""
     import pyaudio
     from chunked_transcriber import FRAMES_PER_BUFFER, SAMPLE_RATE
     pa = pyaudio.PyAudio()
