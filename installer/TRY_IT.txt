@@ -20,6 +20,12 @@ What to expect
 - Click Install. No administrator rights are needed; it takes about a minute.
 - Leave "Start MyTranscribe now" ticked and click Finish.
 
+Updates
+-------
+- A fix to the app comes as MyTranscribe-Medical-Update-<version>.exe (under 1 MB). Close
+  MyTranscribe, run it, click Update. The speech model and your settings stay as they are.
+  It only works on a PC where the full installer has been run.
+
 2. First start: setup (about three minutes)
 --------------------------------------------
 - How you dictate: traditional (you say "period", "comma") or natural speech.

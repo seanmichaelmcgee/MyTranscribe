@@ -10,6 +10,10 @@
 // user's settings, word lists and log (they live in %APPDATA% and %LOCALAPPDATA%\MyTranscribe).
 // Uninstall: the same program without the zip, copied into the install folder.
 //
+// An update package (build_info.json "kind": "update") carries only the app's own code (src/):
+// it needs an installed copy built with the same Python, replaces src/ (put back if anything
+// goes wrong) and leaves Python, the packages, the speech model and the shortcuts as they are.
+//
 // Switches (for scripted tests): /S silent, /D=<folder>, /noshortcuts, /uninstall.
 
 using System;
@@ -177,9 +181,16 @@ class Payload
 {
     public string Path;
     public long Offset, Length;
-    public string Version = "";
+    public string Version = "", Kind = "", Python = "";
     public long UnpackedBytes;
     public int Files;
+    public bool IsUpdate { get { return Kind == "update"; } }
+
+    public static string Field(string json, string name)
+    {
+        var m = System.Text.RegularExpressions.Regex.Match(json, "\"" + name + "\":\\s*\"([^\"]*)\"");
+        return m.Success ? m.Groups[1].Value : "";
+    }
 
     public static Payload Open(string exe)
     {
@@ -203,8 +214,10 @@ class Payload
                 if (info != null)
                     using (var r = new StreamReader(info.Open()))
                     {
-                        var m = System.Text.RegularExpressions.Regex.Match(r.ReadToEnd(), "\"version\":\\s*\"([^\"]*)\"");
-                        if (m.Success) p.Version = m.Groups[1].Value;
+                        string json = r.ReadToEnd();
+                        p.Version = Field(json, "version");
+                        p.Kind = Field(json, "kind");
+                        p.Python = Field(json, "python");
                     }
             }
             return p;
@@ -272,13 +285,20 @@ static class Installer
     {
         try
         {
+            if (p.IsUpdate)
+            {
+                string target = o.Folder ?? Program.InstalledFolder() ?? Program.DefaultFolder();
+                Update(p, target, null);
+                Log.Write("updated " + target + " to " + p.Version);
+                return 0;
+            }
             Install(p, o.Folder ?? Program.DefaultFolder(), !o.NoShortcuts, null);
             Log.Write("installed to " + (o.Folder ?? Program.DefaultFolder()));
             return 0;
         }
         catch (Exception ex)
         {
-            Log.Write("install failed: " + ex);
+            Log.Write((p.IsUpdate ? "update" : "install") + " failed: " + ex);
             return 1;
         }
     }
@@ -323,6 +343,70 @@ static class Installer
             Shortcuts.Create(folder);
         }
         Register(folder, p);
+    }
+
+    // Why an update package cannot be applied to folder, or null if it can.
+    public static string UpdateProblem(Payload p, string folder)
+    {
+        if (!File.Exists(Path.Combine(folder, "python", "python.exe")))
+            return Program.AppName + " is not installed on this PC. This file only updates an installed copy: " +
+                   "install it with the full installer first.";
+        string info = Path.Combine(folder, "build_info.json");
+        string installedPython = File.Exists(info) ? Payload.Field(File.ReadAllText(info), "python") : "";
+        if (p.Python != "" && installedPython != "" && p.Python != installedPython)
+            return "This update does not fit the installed copy (it was built with a different Python). " +
+                   "Please use the full installer instead.";
+        return null;
+    }
+
+    // A copy of the app started from this folder (its Python) is running.
+    public static bool Running(string folder)
+    {
+        string python = Path.GetFullPath(Path.Combine(folder, "python")) + Path.DirectorySeparatorChar;
+        foreach (var name in new[] { "python", "pythonw" })
+            foreach (var proc in Process.GetProcessesByName(name))
+            {
+                try
+                {
+                    if (proc.MainModule.FileName.StartsWith(python, StringComparison.OrdinalIgnoreCase))
+                        return true;
+                }
+                catch (Exception) { }
+                finally { proc.Dispose(); }
+            }
+        return false;
+    }
+
+    // An update package: replaces src/ (put back if anything goes wrong) and the small files
+    // beside it; Python, the packages, the model and the shortcuts stay as they are.
+    public static void Update(Payload p, string folder, Action<long, long> progress)
+    {
+        string problem = UpdateProblem(p, folder);
+        if (problem != null) throw new InvalidOperationException(problem);
+        if (Running(folder))
+            throw new IOException(Program.AppName + " is still running. Close it (the window, and the " +
+                                  "icon by the clock if there is one), then try again.");
+        string src = Path.Combine(folder, "src"), old = src + ".old";
+        if (Directory.Exists(old)) TryDelete(old);
+        for (int i = 0; Directory.Exists(src); i++)
+        {
+            try { Directory.Move(src, old); }
+            catch (IOException) { if (i >= 3) throw; Thread.Sleep(500); }
+            catch (UnauthorizedAccessException) { if (i >= 3) throw; Thread.Sleep(500); }
+        }
+        try
+        {
+            Extract(p, folder, progress);
+        }
+        catch (Exception)
+        {
+            TryDelete(src);
+            if (Directory.Exists(old) && !Directory.Exists(src)) Directory.Move(old, src);
+            throw;
+        }
+        TryDelete(old);
+        using (var key = Registry.CurrentUser.OpenSubKey(Program.RegKey, true))
+            if (key != null) key.SetValue("DisplayVersion", p.Version);
     }
 
     static void Extract(Payload p, string folder, Action<long, long> progress)
@@ -457,7 +541,7 @@ class InstallForm : Form
     {
         payload = p; opts = o;
         folder = o.Folder ?? Program.InstalledFolder() ?? Program.DefaultFolder();
-        Text = Program.AppName + " Setup";
+        Text = Program.AppName + (p.IsUpdate ? " Update" : " Setup");
         Icon = Ui.AppIcon();
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false; MinimizeBox = true;
@@ -509,6 +593,25 @@ class InstallForm : Form
 
     void ShowWelcome()
     {
+        if (payload.IsUpdate)
+        {
+            string problem = Installer.UpdateProblem(payload, folder);
+            if (problem != null)
+            {
+                state = "blocked";
+                Lines(Ui.Text(problem, 10.5f, false, Ui.Ink));
+                primary.Text = primary.AccessibleName = "Close";
+                secondary.Visible = false;
+                return;
+            }
+            Lines(
+                Ui.Text("This updates MyTranscribe Medical to version " + payload.Version + ".", 10.5f, false, Ui.Ink),
+                Ui.Text("Only the program itself changes: the speech model, your settings and your word lists stay " +
+                        "as they are. Close MyTranscribe first if it is open.", 10f, false, Ui.Ink),
+                Ui.Text("Updates " + folder, 9f, false, Ui.Muted));
+            primary.Text = primary.AccessibleName = "Update";
+            return;
+        }
         bool update = Directory.Exists(folder);
         double gb = payload.UnpackedBytes / 1e9;
         Lines(
@@ -526,6 +629,7 @@ class InstallForm : Form
     void OnPrimary(object sender, EventArgs e)
     {
         if (state == "welcome") Begin();
+        else if (state == "blocked") Close();
         else if (state == "done")
         {
             if (startNow.Checked) Installer.Start(folder);
@@ -539,14 +643,14 @@ class InstallForm : Form
         primary.Enabled = false; secondary.Enabled = false;
         bar.Height = 18; bar.Maximum = 1000;
         status.Text = "Copying files…";
-        Lines(Ui.Text("Installing…", 12f, true, Ui.Ink), bar, status);
+        Lines(Ui.Text(payload.IsUpdate ? "Updating…" : "Installing…", 12f, true, Ui.Ink), bar, status);
         var worker = new Thread(() =>
         {
             Exception error = null;
             try
             {
                 long last = 0;
-                Installer.Install(payload, folder, !opts.NoShortcuts, (done, total) =>
+                Action<long, long> progress = (done, total) =>
                 {
                     if (done - last < (8 << 20) && done < total) return;
                     last = done;
@@ -556,7 +660,9 @@ class InstallForm : Form
                         status.Text = "Copying files… " + (done / 1e9).ToString("0.0") + " of " +
                                       (total / 1e9).ToString("0.0") + " GB";
                     }));
-                });
+                };
+                if (payload.IsUpdate) Installer.Update(payload, folder, progress);
+                else Installer.Install(payload, folder, !opts.NoShortcuts, progress);
             }
             catch (Exception ex) { error = ex; }
             BeginInvoke((Action)(() => Finish(error)));
@@ -581,12 +687,19 @@ class InstallForm : Form
         startNow.Checked = true;
         startNow.Font = new Font("Segoe UI", 10f);
         startNow.Height = 28;
-        Lines(
-            Ui.Text("MyTranscribe Medical is installed.", 12f, true, Ui.Ink),
-            Ui.Text(opts.NoShortcuts ? "Start it from " + folder + "."
-                    : "Start it from the shortcut on your desktop or from the Start menu. The first start asks " +
-                      "a few questions to set it up (about three minutes).", 10f, false, Ui.Ink),
-            startNow);
+        if (payload.IsUpdate)
+            Lines(
+                Ui.Text("MyTranscribe Medical is updated to version " + payload.Version + ".", 12f, true, Ui.Ink),
+                Ui.Text("Start it as usual, from the shortcut on your desktop or from the Start menu.",
+                        10f, false, Ui.Ink),
+                startNow);
+        else
+            Lines(
+                Ui.Text("MyTranscribe Medical is installed.", 12f, true, Ui.Ink),
+                Ui.Text(opts.NoShortcuts ? "Start it from " + folder + "."
+                        : "Start it from the shortcut on your desktop or from the Start menu. The first start asks " +
+                          "a few questions to set it up (about three minutes).", 10f, false, Ui.Ink),
+                startNow);
         primary.Text = primary.AccessibleName = "Finish";
         primary.Enabled = true;
         secondary.Visible = false;

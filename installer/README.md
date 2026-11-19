@@ -82,6 +82,26 @@ dist\MyTranscribe-Medical-Setup-<version>.exe /S /noshortcuts "/D=C:\some\folder
 "C:\some\folder\Uninstall MyTranscribe.exe" /uninstall /S
 ```
 
+## Update packages
+
+A fix to the app's own code does not need the 0.7 GB installer again. An update package carries
+only `src\` (about 0.6 MB) and works on a PC that already has the full install:
+
+```powershell
+venv\Scripts\python.exe installer\build_installer.py --update --version 2026.11.19.2
+```
+
+- **Same installer program, smaller payload.** Its window says "Update"; it replaces `src\`
+  (putting the old one back if anything fails) and the version shown in Settings → Apps, and
+  keeps Python, the packages, the speech model, the shortcuts and the user's settings.
+- **It refuses** when nothing is installed, when the installed copy has a different Python, and
+  while MyTranscribe is running.
+- **The build refuses** when the packages here differ from the last full build (`dist\stage`),
+  since an update cannot change them: build the full installer then.
+- **Tested on this PC (2026-11-19):** full install, update refused while the app ran, silent
+  update, update through its window, self-test of the updated copy, update refused without an
+  install, uninstall.
+
 ## Before sharing beyond the owner
 
 - **Code signing.** Without it, Windows SmartScreen warns every user, and managed PCs may block
