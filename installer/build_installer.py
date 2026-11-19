@@ -5,12 +5,17 @@ the packages the app needs (no NVIDIA libraries), the app and the chosen speech 
 
     python installer/build_installer.py --model C:\\path\\to\\faster-whisper-small.en [--model ...]
                                         [--version 2026.11.19] [--out dist]
+    python installer/build_installer.py --update --version 2026.11.19.2     (a small update package)
+
+An update package carries only src/ (about 2 MB) for PCs that already have the full install.
+It is refused at build time when the packages here differ from those in the last full build
+(dist/stage), since it cannot change them; then build the full installer again.
 
 Run it with the app's environment (the venv the tests use): that is where the packages are
 copied from. Steps, each in its own function:
 
   stage()     dist/stage/: python/ (runtime + site-packages), src/, models/, NOTICE
-  zip_stage() dist/payload.zip
+  zip_stage() dist/stage.zip (dist/stage_update.zip for an update package)
   compile()   installer/Setup.cs -> dist/setup_stub.exe (Windows' own C# compiler, .NET 4.8)
   join()      stub + payload + trailer -> dist/MyTranscribe-Medical-Setup-<version>.exe
 
@@ -176,17 +181,11 @@ def stage(out: Path, models, version: str) -> Path:
     # Isolated: only these folders, whatever is installed or set on the PC.
     (py / f"{tag}._pth").write_text("Lib\nDLLs\nLib\\site-packages\n..\\src\nimport site\n", encoding="utf-8")
 
-    def ignore_src(folder, names):
-        return [n for n in names if n in ("__pycache__",) or n.endswith(".pyc")]
-    shutil.copytree(REPO / "src", st / "src", ignore=ignore_src)
+    _copy_app(st)
     for m in models:
         m = Path(m)
         shutil.copytree(m, st / "models" / m.name)
-    for name in ("LICENSE.txt", "NOTICE.md"):
-        if (REPO / name).is_file():
-            shutil.copy2(REPO / name, st / name)
-    shutil.copy2(HERE / "selftest.py", st / "selftest.py")
-    info = {"version": version, "device": "cpu", "models": [Path(m).name for m in models],
+    info = {"version": version, "kind": "full", "device": "cpu", "models": [Path(m).name for m in models],
             "python": sys.version.split()[0]}
     (st / "build_info.json").write_text(json.dumps(info, indent=1), encoding="utf-8")
     print("Compiling Python files ...")
@@ -196,9 +195,58 @@ def stage(out: Path, models, version: str) -> Path:
     return st
 
 
+def _copy_app(st: Path) -> None:
+    """The app itself, as the full installer and an update package both carry it."""
+    def ignore_src(folder, names):
+        return [n for n in names if n in ("__pycache__",) or n.endswith(".pyc")]
+    shutil.copytree(REPO / "src", st / "src", ignore=ignore_src)
+    for name in ("LICENSE.txt", "NOTICE.md"):
+        if (REPO / name).is_file():
+            shutil.copy2(REPO / name, st / name)
+    shutil.copy2(HERE / "selftest.py", st / "selftest.py")
+
+
+def shipped_packages(site: Path) -> dict:
+    """{distribution: version} as a staged site-packages holds them (from the .dist-info folder names)."""
+    out = {}
+    for d in site.glob("*.dist-info"):
+        name, _, version = d.name[: -len(".dist-info")].rpartition("-")
+        out[re.sub(r"[-_.]+", "-", name).lower()] = version
+    return out
+
+
+def stage_update(out: Path, version: str, base: Path) -> Path:
+    """dist/stage_update/: src/ and the small files beside it, for an installed copy built from `base`."""
+    site = base / "python" / "Lib" / "site-packages"
+    if not site.is_dir():
+        raise SystemExit(f"No full build in {base}: build the full installer first.")
+    here = {k: d.version for k, d in closure(ROOTS).items()}
+    shipped = shipped_packages(site)
+    changed = sorted(k for k in set(here) | set(shipped) if here.get(k) != shipped.get(k))
+    if changed:
+        raise SystemExit("These packages differ from the full build, which an update cannot change: "
+                         + ", ".join(f"{k} {shipped.get(k, '-')} -> {here.get(k, '-')}" for k in changed)
+                         + ". Build the full installer instead.")
+    base_info = json.loads((base / "build_info.json").read_text(encoding="utf-8"))
+    st = out / "stage_update"
+    if st.exists():
+        shutil.rmtree(st)
+    st.mkdir(parents=True)
+    _copy_app(st)
+    info = {"version": version, "kind": "update", "device": "cpu", "python": sys.version.split()[0],
+            "base": base_info.get("version", "")}
+    if info["python"] != base_info.get("python"):
+        raise SystemExit(f"Python here is {info['python']}, the full build has {base_info.get('python')}.")
+    (st / "build_info.json").write_text(json.dumps(info, indent=1), encoding="utf-8")
+    compileall.compile_dir(str(st), quiet=1, workers=0)
+    total = sum(f.stat().st_size for f in st.rglob("*") if f.is_file())
+    print(f"Staged update {total / 1e6:.1f} MB in {st} (for full build {info['base']})")
+    return st
+
+
 # ── Payload, stub, installer ─────────────────────────────────────────────────
 def zip_stage(st: Path, out: Path) -> Path:
-    payload = out / "payload.zip"
+    payload = out / f"{st.name}.zip"
     files = [f for f in st.rglob("*") if f.is_file()]
     with zipfile.ZipFile(payload, "w", zipfile.ZIP_DEFLATED, compresslevel=6, allowZip64=True) as z:
         for f in files:
@@ -220,8 +268,8 @@ def compile_stub(out: Path, icon: Path) -> Path:
     return exe
 
 
-def join(stub: Path, payload: Path, out: Path, version: str) -> Path:
-    setup = out / f"MyTranscribe-Medical-Setup-{version}.exe"
+def join(stub: Path, payload: Path, out: Path, version: str, kind: str = "Setup") -> Path:
+    setup = out / f"MyTranscribe-Medical-{kind}-{version}.exe"
     offset = stub.stat().st_size
     with open(setup, "wb") as w:
         for part in (stub, payload):
@@ -234,16 +282,25 @@ def join(stub: Path, payload: Path, out: Path, version: str) -> Path:
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--model", action="append", required=True, help="a faster-whisper model folder to include")
+    ap.add_argument("--model", action="append", help="a faster-whisper model folder to include (full installer)")
     ap.add_argument("--version", default="dev")
     ap.add_argument("--out", type=Path, default=REPO / "dist")
     ap.add_argument("--skip-stage", action="store_true", help="reuse dist/stage")
+    ap.add_argument("--update", action="store_true",
+                    help="build a small update package (src/ only) for copies installed from dist/stage")
     args = ap.parse_args(argv)
     args.out.mkdir(parents=True, exist_ok=True)
-    st = args.out / "stage" if args.skip_stage else stage(args.out, args.model, args.version)
+    if args.update:
+        st = stage_update(args.out, args.version, args.out / "stage")
+    elif args.skip_stage:
+        st = args.out / "stage"
+    elif args.model:
+        st = stage(args.out, args.model, args.version)
+    else:
+        ap.error("--model is needed for the full installer")
     payload = zip_stage(st, args.out)
     stub = compile_stub(args.out, REPO / "src" / "assets" / "mytranscribe.ico")
-    join(stub, payload, args.out, args.version)
+    join(stub, payload, args.out, args.version, "Update" if args.update else "Setup")
 
 
 if __name__ == "__main__":
