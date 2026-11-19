@@ -1143,6 +1143,17 @@ class MedTranscriptionWindow(TranscriptionWindow):
         super().closeEvent(event)
 
 
+def set_app_identity() -> None:
+    """On Windows, show the app's own name and icon on the taskbar, not Python's."""
+    if sys.platform != "win32":
+        return
+    try:
+        import ctypes
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("MyTranscribe.Medical")
+    except Exception:
+        pass
+
+
 def main() -> None:
     os.chdir(Path(__file__).parent)
     app_log.setup(to_file=True)         # works with pythonw.exe too (no console window)
@@ -1152,8 +1163,13 @@ def main() -> None:
     QApplication.setHighDpiScaleFactorRoundingPolicy(
         Qt.HighDpiScaleFactorRoundingPolicy.PassThrough
     )
+    set_app_identity()
     app = QApplication(sys.argv)
     app.setApplicationName("MyTranscribe Medical")
+    icon = Path(__file__).parent / "assets" / "mytranscribe.ico"
+    if icon.is_file():
+        from PyQt6.QtGui import QIcon
+        app.setWindowIcon(QIcon(str(icon)))
     app.setStyleSheet(MED_QSS)
     logger.info("Starting MyTranscribe Medical (faster-whisper); hotkey Ctrl+Alt+Q")
 
