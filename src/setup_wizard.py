@@ -138,7 +138,7 @@ def describe_hardware(hw) -> tuple:
     if hw is None or not hw.cuda_device_count:
         return ("No NVIDIA graphics card was found, so dictation runs on the processor with a smaller "
                 "model (small.en). The text comes a few seconds after you stop: in testing on laptop-class "
-                "processor cores, about 3 to 4 seconds after a short message and 6 to 9 after a long one; "
+                "processor cores, about 2 seconds after a short message and 4 to 8 after a long one; "
                 "an older or busy laptop takes longer. It makes more mistakes than on a graphics card, "
                 "especially in drug names, so read the text before it goes into a record.", False)
     name = hw.gpu_name or "NVIDIA graphics card"

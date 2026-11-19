@@ -55,7 +55,8 @@ What it says:
   speech on those cores. The larger models need 10 to 12 s for the same message. Full table:
   [installer/README.md](../installer/README.md).
 - **The real app in real time on those cores** (23 held-out recordings): median wait after Stop
-  3.6 s (3.0 to 9.3 s), and 5.88% word errors.
+  3.6 s (3.0 to 9.3 s), and 5.88% word errors. With the two changes below (installed build
+  plus update 2026.11.19.3): median 1.9 s (1.3 to 7.5 s; short messages 1.3 to 2.1 s), 5.95%.
 - **Cost:** small.en makes 9.98% word errors and gets 36 of 314 medical words wrong, against
   7.47% and 12 for large-v3 on a graphics card.
 - **App changes:**
