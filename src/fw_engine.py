@@ -71,6 +71,81 @@ VAD_PARAMETERS = {
     "min_silence_duration_ms": 700,
     "speech_pad_ms": 300,
 }
+# Processor only: a SHORT piece is encoded in a window just longer than its speech instead of
+# Whisper's full 30 s, padded with silence. The encoder is most of a short piece's cost and it
+# costs the same for 3 s of speech as for 30 (1.7 to 2 s on four laptop-class cores); a 10 s
+# window costs a quarter of that. CTranslate2 accepts the shorter input; faster-whisper always
+# pads to 3000 frames, so its padding step is wrapped (see _ShortWindow). Long pieces keep the
+# full window: shortening a 24 s piece's window saves little and once made the model skip a
+# sentence. Owner's 47 recordings, small.en on the processor (2026-11-19): the last piece's
+# decode, which is the wait after Stop, fell from 3.7 to 1.3 s (median; 1.2 s for short
+# messages), with 33 medical words wrong instead of 38 and 9.83% word errors instead of 10.05%.
+# A 4 s margin was no better; 1 s with a 5 s minimum raised word errors to 12.3%.
+SHORT_WINDOW_MAX_SPEECH_S = 16.0  # speech (after silence removal) up to this gets a short window
+SHORT_WINDOW_MARGIN_S = 2.0       # silence after the speech
+SHORT_WINDOW_MIN_S = 10.0
+SHORT_WINDOW_STEP_S = 2.0         # window lengths are rounded up to this
+
+
+def short_window_frames(speech_frames: int) -> int:
+    """Mel frames (100 per second) to encode a piece with `speech_frames` of speech on the processor."""
+    speech_s = speech_frames / FRAMES_PER_SECOND
+    if speech_s > SHORT_WINDOW_MAX_SPEECH_S:
+        return WINDOW_FRAMES
+    steps = -(-(speech_s + SHORT_WINDOW_MARGIN_S) // SHORT_WINDOW_STEP_S)          # ceiling
+    window_s = max(SHORT_WINDOW_MIN_S, steps * SHORT_WINDOW_STEP_S)
+    return min(WINDOW_FRAMES, int(round(window_s * FRAMES_PER_SECOND)))
+
+
+class _ShortWindow:
+    """
+    faster-whisper pads each piece's features to 3000 frames with its module-level
+    pad_or_trim before encoding. Wrap that function once; it pads to a short window only
+    while an engine that asked for it is decoding on the same thread, so any other decode
+    (another engine, the graphics card) is untouched.
+    """
+
+    _local = None
+    installed = False
+
+    @classmethod
+    def install(cls) -> bool:
+        if cls.installed:
+            return True
+        try:
+            import threading
+            import faster_whisper.transcribe as fwt
+            original = fwt.pad_or_trim
+            cls._local = threading.local()
+
+            def pad_or_trim(array, length: int = WINDOW_FRAMES, *, axis: int = -1):
+                if getattr(cls._local, "active", False) and length == WINDOW_FRAMES:
+                    length = short_window_frames(array.shape[axis])
+                return original(array, length, axis=axis)
+
+            fwt.pad_or_trim = pad_or_trim
+            cls.installed = True
+        except Exception as exc:                  # a faster-whisper without it: full windows
+            logger.warning("Short encoder windows unavailable: %s", exc)
+        return cls.installed
+
+    @classmethod
+    def active(cls, on: bool):
+        """Context manager: short windows for decodes on this thread while it is open."""
+        import contextlib
+
+        @contextlib.contextmanager
+        def scope():
+            local = cls._local
+            before = getattr(local, "active", False) if local is not None else False
+            if local is not None:
+                local.active = on
+            try:
+                yield
+            finally:
+                if local is not None:
+                    local.active = before
+        return scope()
 
 
 def register_cuda_dll_dirs(
@@ -163,6 +238,7 @@ class FasterWhisperEngine:
         self.beam_size = max(1, beam_size)
         self.patience = CPU_PATIENCE if on_cpu else DEFAULT_PATIENCE
         self.second_listen = SECOND_LISTEN_ON_CPU if on_cpu else True
+        self.short_window = on_cpu         # see SHORT_WINDOW_*; checked again once loaded
 
         if model_factory is None:
             from faster_whisper import WhisperModel
@@ -171,6 +247,7 @@ class FasterWhisperEngine:
         t0 = time.perf_counter()
         self.model = self._load(model_factory, config)
         self.load_seconds = time.perf_counter() - t0
+        self.short_window = self.config.device == "cpu" and _ShortWindow.install()
         logger.info(
             "Loaded model '%s' on %s (%s) in %.1fs [%s]",
             self.config.model, self.config.device, self.config.compute_type,
@@ -212,9 +289,10 @@ class FasterWhisperEngine:
         mis-heard sentence bias the next one (the original app's anti-
         hallucination setting). Cross-chunk context comes from `prompt`.
         """
-        segments, _info = self._decode(audio, prompt, {})
-        # segments is a lazy generator: decoding happens while we iterate.
-        return " ".join(s.text.strip() for s in segments if s.text.strip())
+        with _ShortWindow.active(self.short_window):
+            segments, _info = self._decode(audio, prompt, {})
+            # segments is a lazy generator: decoding happens while we iterate.
+            return " ".join(s.text.strip() for s in segments if s.text.strip())
 
     def transcribe_words(self, audio: np.ndarray, prompt: Optional[str] = None,
                          quick: bool = False) -> list:
@@ -227,6 +305,10 @@ class FasterWhisperEngine:
         is of interest, not for dictation text. Quick words carry a fourth
         value, the model's probability for the word (0..1).
         """
+        with _ShortWindow.active(self.short_window):
+            return self._transcribe_words(audio, prompt, quick)
+
+    def _transcribe_words(self, audio: np.ndarray, prompt: Optional[str], quick: bool) -> list:
         extra = {"word_timestamps": True}
         if quick:
             extra.update(beam_size=1, patience=1.0, temperature=0.0)   # one pass, no fallback retries

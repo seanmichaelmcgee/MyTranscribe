@@ -64,6 +64,12 @@ What it says:
   - one thread per physical core;
   - no second listen for a dropped "new paragraph" on the processor (each is a whole model
     pass, 2 to 2.5 s on those cores; on the 47 recordings they ran 8 times and changed nothing);
+  - a short piece (up to 16 s of speech) is encoded in a window of its speech plus 2 s (at least
+    10 s) instead of Whisper's full 30 s. The encoder costs the same for 3 s of speech as for 30,
+    so this is most of the wait after a short message: on the 47 recordings the last piece's
+    decode fell from 3.7 to 1.3 s (median), with 33 medical words wrong instead of 38 and 9.83%
+    word errors instead of 10.05%. Long pieces keep 30 s: shortening them saved little and once
+    made the model skip a sentence;
   - an NVIDIA card without its libraries uses the processor;
   - the wizard states the expected wait and the extra errors.
 - **Distribution:** `installer/` builds a per-user Windows installer, with Python, the packages
