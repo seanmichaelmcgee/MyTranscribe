@@ -14,9 +14,11 @@ That is the only surface ChunkedTranscriber depends on, so tests swap in a
 fake engine and never need a model.
 """
 
+import contextlib
 import logging
 import os
 import sys
+import threading
 import time
 from pathlib import Path
 from typing import Callable, Iterable, Optional
@@ -75,7 +77,7 @@ VAD_PARAMETERS = {
 # Whisper's full 30 s, padded with silence. The encoder is most of a short piece's cost and it
 # costs the same for 3 s of speech as for 30 (1.7 to 2 s on four laptop-class cores); a 10 s
 # window costs a quarter of that. CTranslate2 accepts the shorter input; faster-whisper always
-# pads to 3000 frames, so its padding step is wrapped (see _ShortWindow). Long pieces keep the
+# pads to 3000 frames, so its padding step is wrapped (install_short_window). Long pieces keep the
 # full window: shortening a 24 s piece's window saves little and once made the model skip a
 # sentence. Owner's 47 recordings, small.en on the processor (2026-11-19): the last piece's
 # decode, which is the wait after Stop, fell from 3.7 to 1.3 s (median; 1.2 s for short
@@ -97,55 +99,42 @@ def short_window_frames(speech_frames: int) -> int:
     return min(WINDOW_FRAMES, int(round(window_s * FRAMES_PER_SECOND)))
 
 
-class _ShortWindow:
+_window_local = threading.local()        # .short: this thread's decode asked for short windows
+
+
+def install_short_window(module=None) -> bool:
     """
-    faster-whisper pads each piece's features to 3000 frames with its module-level
-    pad_or_trim before encoding. Wrap that function once; it pads to a short window only
-    while an engine that asked for it is decoding on the same thread, so any other decode
-    (another engine, the graphics card) is untouched.
+    faster-whisper pads each piece's features to 3000 frames with the pad_or_trim of its
+    transcribe module before encoding. Wrap that function (once); the wrapper pads to a short
+    window only while a decode that asked for it runs on the same thread (short_window_scope),
+    so any other decode (another engine, a graphics card) is untouched. `module` defaults to
+    faster_whisper.transcribe once the real model has imported it. False if there is nothing to
+    wrap: then every piece keeps the full window.
     """
+    module = module if module is not None else sys.modules.get("faster_whisper.transcribe")
+    original = getattr(module, "pad_or_trim", None)
+    if original is None:
+        return False
+    if not getattr(original, "short_window", False):
+        def pad_or_trim(array, length: int = WINDOW_FRAMES, *, axis: int = -1):
+            if getattr(_window_local, "short", False) and length == WINDOW_FRAMES:
+                length = short_window_frames(array.shape[axis])
+            return original(array, length, axis=axis)
 
-    _local = None
-    installed = False
+        pad_or_trim.short_window = True
+        module.pad_or_trim = pad_or_trim
+    return True
 
-    @classmethod
-    def install(cls) -> bool:
-        if cls.installed:
-            return True
-        try:
-            import threading
-            import faster_whisper.transcribe as fwt
-            original = fwt.pad_or_trim
-            cls._local = threading.local()
 
-            def pad_or_trim(array, length: int = WINDOW_FRAMES, *, axis: int = -1):
-                if getattr(cls._local, "active", False) and length == WINDOW_FRAMES:
-                    length = short_window_frames(array.shape[axis])
-                return original(array, length, axis=axis)
-
-            fwt.pad_or_trim = pad_or_trim
-            cls.installed = True
-        except Exception as exc:                  # a faster-whisper without it: full windows
-            logger.warning("Short encoder windows unavailable: %s", exc)
-        return cls.installed
-
-    @classmethod
-    def active(cls, on: bool):
-        """Context manager: short windows for decodes on this thread while it is open."""
-        import contextlib
-
-        @contextlib.contextmanager
-        def scope():
-            local = cls._local
-            before = getattr(local, "active", False) if local is not None else False
-            if local is not None:
-                local.active = on
-            try:
-                yield
-            finally:
-                if local is not None:
-                    local.active = before
-        return scope()
+@contextlib.contextmanager
+def short_window_scope(on: bool):
+    """Short encoder windows (or not) for decodes on this thread while the scope is open."""
+    before = getattr(_window_local, "short", False)
+    _window_local.short = on
+    try:
+        yield
+    finally:
+        _window_local.short = before
 
 
 def register_cuda_dll_dirs(
@@ -247,7 +236,7 @@ class FasterWhisperEngine:
         t0 = time.perf_counter()
         self.model = self._load(model_factory, config)
         self.load_seconds = time.perf_counter() - t0
-        self.short_window = self.config.device == "cpu" and _ShortWindow.install()
+        self.short_window = self.config.device == "cpu" and install_short_window()
         logger.info(
             "Loaded model '%s' on %s (%s) in %.1fs [%s]",
             self.config.model, self.config.device, self.config.compute_type,
@@ -289,7 +278,7 @@ class FasterWhisperEngine:
         mis-heard sentence bias the next one (the original app's anti-
         hallucination setting). Cross-chunk context comes from `prompt`.
         """
-        with _ShortWindow.active(self.short_window):
+        with short_window_scope(self.short_window):
             segments, _info = self._decode(audio, prompt, {})
             # segments is a lazy generator: decoding happens while we iterate.
             return " ".join(s.text.strip() for s in segments if s.text.strip())
@@ -305,7 +294,7 @@ class FasterWhisperEngine:
         is of interest, not for dictation text. Quick words carry a fourth
         value, the model's probability for the word (0..1).
         """
-        with _ShortWindow.active(self.short_window):
+        with short_window_scope(self.short_window):
             return self._transcribe_words(audio, prompt, quick)
 
     def _transcribe_words(self, audio: np.ndarray, prompt: Optional[str], quick: bool) -> list:
