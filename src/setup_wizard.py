@@ -152,13 +152,27 @@ def describe_hardware(hw) -> tuple:
     return (f"Graphics card: {name}{size}. It can run the most accurate model.", True)
 
 
-def summary_lines(s: Settings, device_label: str) -> List[str]:
+def model_line(s: Settings, hw=None) -> str:
+    """The model this PC will actually run, as the summary states it (hw: hw_profile.HardwareInfo, or None)."""
+    from hw_profile import GPU_ACCURATE_MIN_VRAM_MB, GPU_SMALL_VRAM_THRESHOLD_MB
+    if hw is not None and not hw.cuda_device_count:
+        model = "small.en, on the processor (no NVIDIA graphics card)"
+    elif hw is not None and hw.vram_mb is not None and hw.vram_mb < GPU_SMALL_VRAM_THRESHOLD_MB:
+        model = "small.en (the graphics card has little memory)"
+    elif hw is not None and hw.vram_mb is not None and hw.vram_mb < GPU_ACCURATE_MIN_VRAM_MB:
+        model = "faster (large-v3-turbo)"
+    else:
+        model = "most accurate (large-v3)" if s.accuracy == "best" else "faster (large-v3-turbo)"
+    extra = "" if s.engine == "whisper" else f", for Whisper; recogniser stays {engines.ENGINES[s.engine].label}"
+    return f"Model: {model}{extra}"
+
+
+def summary_lines(s: Settings, device_label: str, hw=None) -> List[str]:
     out = {k: label for k, label, _ in OUTPUT}[output_choice(s)]
     triggers = s.triggers().describe()
     lines = [
         f"How you dictate: {DICTATION_SUMMARY[punctuation_choice(s)]}",
-        f"Model: {'most accurate (large-v3)' if s.accuracy == 'best' else 'faster (large-v3-turbo)'}"
-        + ("" if s.engine == "whisper" else f", for Whisper; recogniser stays {engines.ENGINES[s.engine].label}"),
+        model_line(s, hw),
         f"Microphone: {device_label}, gain {gain_text(s.mic_gain)}",
         "Spoken layout (“new paragraph”, “new line”, quotes): " + ("on" if s.voice_commands else "off"),
         f"Text: {out}",
@@ -168,9 +182,10 @@ def summary_lines(s: Settings, device_label: str) -> List[str]:
     return lines
 
 
-def changed_lines(before: Settings, after: Settings, device_label: str, before_device_label: str) -> List[str]:
+def changed_lines(before: Settings, after: Settings, device_label: str, before_device_label: str,
+                  hw=None) -> List[str]:
     """The summary lines that differ, as 'old → new' (empty when nothing changed)."""
-    a, b = summary_lines(before, before_device_label), summary_lines(after, device_label)
+    a, b = summary_lines(before, before_device_label, hw), summary_lines(after, device_label, hw)
     out = []
     for old, new in zip(a, b):
         if old != new:
@@ -600,6 +615,10 @@ class ComputerPage(QWizardPage):
     def accuracy(self) -> str:
         return _checked(self.group) or "best"
 
+    def hardware(self):
+        """What the page found (hw_profile.HardwareInfo), or None if it has not looked yet."""
+        return self._result if self._detected and getattr(self, "_done", False) else None
+
 
 class MicrophonePage(QWizardPage):
     def __init__(self, settings: Settings, **panel_kwargs) -> None:
@@ -756,12 +775,13 @@ class SummaryPage(QWizardPage):
         w = self._wizard
         new = w.result_settings()
         import html
-        items = "".join(f"<li>{html.escape(x)}</li>" for x in summary_lines(new, w.device_label()))
+        hw = w.computer.hardware()
+        items = "".join(f"<li>{html.escape(x)}</li>" for x in summary_lines(new, w.device_label(), hw))
         self.lines.setText(f"<b>These will be saved:</b><ul style='margin-left:-20px'>{items}</ul>")
         if w.first_run:
             self.changes.setVisible(False)
             return
-        changed = changed_lines(w.original, new, w.device_label(), w.original_device_label)
+        changed = changed_lines(w.original, new, w.device_label(), w.original_device_label, hw)
         self.changes.setVisible(True)
         self.changes.setText("<b>Changed from before:</b><ul style='margin-left:-20px'>"
                              + "".join(f"<li>{html.escape(x)}</li>" for x in changed) + "</ul>"

@@ -85,11 +85,14 @@ def gain_text(value: int) -> str:
 
 
 class OptionsDialog(QDialog):
-    def __init__(self, settings: Settings, parent=None, devices=None, default_device=None) -> None:
+    def __init__(self, settings: Settings, parent=None, devices=None, default_device=None,
+                 processor_only: bool = False) -> None:
         super().__init__(parent)
         self.setWindowTitle("MyTranscribe — Options")
         self.setStyleSheet(STYLE)
         self._original = settings
+        # No usable NVIDIA card: Whisper runs small.en on the processor, so Best and Fast are the same.
+        self._processor_only = processor_only
         self.requested_setup = False     # "Run setup again…": the caller opens the wizard after saving
         if devices is None or default_device is None:
             import audio_devices
@@ -353,9 +356,12 @@ class OptionsDialog(QDialog):
         """Accuracy only applies to Whisper; say what the chosen model is and where it comes from."""
         name = self.engine.currentData()
         info = engines.ENGINES[name]
-        self.accuracy.setEnabled(name == "whisper")
+        self.accuracy.setEnabled(name == "whisper" and not self._processor_only)
         note = (f"{info.note} Download: {info.size}. Licence: {info.licence}. "
                 "Saving a change reloads the model; you are asked before any download.")
+        if name == "whisper" and self._processor_only:
+            note += (" This PC has no usable NVIDIA graphics card, so Whisper runs small.en on the processor "
+                     "and Accuracy does not apply.")
         pack = lang_packs.get(self.language.currentData())
         if pack is not None:
             note += (f" {pack.name} is experimental: spoken commands and punctuation use that language's words, "
