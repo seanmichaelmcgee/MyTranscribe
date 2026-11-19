@@ -111,7 +111,7 @@ def copy_dist(dist, site: Path) -> int:
 
 def _qt_drop(rel: Path) -> bool:
     name = rel.name
-    if QT_DROP.match(name):
+    if QT_DROP.match(name) or name.lower() == "qpdf.dll":     # the PDF image plugin needs Qt6Pdf, left out
         return True
     parts = rel.parts
     if len(parts) > 3 and parts[1] == "Qt6" and parts[2] == "plugins" and parts[3] not in QT_KEEP_DIRS:
