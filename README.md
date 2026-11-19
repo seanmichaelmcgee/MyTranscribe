@@ -75,8 +75,8 @@ said; lower is better.
 - **Python 3.11** from [python.org](https://www.python.org/downloads/) (tick "Add python.exe to PATH").
 - About **10 GB of free disk space** (the speech models are 3 GB to 6 GB).
 - **A headset or microphone.** An ordinary USB or Bluetooth headset is fine.
-- **No graphics card?** Running on the processor alone is being tested; see [Computers without
-  an NVIDIA card](#computers-without-an-nvidia-card).
+- **No graphics card?** The app runs on the processor with a smaller model, and there is an
+  installer for such PCs; see [Computers without an NVIDIA card](#computers-without-an-nvidia-card).
 
 ## Install
 
@@ -179,10 +179,17 @@ computer voices and, for French only, on seven real dictated notes (8.7%). Swahi
 
 ## Computers without an NVIDIA card
 
-The app falls back to the processor when it finds no NVIDIA card, but this has not yet been
-tested as a supported setup, and Whisper large-v3 is a large model to run on a processor. How
-we plan to test and support it (processor-only, then other graphics cards through Vulkan, then
-Apple computers) is in [docs/CPU_AND_OTHER_HARDWARE_PLAN.md](docs/CPU_AND_OTHER_HARDWARE_PLAN.md).
+Without an NVIDIA card the app runs on the processor with a smaller model (small.en).
+- **Speed:** on laptop-class processor cores, the text comes 3 to 4 seconds after a short
+  message and 6 to 9 after a long one. An older laptop is slower.
+- **Accuracy:** it makes more mistakes, especially in drug names (9.98% word errors, against
+  7.47% for large-v3 on a graphics card, on the developer's recordings).
+
+For such PCs there is a **Windows installer** that needs no Python and no download: one
+`Setup.exe`, installed per account without administrator rights
+([installer/README.md](installer/README.md)). It is being tried on a laptop before testers get
+it. Other graphics cards (through Vulkan) and Apple computers come next:
+[docs/CPU_AND_OTHER_HARDWARE_PLAN.md](docs/CPU_AND_OTHER_HARDWARE_PLAN.md).
 
 ## Privacy
 

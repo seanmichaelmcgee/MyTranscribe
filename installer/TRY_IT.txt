@@ -1,0 +1,52 @@
+MyTranscribe Medical: trying the installer on a PC without an NVIDIA graphics card
+==================================================================================
+
+What to expect
+--------------
+- It runs on the processor with a smaller speech model (small.en). On laptop-class cores the
+  text came 3 to 4 seconds after a short message in testing, and 6 to 9 seconds after a long
+  letter; an older laptop is slower.
+- It makes more mistakes than the desktop version, especially in drug names. Read the text
+  before it goes anywhere.
+- Nothing you dictate leaves the PC, and the installer needs no internet.
+
+1. Install
+----------
+- Run MyTranscribe-Medical-Setup-<version>.exe (about 0.7 GB).
+  - If it came from Google Drive: Drive cannot virus-scan files this large and says so;
+    choose "Download anyway".
+  - Windows says "Windows protected your PC", because the installer is not code-signed yet:
+    click "More info", then "Run anyway".
+- Click Install. No administrator rights are needed; it takes about a minute.
+- Leave "Start MyTranscribe now" ticked and click Finish.
+
+2. First start: setup (about three minutes)
+--------------------------------------------
+- How you dictate: traditional (you say "period", "comma") or natural speech.
+- This computer: it should say that no NVIDIA card was found and that it runs on the processor.
+- Microphone: a headset gives much better text than the laptop's built-in microphone. Run the
+  check (stay quiet 3 seconds, then read the sentence).
+- Start and stop: many Dell laptops need the Fn key for F9. Press your key on that page to see
+  whether it registers; if not, choose another key. Ctrl+Alt+Q always works.
+
+3. Try it
+---------
+- A short message, a longer letter, a list of medications with doses.
+- Worth noting:
+  - how long after Stop the text appears;
+  - mistakes, especially drug names and numbers;
+  - whether the laptop gets hot or loud while you dictate.
+
+If something goes wrong
+-----------------------
+- In the app: Options -> Show log. The file is %LOCALAPPDATA%\MyTranscribe\mytranscribe.log.
+  It records timings and errors, never what you dictated.
+- Installer problems: %TEMP%\MyTranscribe-setup.log.
+- Check of the installed copy: open PowerShell and run
+    & "$env:LOCALAPPDATA\Programs\MyTranscribe Medical\python\python.exe" "$env:LOCALAPPDATA\Programs\MyTranscribe Medical\selftest.py"
+  Every line should say PASS.
+
+Removing it
+-----------
+Settings -> Apps -> MyTranscribe Medical -> Uninstall. Your settings and word lists are kept
+unless you tick the box to remove them too.
