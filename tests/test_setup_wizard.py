@@ -272,6 +272,25 @@ def test_rerun_with_nothing_changed_says_so(make_wizard, qapp):
     assert r.spoken_punctuation and not r.only_dictated_commas and r.autopaste and not r.live_insert
 
 
+def test_summary_names_the_model_this_pc_runs(make_wizard, qapp):
+    from hw_profile import HardwareInfo
+    w = make_wizard(hw=HardwareInfo(cuda_device_count=0, cpu_count=8))
+    go_to(w, w.summary, qapp)
+    text = w.summary.lines.text()
+    assert "small.en, on the processor" in text and "large-v3" not in text
+    w2 = make_wizard()                                                  # a 6 GB card: the accuracy answer
+    go_to(w2, w2.summary, qapp)
+    assert "most accurate (large-v3)" in w2.summary.lines.text()
+
+
+def test_options_say_accuracy_does_not_apply_without_a_graphics_card(qapp):
+    from options_dialog import OptionsDialog
+    d = OptionsDialog(st.Settings(), devices=["Mic"], default_device="Mic", processor_only=True)
+    assert not d.accuracy.isEnabled()
+    gpu = OptionsDialog(st.Settings(), devices=["Mic"], default_device="Mic")
+    assert gpu.accuracy.isEnabled()
+
+
 def test_hardware_descriptions():
     from hw_profile import HardwareInfo
     from setup_wizard import describe_hardware

@@ -1062,7 +1062,9 @@ class MedTranscriptionWindow(TranscriptionWindow):
             self.on_hotkey()
 
     def _open_options(self) -> None:
-        dlg = OptionsDialog(self._settings, parent=self)
+        config = getattr(self._engine, "config", None)
+        dlg = OptionsDialog(self._settings, parent=self,
+                            processor_only=getattr(config, "device", "") == "cpu")
         accepted = dlg.exec()
         if dlg.log_window is not None and dlg.log_window.isVisible():
             # Keep the log open after Options closes: it becomes this window's.

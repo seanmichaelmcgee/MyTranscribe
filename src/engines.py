@@ -40,10 +40,12 @@ class EngineInfo:
 
 ENGINES = {
     "whisper": EngineInfo(
-        "whisper", "Whisper large-v3 (recommended)", ("faster_whisper",),
-        "Hugging Face: Systran/faster-whisper-large-v3 (or -large-v3-turbo for Fast)", "about 3 GB (turbo 1.6 GB)",
+        "whisper", "Whisper (recommended)", ("faster_whisper",),
+        "Hugging Face: Systran/faster-whisper-large-v3 (or -large-v3-turbo for Fast; -small.en without an "
+        "NVIDIA card)", "about 3 GB (turbo 1.6 GB, small.en 0.5 GB)",
         "MIT (OpenAI Whisper weights, Systran conversion); no account or acceptance needed",
-        "The most accurate choice, with the medical vocabulary."),
+        "The most accurate choice, with the medical vocabulary: large-v3 on an NVIDIA graphics card, "
+        "small.en on the processor."),
     "medasr": EngineInfo(
         "medasr", "MedASR (Google, medical dictation; very fast)", ("torch", "transformers"),
         "Hugging Face: google/medasr (gated)", "about 0.4 GB, plus PyTorch (about 2.5 GB)",
