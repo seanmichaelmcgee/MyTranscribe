@@ -69,8 +69,11 @@ def test_unknown_vram_still_gets_turbo():
 
 
 def test_cpu_fallback_and_thread_count():
+    # One thread per physical core, at most 8 (a 4-core laptop with hyper-threading: 4).
     cfg = choose_config(HardwareInfo(cuda_device_count=0, cpu_count=8), env={})
-    assert (cfg.model, cfg.device, cfg.compute_type, cfg.cpu_threads) == (CPU_DEFAULT_MODEL, "cpu", "int8", 7)
+    assert (cfg.model, cfg.device, cfg.compute_type, cfg.cpu_threads) == (CPU_DEFAULT_MODEL, "cpu", "int8", 4)
+    assert choose_config(HardwareInfo(cpu_count=12, physical_cores=6), env={}).cpu_threads == 6
+    assert choose_config(HardwareInfo(cpu_count=32, physical_cores=24), env={}).cpu_threads == 8
     assert choose_config(HardwareInfo(cpu_count=1), env={}).cpu_threads == 1
 
 
@@ -83,7 +86,7 @@ def test_env_overrides():
 
 def test_env_force_cpu_and_bad_threads():
     cfg = choose_config(gtx1060(), env={"MYTRANSCRIBE_DEVICE": "CPU", "MYTRANSCRIBE_CPU_THREADS": "x"})
-    assert cfg.device == "cpu" and cfg.cpu_threads == 3
+    assert cfg.device == "cpu" and cfg.cpu_threads == max(1, gtx1060().cpu_count // 2)
 
 
 class FakeCT2:
@@ -101,8 +104,14 @@ class FakeCT2:
 
 def test_detect_hardware_with_gpu():
     smi = lambda: {"name": "NVIDIA GeForce GTX 1060 6GB", "vram_mb": 6144, "compute_capability": 6.1}
-    hw = detect_hardware(ct2=FakeCT2(), smi_query=smi)
+    hw = detect_hardware(ct2=FakeCT2(), smi_query=smi, cuda_libraries=lambda: True)
     assert hw.cuda_device_count == 1 and hw.vram_mb == 6144 and "int8_float32" in hw.cuda_compute_types
+
+
+def test_nvidia_card_without_its_libraries_uses_the_processor():
+    # The processor-only installer has no NVIDIA libraries, even on a PC with an NVIDIA card.
+    hw = detect_hardware(ct2=FakeCT2(), smi_query=lambda: {"name": "RTX 3060"}, cuda_libraries=lambda: False)
+    assert hw.cuda_device_count == 0 and choose_config(hw, env={}).device == "cpu"
 
 
 def test_detect_hardware_cuda_probe_failure_means_cpu():

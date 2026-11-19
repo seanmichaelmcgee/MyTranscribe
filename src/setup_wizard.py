@@ -137,8 +137,10 @@ def describe_hardware(hw) -> tuple:
     from hw_profile import GPU_ACCURATE_MIN_VRAM_MB, GPU_SMALL_VRAM_THRESHOLD_MB
     if hw is None or not hw.cuda_device_count:
         return ("No NVIDIA graphics card was found, so dictation runs on the processor with a smaller "
-                "model (small.en). It is less accurate, and the text takes several seconds to appear "
-                "after you stop.", False)
+                "model (small.en). The text comes a few seconds after you stop: in testing on laptop-class "
+                "processor cores, about 3 seconds after a short message and about 6 after a long one; an "
+                "older or busy laptop takes longer. It makes more mistakes than on a graphics card, "
+                "especially in drug names, so read the text before it goes into a record.", False)
     name = hw.gpu_name or "NVIDIA graphics card"
     size = f", {hw.vram_mb / 1024:.0f} GB" if hw.vram_mb else ""
     if hw.vram_mb is not None and hw.vram_mb < GPU_SMALL_VRAM_THRESHOLD_MB:

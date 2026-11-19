@@ -20,6 +20,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 from dataclasses import dataclass, field
 from typing import Callable, Optional
 
@@ -56,6 +57,7 @@ class HardwareInfo:
     vram_mb: Optional[int] = None
     compute_capability: Optional[float] = None
     cpu_count: int = 1
+    physical_cores: Optional[int] = None     # None: unknown (half the logical count is assumed)
 
 
 @dataclass
@@ -119,19 +121,54 @@ def _query_nvidia_smi(run: Callable = subprocess.run) -> dict:
     return {}
 
 
-def detect_hardware(ct2=None, smi_query: Callable = _query_nvidia_smi) -> HardwareInfo:
+def cuda_libraries_present() -> bool:
+    """
+    Whether the NVIDIA math library CTranslate2 needs can be loaded (Windows). The
+    processor-only installer leaves the NVIDIA libraries out, so on a PC that has an NVIDIA
+    card it must still use the processor rather than fail when the model loads.
+    """
+    if sys.platform != "win32":
+        return True
+    try:
+        from fw_engine import register_cuda_dll_dirs
+        register_cuda_dll_dirs()                  # where pip puts them; harmless to repeat
+    except Exception:
+        pass
+    try:
+        import ctypes
+        for name in ("cublas64_12.dll", "cudnn64_9.dll"):     # the two Whisper needs on the card
+            ctypes.WinDLL(name)
+        return True
+    except OSError:
+        return False
+
+
+def physical_cores() -> Optional[int]:
+    """Physical processor cores (hyper-threads share one core's maths units), or None."""
+    try:
+        import psutil
+        return psutil.cpu_count(logical=False) or None
+    except Exception:
+        return None
+
+
+def detect_hardware(ct2=None, smi_query: Callable = _query_nvidia_smi,
+                    cuda_libraries: Callable[[], bool] = cuda_libraries_present) -> HardwareInfo:
     """
     Probe CUDA via CTranslate2 (no PyTorch needed) and nvidia-smi.
 
-    ct2 / smi_query are injectable for tests.
+    ct2 / smi_query / cuda_libraries are injectable for tests.
     """
     if ct2 is None:
         import ctranslate2 as ct2
-    info = HardwareInfo(cpu_count=os.cpu_count() or 1)
+    info = HardwareInfo(cpu_count=os.cpu_count() or 1, physical_cores=physical_cores())
     try:
         info.cuda_device_count = ct2.get_cuda_device_count()
     except Exception as exc:   # CUDA runtime/DLL problems surface here
         logger.warning("CUDA probe failed (%s); using CPU", exc)
+        info.cuda_device_count = 0
+    if info.cuda_device_count > 0 and not cuda_libraries():
+        logger.warning("An NVIDIA card is present but its CUDA libraries are not installed; using the processor")
         info.cuda_device_count = 0
     if info.cuda_device_count > 0:
         try:
@@ -217,7 +254,10 @@ def choose_config(hw: HardwareInfo, env: Optional[dict] = None, accurate: bool =
     except ValueError:
         cpu_threads = 0
     if cpu_threads <= 0:
-        # Leave one core for audio capture + GUI.
-        cpu_threads = max(1, hw.cpu_count - 1) if device == "cpu" else 2
+        # One thread per physical core, at most 8: hyper-threads add little to the model's maths
+        # and leave the audio capture and window without room; past 4-8 threads the model is
+        # limited by memory speed (docs/CPU_AND_OTHER_HARDWARE_PLAN.md).
+        cores = hw.physical_cores or max(1, hw.cpu_count // 2)
+        cpu_threads = max(1, min(8, cores)) if device == "cpu" else 2
 
     return EngineConfig(model, device, compute_type, cpu_threads, reason)

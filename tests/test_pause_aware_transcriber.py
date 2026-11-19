@@ -288,7 +288,18 @@ def test_leftover_tail_decode_is_dropped():
     out = eng.transcribe_words(np.zeros(4 * SR, dtype=np.float32), "Vocab.")
     assert [w.strip() for w, _s, _e in out] == ["eGFR", "58."]
     assert eng.model.kwargs["word_timestamps"] is True and eng.model.kwargs["without_timestamps"] is True
-    assert eng.model.kwargs["beam_size"] == 5
+    assert eng.model.kwargs["beam_size"] == eng.beam_size > 1
+
+
+def test_search_settings_depend_on_the_device(monkeypatch):
+    import fw_engine
+    from hw_profile import EngineConfig
+    monkeypatch.delenv("MYTRANSCRIBE_BEAM_SIZE", raising=False)
+    make = lambda device: fw_engine.FasterWhisperEngine(EngineConfig("m", device, "int8", 4, "test"),
+                                                        model_factory=lambda *a, **k: object())
+    cpu, gpu = make("cpu"), make("cuda")
+    assert (cpu.beam_size, cpu.patience) == (fw_engine.CPU_BEAM_SIZE, fw_engine.CPU_PATIENCE) == (3, 1.0)
+    assert (gpu.beam_size, gpu.patience) == (fw_engine.DEFAULT_BEAM_SIZE, fw_engine.DEFAULT_PATIENCE) == (5, 2.0)
 
 
 def test_tail_decode_is_not_even_requested_when_nothing_is_left():
