@@ -64,6 +64,41 @@ def test_a_missing_model_becomes_a_question_not_a_download(monkeypatch):
     assert seen["offline"] == "0" and os.environ["HF_HUB_OFFLINE"] == "1"     # offline again afterwards
 
 
+def test_accuracy_choices_are_the_large_models_this_copy_has():
+    none = lambda name: None                                             # noqa: E731
+    assert engines.accuracy_choices(none) == ["best", "fast"]            # development checkout: asks to download
+    assert engines.accuracy_choices(lambda n: "x" if n == "small.en" else None) == ["best", "fast"]   # processor build
+    assert engines.accuracy_choices(lambda n: "x" if n == "large-v3" else None) == ["best"]           # graphics-card build
+    assert engines.accuracy_choices(lambda n: "x" if n.startswith("large") else None) == ["best", "fast"]
+
+
+def test_an_installed_copy_loads_the_large_model_it_came_with(monkeypatch, tmp_path):
+    import fw_engine
+    import hw_profile
+    for var in ("MYTRANSCRIBE_MODEL", "MYTRANSCRIBE_DEVICE", "MYTRANSCRIBE_COMPUTE_TYPE"):
+        monkeypatch.delenv(var, raising=False)
+    card = hw_profile.HardwareInfo(cuda_device_count=1, gpu_name="NVIDIA GeForce RTX 4070 Ti SUPER", vram_mb=16376,
+                                   compute_capability=8.9, cuda_compute_types=frozenset({"int8_float16", "float16"}))
+    loaded = []
+
+    class Engine:
+        def __init__(self, cfg):
+            loaded.append(cfg)
+
+    monkeypatch.setattr(hw_profile, "detect_hardware", lambda: card)
+    monkeypatch.setattr(fw_engine, "register_cuda_dll_dirs", lambda: [])
+    monkeypatch.setattr(fw_engine, "FasterWhisperEngine", Engine)
+    monkeypatch.setattr(engines, "bundled_model", lambda name: tmp_path / "large-v3" if name == "large-v3" else None)
+    engines._build("whisper", accurate=False)                            # "Fast" saved earlier
+    assert (loaded[-1].model, loaded[-1].device, loaded[-1].compute_type) == (str(tmp_path / "large-v3"), "cuda",
+                                                                             "int8_float16")
+    monkeypatch.setattr(engines, "bundled_model", lambda name: None)     # development checkout: unchanged
+    engines._build("whisper", accurate=False)
+    assert loaded[-1].model == "large-v3-turbo"
+    engines._build("whisper", accurate=True)
+    assert loaded[-1].model == "large-v3"
+
+
 def test_an_unusable_engine_is_an_error_with_the_reason(monkeypatch):
     monkeypatch.setattr(engines, "availability", lambda name: (False, "not installed: onnx_asr"))
     with pytest.raises(RuntimeError, match="not installed: onnx_asr"):
