@@ -2,13 +2,19 @@
 //
 // Built by installer/build_installer.py with Windows' own C# compiler (.NET Framework 4.8,
 // C# 5). The app is a zip appended to this program, followed by a 16-byte trailer: the
-// zip's offset (Int64) and "MTSETUP1".
+// zip's offset (Int64) and "MTSETUP1". Windows will not start a program file of 4 GiB or more,
+// so a larger installer is this program followed by the name of a data file beside it, the
+// name's length (Int64) and "MTSETUPD"; the data file is the zip plus the trailer (offset 0).
 //
 // Install: for the current Windows account only (no administrator rights), into
 // %LOCALAPPDATA%\Programs\MyTranscribe Medical; desktop and Start-menu shortcuts; an entry in
 // Settings -> Apps (per-user registry). An update replaces the program files and keeps the
 // user's settings, word lists and log (they live in %APPDATA% and %LOCALAPPDATA%\MyTranscribe).
 // Uninstall: the same program without the zip, copied into the install folder.
+//
+// Compiled with GPU_EDITION (build_installer.py --gpu) it is the graphics-card edition: its own
+// name, folder, shortcuts and Apps entry, so it installs beside the processor-only edition and
+// never updates, replaces or removes it (and the other way round).
 //
 // An update package (build_info.json "kind": "update") carries only the app's own code (src/):
 // it needs an installed copy built with the same Python, replaces src/ (put back if anything
@@ -30,10 +36,18 @@ using Microsoft.Win32;
 
 static class Program
 {
+#if GPU_EDITION
+    public const string AppName = "MyTranscribe Medical (graphics card)";
+    public const string RegKey = @"Software\Microsoft\Windows\CurrentVersion\Uninstall\MyTranscribeMedicalGPU";
+    public const string Device = "cuda";          // build_info.json "device" of this edition
+#else
     public const string AppName = "MyTranscribe Medical";
     public const string RegKey = @"Software\Microsoft\Windows\CurrentVersion\Uninstall\MyTranscribeMedical";
+    public const string Device = "cpu";
+#endif
     public const string UninstallExe = "Uninstall MyTranscribe.exe";
     public static readonly byte[] Magic = System.Text.Encoding.ASCII.GetBytes("MTSETUP1");
+    public static readonly byte[] MagicData = System.Text.Encoding.ASCII.GetBytes("MTSETUPD");
 
     [STAThread]
     static int Main(string[] args)
@@ -45,10 +59,14 @@ static class Program
         {
             if (opts.Uninstall)
                 return Uninstaller.Run(opts);
-            var payload = Payload.Open(Application.ExecutablePath);
+            string missing;
+            var payload = Payload.Open(Application.ExecutablePath, out missing);
             if (payload == null)
             {
-                Ui.Error("This copy of the installer is incomplete. Please download it again.", opts);
+                Ui.Error(missing != null
+                    ? "This installer needs the file " + missing + " in the same folder as it. Please put the two " +
+                      "files together (download both again if needed), then start it again."
+                    : "This copy of the installer is incomplete. Please download it again.", opts);
                 return 2;
             }
             if (opts.Silent)
@@ -179,9 +197,11 @@ static class Ui
 // ── The appended zip ─────────────────────────────────────────────────────────
 class Payload
 {
-    public string Path;
+    public string Path;                  // the file holding the zip: this program, or the data file beside it
     public long Offset, Length;
-    public string Version = "", Kind = "", Python = "";
+    public string Exe;                   // this program
+    public long StubLength;              // its length without the payload: the uninstaller
+    public string Version = "", Kind = "", Python = "", Device = "";
     public long UnpackedBytes;
     public int Files;
     public bool IsUpdate { get { return Kind == "update"; } }
@@ -192,36 +212,68 @@ class Payload
         return m.Success ? m.Groups[1].Value : "";
     }
 
-    public static Payload Open(string exe)
+    // The 16-byte trailer at the end of a file: (Int64 value, true) if it ends with magic.
+    static bool Trailer(Stream f, byte[] magic, out long value)
     {
+        value = 0;
+        if (f.Length < 32) return false;
+        f.Seek(-16, SeekOrigin.End);
+        var tail = new byte[16];
+        if (f.Read(tail, 0, 16) != 16 || !tail.Skip(8).SequenceEqual(magic)) return false;
+        value = BitConverter.ToInt64(tail, 0);
+        return true;
+    }
+
+    // missing: the data file's name when this program expects one beside it and it is not there.
+    public static Payload Open(string exe, out string missing)
+    {
+        missing = null;
+        Payload p;
         using (var f = File.OpenRead(exe))
         {
-            if (f.Length < 32) return null;
-            f.Seek(-16, SeekOrigin.End);
-            var tail = new byte[16];
-            f.Read(tail, 0, 16);
-            if (!tail.Skip(8).SequenceEqual(Program.Magic)) return null;
-            var p = new Payload { Path = exe, Offset = BitConverter.ToInt64(tail, 0) };
-            p.Length = f.Length - 16 - p.Offset;
-            using (var zip = p.OpenZip())
+            long value;
+            if (Trailer(f, Program.Magic, out value))
+                p = new Payload { Path = exe, Offset = value, Length = f.Length - 16 - value, Exe = exe, StubLength = value };
+            else if (Trailer(f, Program.MagicData, out value) && value > 0 && value < 1024)
             {
-                foreach (var e in zip.Entries)
+                var name = new byte[value];
+                f.Seek(-16 - value, SeekOrigin.End);
+                if (f.Read(name, 0, name.Length) != name.Length) return null;
+                string dataName = System.Text.Encoding.UTF8.GetString(name);
+                string folder = System.IO.Path.GetDirectoryName(exe);
+                string data = System.IO.Path.Combine(folder, dataName);
+                if (!File.Exists(data))            // this program renamed (a download's " (1)"): its own name
+                    data = System.IO.Path.ChangeExtension(exe, ".data");
+                if (!File.Exists(data)) { missing = dataName; return null; }
+                using (var d = File.OpenRead(data))
                 {
-                    p.UnpackedBytes += e.Length;
-                    p.Files++;
+                    long offset;
+                    if (!Trailer(d, Program.Magic, out offset)) return null;
+                    p = new Payload { Path = data, Offset = offset, Length = d.Length - 16 - offset,
+                                      Exe = exe, StubLength = f.Length - 16 - value };
                 }
-                var info = zip.GetEntry("build_info.json");
-                if (info != null)
-                    using (var r = new StreamReader(info.Open()))
-                    {
-                        string json = r.ReadToEnd();
-                        p.Version = Field(json, "version");
-                        p.Kind = Field(json, "kind");
-                        p.Python = Field(json, "python");
-                    }
             }
-            return p;
+            else return null;
         }
+        using (var zip = p.OpenZip())
+        {
+            foreach (var e in zip.Entries)
+            {
+                p.UnpackedBytes += e.Length;
+                p.Files++;
+            }
+            var info = zip.GetEntry("build_info.json");
+            if (info != null)
+                using (var r = new StreamReader(info.Open()))
+                {
+                    string json = r.ReadToEnd();
+                    p.Version = Field(json, "version");
+                    p.Kind = Field(json, "kind");
+                    p.Python = Field(json, "python");
+                    p.Device = Field(json, "device");
+                }
+        }
+        return p;
     }
 
     public ZipArchive OpenZip()
@@ -303,9 +355,30 @@ static class Installer
         }
     }
 
+    // The device ("cpu" or "cuda") of the edition installed in folder, or "" if none is.
+    public static string InstalledDevice(string folder)
+    {
+        string info = Path.Combine(folder, "build_info.json");
+        if (!File.Exists(info)) return "";
+        string device = Payload.Field(File.ReadAllText(info), "device");
+        return device == "" ? "cpu" : device;
+    }
+
+    // Why folder holds the other edition (which this program must leave alone), or null.
+    public static string OtherEdition(Payload p, string folder)
+    {
+        string installed = InstalledDevice(folder);
+        string mine = p.Device == "" ? Program.Device : p.Device;
+        if (installed == "" || installed == mine) return null;
+        return folder + " holds the " + (installed == "cuda" ? "graphics-card" : "processor-only") + " edition of " +
+               "MyTranscribe Medical, which this installer leaves as it is. Please choose another folder.";
+    }
+
     // progress(done bytes, total bytes)
     public static void Install(Payload p, string folder, bool shortcuts, Action<long, long> progress)
     {
+        string other = OtherEdition(p, folder);
+        if (other != null) throw new InvalidOperationException(other);
         string parent = Path.GetDirectoryName(folder);
         Directory.CreateDirectory(parent);
         string old = folder + ".old";
@@ -351,6 +424,8 @@ static class Installer
         if (!File.Exists(Path.Combine(folder, "python", "python.exe")))
             return Program.AppName + " is not installed on this PC. This file only updates an installed copy: " +
                    "install it with the full installer first.";
+        string other = OtherEdition(p, folder);
+        if (other != null) return other;
         string info = Path.Combine(folder, "build_info.json");
         string installedPython = File.Exists(info) ? Payload.Field(File.ReadAllText(info), "python") : "";
         if (p.Python != "" && installedPython != "" && p.Python != installedPython)
@@ -438,10 +513,10 @@ static class Installer
             }
         }
         // The uninstaller is this program without the zip.
-        using (var self = File.OpenRead(p.Path))
+        using (var self = File.OpenRead(p.Exe))
         using (var un = File.Create(Path.Combine(folder, Program.UninstallExe)))
         {
-            long left = p.Offset;
+            long left = p.StubLength;
             int n;
             while (left > 0 && (n = self.Read(buffer, 0, (int)Math.Min(buffer.Length, left))) > 0)
             {
@@ -554,7 +629,7 @@ class InstallForm : Form
         var header = new Panel { Dock = DockStyle.Top, Height = 92, BackColor = Ui.Back };
         var pic = new PictureBox { Image = Ui.AppImage(), SizeMode = PictureBoxSizeMode.Zoom,
                                    Location = new Point(28, 22), Size = new Size(52, 52) };
-        var eyebrow = Ui.Text("MYTRANSCRIBE MEDICAL", 8f, true, Ui.Accent);
+        var eyebrow = Ui.Text(Program.AppName.ToUpperInvariant(), 8f, true, Ui.Accent);
         eyebrow.Location = new Point(96, 24); eyebrow.Size = new Size(420, 18);
         var title = Ui.Text("Dictation that stays on this PC", 15f, true, Ui.Ink);
         title.Location = new Point(94, 42); title.Size = new Size(440, 34);
@@ -605,7 +680,7 @@ class InstallForm : Form
                 return;
             }
             Lines(
-                Ui.Text("This updates MyTranscribe Medical to version " + payload.Version + ".", 10.5f, false, Ui.Ink),
+                Ui.Text("This updates " + Program.AppName + " to version " + payload.Version + ".", 10.5f, false, Ui.Ink),
                 Ui.Text("Only the program itself changes: the speech model, your settings and your word lists stay " +
                         "as they are. Close MyTranscribe first if it is open.", 10f, false, Ui.Ink),
                 Ui.Text("Updates " + folder, 9f, false, Ui.Muted));
@@ -689,13 +764,13 @@ class InstallForm : Form
         startNow.Height = 28;
         if (payload.IsUpdate)
             Lines(
-                Ui.Text("MyTranscribe Medical is updated to version " + payload.Version + ".", 12f, true, Ui.Ink),
+                Ui.Text(Program.AppName + " is updated to version " + payload.Version + ".", 12f, true, Ui.Ink),
                 Ui.Text("Start it as usual, from the shortcut on your desktop or from the Start menu.",
                         10f, false, Ui.Ink),
                 startNow);
         else
             Lines(
-                Ui.Text("MyTranscribe Medical is installed.", 12f, true, Ui.Ink),
+                Ui.Text(Program.AppName + " is installed.", 12f, true, Ui.Ink),
                 Ui.Text(opts.NoShortcuts ? "Start it from " + folder + "."
                         : "Start it from the shortcut on your desktop or from the Start menu. The first start asks " +
                           "a few questions to set it up (about three minutes).", 10f, false, Ui.Ink),
@@ -795,7 +870,7 @@ class UninstallForm : Form
         Font = new Font("Segoe UI", 9.5f);
         AutoScaleMode = AutoScaleMode.Font;
         ClientSize = new Size(460, 190);
-        var q = Ui.Text("Remove MyTranscribe Medical from this PC?", 12f, true, Ui.Ink);
+        var q = Ui.Text("Remove " + Program.AppName + " from this PC?", 12f, true, Ui.Ink);
         q.Location = new Point(24, 20); q.Size = new Size(420, 28);
         data.Text = "Also remove my settings, word lists and log";
         data.Location = new Point(26, 64); data.Size = new Size(420, 26);
