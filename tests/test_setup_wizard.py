@@ -311,6 +311,35 @@ def test_options_say_accuracy_does_not_apply_without_a_graphics_card(qapp, monke
     assert gpu.accuracy.isEnabled() and not gpu.accuracy.isHidden() and gpu.model_label.isHidden()
 
 
+def test_options_offer_only_the_large_model_that_came_with_the_installer(qapp, monkeypatch):
+    import engines
+    from options_dialog import OptionsDialog
+    monkeypatch.setattr(engines, "bundled_model", lambda name: "x" if name == "large-v3" else None)
+    d = OptionsDialog(st.Settings(accuracy="fast"), devices=["Mic"], default_device="Mic")
+    assert d.accuracy.isHidden() and not d.model_label.isHidden()
+    assert d.model_label.text() == "Whisper large-v3, on the graphics card"
+    assert "came with the installer" in d.engine_note.text() and "GB" not in d.engine_note.text()
+    assert d.result_settings().accuracy == "best"             # "fast" has nothing installed behind it
+    cpu = OptionsDialog(st.Settings(), devices=["Mic"], default_device="Mic", processor_only=True)
+    assert "small.en, on the processor" in cpu.model_label.text()   # no usable card: as before
+    monkeypatch.setattr(engines, "bundled_model", lambda name: "x" if name.startswith("large") else None)
+    both = OptionsDialog(st.Settings(accuracy="fast"), devices=["Mic"], default_device="Mic")
+    assert not both.accuracy.isHidden() and both.model_label.isHidden() and both.accuracy.count() == 2
+    assert both.result_settings().accuracy == "fast"
+
+
+def test_wizard_asks_no_accuracy_question_with_one_large_model_installed(make_wizard, qapp, monkeypatch):
+    import engines
+    monkeypatch.setattr(engines, "bundled_model", lambda name: "x" if name == "large-v3" else None)
+    w = make_wizard(st.Settings(accuracy="fast"))
+    w.show()
+    go_to(w, w.computer, qapp)
+    assert not any(b.isVisible() for b in w.computer.group.buttons())
+    assert "came with the installer" in w.computer.download.text()
+    go_to(w, w.summary, qapp)
+    assert "most accurate (large-v3)" in w.summary.lines.text() and w.result_settings().accuracy == "best"
+
+
 def test_hardware_descriptions():
     from hw_profile import HardwareInfo
     from setup_wizard import describe_hardware

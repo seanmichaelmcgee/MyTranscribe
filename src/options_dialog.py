@@ -199,12 +199,14 @@ class OptionsDialog(QDialog):
         self.engine.setCurrentIndex(max(0, self.engine.findData(settings.engine)))
         acc_form.addRow("Recogniser:", self.engine)
         acc_form.setRowVisible(self.engine, len(offered) > 1)    # only Whisper here: nothing to choose
-        self.accuracy = self._combo(ACCURACY, settings.accuracy)
+        # Only the models this copy has: an installed copy that came with one large model offers no choice.
+        self._accuracy_choices = engines.accuracy_choices()
+        self.accuracy = self._combo([a for a in ACCURACY if a[0] in self._accuracy_choices], settings.accuracy)
         acc_form.addRow("Accuracy:", self.accuracy)
         from hw_profile import CPU_DEFAULT_MODEL
         self.model_label = QLabel(f"Whisper {CPU_DEFAULT_MODEL}, on the processor")
         self.model_label.setObjectName("fixedBinding")
-        acc_form.addRow("Model:", self.model_label)               # instead of Accuracy, without a graphics card
+        acc_form.addRow("Model:", self.model_label)    # instead of Accuracy: no graphics card, or one model installed
         self._speech_form = acc_form
         languages = [(code, name + (" (experimental)" if code in EXPERIMENTAL_LANGUAGES else ""))
                      for code, name in lang_packs.LANGUAGES
@@ -361,17 +363,25 @@ class OptionsDialog(QDialog):
         name = self.engine.currentData()
         info = engines.ENGINES[name]
         on_processor = name == "whisper" and self._processor_only
-        self.accuracy.setEnabled(name == "whisper" and not self._processor_only)
-        self._speech_form.setRowVisible(self.accuracy, not on_processor)
-        self._speech_form.setRowVisible(self.model_label, on_processor)
+        one_model = name == "whisper" and not self._processor_only and len(self._accuracy_choices) == 1
+        self.accuracy.setEnabled(name == "whisper" and not self._processor_only and not one_model)
+        self._speech_form.setRowVisible(self.accuracy, not on_processor and not one_model)
+        self._speech_form.setRowVisible(self.model_label, on_processor or one_model)
         if on_processor:
             from hw_profile import CPU_DEFAULT_MODEL
+            self.model_label.setText(f"Whisper {CPU_DEFAULT_MODEL}, on the processor")
             where = ("It came with the installer: nothing is downloaded." if engines.bundled_model(CPU_DEFAULT_MODEL)
                      else "If it is not on this PC yet, you are asked before it is downloaded (about 0.5 GB, once).")
             note = (f"This PC has no usable NVIDIA graphics card, so Whisper runs its smaller model, "
                     f"{CPU_DEFAULT_MODEL}, on the processor: the text comes a few seconds after you stop, and it "
                     f"makes more mistakes than the large model on a graphics card, especially in drug names. "
                     f"{where} Licence: {info.licence}.")
+        elif one_model:
+            from hw_profile import GPU_ACCURATE_MODEL, GPU_DEFAULT_MODEL
+            model = GPU_ACCURATE_MODEL if self._accuracy_choices == ["best"] else GPU_DEFAULT_MODEL
+            self.model_label.setText(f"Whisper {model}, on the graphics card")
+            note = (f"Whisper {model} came with the installer: nothing is downloaded, and it works offline. "
+                    f"Licence: {info.licence}.")
         else:
             note = (f"{info.note} Download: {info.size}. Licence: {info.licence}. "
                     "Saving a change reloads the model; you are asked before any download.")

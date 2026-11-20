@@ -617,6 +617,7 @@ class ComputerPage(QWizardPage):
 
     def _show(self) -> None:
         text, choice = describe_hardware(self._result)
+        choice = choice and len(engines.accuracy_choices()) > 1     # an installed copy with one large model
         self.text.setText(text)
         for w in self._choice_widgets:
             w.setEnabled(choice)
@@ -624,7 +625,9 @@ class ComputerPage(QWizardPage):
         self.download.setText(download_note(self._result))
 
     def accuracy(self) -> str:
-        return _checked(self.group) or "best"
+        choices = engines.accuracy_choices()
+        checked = _checked(self.group) or "best"
+        return checked if checked in choices else choices[0]
 
     def hardware(self):
         """What the page found (hw_profile.HardwareInfo), or None if it has not looked yet."""

@@ -18,7 +18,7 @@ import logging
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Callable, List, Optional, Tuple
 
 logger = logging.getLogger("engines")
 ROOT = Path(__file__).resolve().parent.parent
@@ -143,6 +143,19 @@ def bundled_model(name: str) -> Optional[Path]:
     return folder if name and (folder / "model.bin").is_file() else None
 
 
+def accuracy_choices(bundled: Optional[Callable[[str], Optional[Path]]] = None) -> List[str]:
+    """
+    The Accuracy choices ("best": large-v3, "fast": large-v3-turbo) this copy offers. Both in a
+    development checkout, which asks before downloading a missing model; in an installed copy that
+    came with either model, only those it came with (the graphics-card edition carries large-v3).
+    """
+    from hw_profile import GPU_ACCURATE_MODEL, GPU_DEFAULT_MODEL
+    bundled = bundled or bundled_model
+    have = [choice for choice, model in (("best", GPU_ACCURATE_MODEL), ("fast", GPU_DEFAULT_MODEL))
+            if bundled(model) is not None]
+    return have or ["best", "fast"]
+
+
 def build(name: str = DEFAULT, accurate: bool = True, allow_download: bool = False, language: str = "en"):
     """
     Load and warm up the recogniser `name`. With allow_download the hub is
@@ -182,6 +195,9 @@ def _build(name: str, accurate: bool, language: str = "en"):
         from fw_engine import FasterWhisperEngine, register_cuda_dll_dirs
         from hw_profile import choose_config, detect_hardware
         register_cuda_dll_dirs()                 # before ctranslate2 touches CUDA (Windows); harmless to repeat
+        choices = accuracy_choices()
+        if ("best" if accurate else "fast") not in choices:
+            accurate = choices[0] == "best"      # e.g. "fast" saved, but only large-v3 came with the installer
         cfg = choose_config(detect_hardware(), accurate=accurate)
         tuned = tuned_model(language)
         if tuned is not None:
