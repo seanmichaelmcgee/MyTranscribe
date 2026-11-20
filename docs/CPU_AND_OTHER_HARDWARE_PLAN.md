@@ -71,6 +71,10 @@ What it says:
     decode fell from 3.7 to 1.3 s (median), with 33 medical words wrong instead of 38 and 9.83%
     word errors instead of 10.05%. Long pieces keep 30 s: shortening them saved little and once
     made the model skip a sentence;
+  - classical terms put right (2026-11-20, `src/classical_terms.py`). small.en wrote 64% of
+    about 350 eponyms, organisms and scores right, and 88% with the fix on the held-out half. On
+    the owner's laptop build, "Charcot" had come out as "charcoal" and "ceftriaxone" as
+    "subteraxone". See [BENCHMARKS.md](BENCHMARKS.md);
   - an NVIDIA card without its libraries uses the processor;
   - the wizard states the expected wait and the extra errors.
 - **Distribution:** `installer/` builds a per-user Windows installer, with Python, the packages

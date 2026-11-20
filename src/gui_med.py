@@ -64,6 +64,7 @@ from gui_qt import AppState, TranscriptionWindow             # noqa: E402
 from triggers import InputTriggers                           # noqa: E402
 import settings as settings_store                            # noqa: E402
 import app_log                                               # noqa: E402
+import classical_terms                                       # noqa: E402
 import engines                                               # noqa: E402
 import lang_commands                                         # noqa: E402
 import live_insert                                           # noqa: E402
@@ -343,9 +344,13 @@ class MedTranscriptionWindow(TranscriptionWindow):
         """Runs on the model-load thread. Never touches widgets."""
         try:
             self._engine = self._engine_factory()
+            self._classical = classical_terms.on_for(self._engine)
+            if self._classical:
+                classical_terms.default_fixer()      # its one-time setup (~0.2 s) now, not after the first dictation
             if self._text_pipeline is None:
                 self._text_pipeline = build_text_pipeline(
-                    self._base_prompt, count=getattr(self._engine, "count_tokens", None))
+                    self._base_prompt, count=getattr(self._engine, "count_tokens", None),
+                    classical=self._classical)
         except Exception as exc:
             logger.error("Model load failed", exc_info=not isinstance(exc, engines.ModelNotDownloaded))
             self._load_exc = exc
@@ -936,7 +941,8 @@ class MedTranscriptionWindow(TranscriptionWindow):
             if not self._settings.voice_commands:
                 return text
             return lang_commands.apply(text, pack, punctuation=self._settings.spoken_punctuation)
-        text = text_fixes.finish(text, self._settings.extra_fixes)    # hesitations out, always
+        text = text_fixes.finish(text, self._settings.extra_fixes,    # hesitations out, always
+                                 classical=getattr(self, "_classical", False))
         if not self._settings.voice_commands:
             return text
         # MedASR writes dictated marks as words of its own accord: always convert those.

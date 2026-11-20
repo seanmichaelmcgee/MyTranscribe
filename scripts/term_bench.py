@@ -275,6 +275,9 @@ def cmd_run(args, panel):
         os.environ["MYTRANSCRIBE_DEVICE"] = args.device
     if args.threads:
         os.environ["MYTRANSCRIBE_CPU_THREADS"] = str(args.threads)
+    if args.classical_on_gpu:                      # measure it on large-v3 before it is turned on there
+        import classical_terms
+        classical_terms.GRAPHICS_CARD_TOO = True
     out = args.out / "runs" / args.name
     out.mkdir(parents=True, exist_ok=True)
     # A new install: the bundled vocabulary and medications, none of this PC's own word fixes.
@@ -293,13 +296,15 @@ def cmd_run(args, panel):
     (out / "run.json").write_text(json.dumps({
         "model": str(engine.config.model), "device": engine.config.device, "compute_type": engine.config.compute_type,
         "threads": engine.config.cpu_threads, "pin": args.pin, "profile": PROFILE,
+        "classical": dr.classical_terms.on_for(engine),
         "personal_files": "none (a new install)", "started": dt.datetime.now().isoformat(timespec="seconds")},
         indent=1), encoding="utf-8")
     todo = [r for r in manifest(args.out) if r["sha256"] not in done]
     t0 = time.perf_counter()
     for n, r in enumerate(todo, 1):
         # A fresh pipeline per clip, as for a new dictation: results do not depend on clip order.
-        builder, post = build_text_pipeline(style, count=getattr(engine, "count_tokens", None))
+        builder, post = build_text_pipeline(style, count=getattr(engine, "count_tokens", None),
+                                            classical=dr.classical_terms.on_for(engine))
         audio = dr.load_wav(args.out / r["wav"])
         final, _pieces, elapsed, _rescued, raw = dr.run_pipeline(engine, audio, None, style, builder, post,
                                                                 profile, with_spoken=True)
@@ -403,6 +408,8 @@ def main(argv=None):
     ap.add_argument("--device", choices=("cpu", "cuda"), help="run: force the device (default: as the app picks)")
     ap.add_argument("--threads", type=int, help="run: processor threads")
     ap.add_argument("--pin", help="run: logical CPUs to hold the process to, e.g. 16-19")
+    ap.add_argument("--classical-on-gpu", action="store_true",
+                    help="run: classical-term fixes on a graphics card too (classical_terms.GRAPHICS_CARD_TOO)")
     ap.add_argument("--names", type=lambda s: s.split(","), default=["gpu", "cpu"], help="report: runs to compare")
     args = ap.parse_args(argv)
     panel = sv.load_panel(args.panel)
