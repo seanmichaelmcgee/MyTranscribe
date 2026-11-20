@@ -198,7 +198,7 @@ He had pain at the tip of the left shoulder after the splenic injury, [[Kehr's s
 
 ## t13 | abdomen-pancreas-biliary | tune
 There was bruising around the umbilicus, [[Cullen's sign]].
-There was bruising in the left flank, [[Grey Turner's sign]].
+There was bruising in the left flank, [[Grey Turner's sign|Gray Turner's sign]].
 A palpable, nontender gallbladder with jaundice, [[Courvoisier's sign]], raises concern for pancreatic cancer.
 A hard lymph node above the left clavicle, [[Virchow's node]], was felt.
 Fever, jaundice and right upper quadrant pain make up [[Charcot's triad]].
@@ -304,7 +304,7 @@ Granulomatosis with polyangiitis used to be called [[Wegener's granulomatosis]].
 
 ## t25 | skin-signs | tune
 [[Gottron's papules]] over the knuckles and a [[heliotrope rash]] suggest dermatomyositis.
-New plaques along the scratch marks show the [[Koebner phenomenon]].
+New plaques along the scratch marks show the [[Koebner phenomenon|Köbner phenomenon]].
 Scraping off the scale caused pinpoint bleeding, the [[Auspitz sign]].
 The skin sheared off with gentle pressure, a positive [[Nikolsky sign]].
 Rubbing the lesion raised a wheal, [[Darier's sign]], typical of mastocytosis.
