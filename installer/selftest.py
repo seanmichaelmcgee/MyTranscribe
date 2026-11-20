@@ -51,6 +51,18 @@ def engine():
     return eng
 
 
+def nvidia_libraries():
+    """Where the NVIDIA libraries in use were loaded from: inside this copy, or (wrongly) elsewhere on the PC."""
+    import psutil
+    names = {"cublas64_12.dll", "cublaslt64_12.dll", "cudnn64_9.dll"}
+    paths = sorted({m.path for m in psutil.Process().memory_maps() if Path(m.path).name.lower() in names})
+    here = str(Path(__file__).resolve().parent).lower()
+    outside = [p for p in paths if not p.lower().startswith(here)]
+    if outside:
+        raise AssertionError("loaded from outside this copy: " + "; ".join(outside))
+    return "; ".join(paths) or "none"
+
+
 def decode(eng):
     import numpy as np
     sr = 16000
@@ -70,4 +82,6 @@ if __name__ == "__main__":
     eng = step("load speech model", engine)
     print(f"       loaded {eng.config.model} on {eng.config.device}/{eng.config.compute_type}, beam {eng.beam_size}")
     step("transcribe", lambda: decode(eng))
+    if eng.config.device == "cuda":
+        step("NVIDIA libraries", nvidia_libraries)
     print("ALL PASS")
