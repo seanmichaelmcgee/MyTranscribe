@@ -1,0 +1,525 @@
+# MyTranscribe term set, English v1: classical medical terms in short fictional notes.
+#
+# Eponymous signs, tests, syndromes and diseases, organisms, classical descriptive terms,
+# clinical scores and drugs a family physician dictates. Written 2026-11-20 for
+# scripts/term_bench.py, which has synthetic voices read each item and then looks for every
+# marked term in what each model writes. Every person and detail is invented.
+#
+# Format:
+#   ## pronounce            then "term = how a clinician says it", a hint for the voice only
+#   ## <id> | <topic> | <split>
+#   one sentence per line; [[term]] marks a term to look for (written as it should appear)
+# Split (tune or check) was fixed when the item was written, before any result was seen.
+# [[a|b]]: a is written and said, and b is also accepted (cephalexin, cefalexin).
+# Each marked term appears once in its item. Rules: tests/test_term_set.py.
+
+## pronounce
+Charcot = shar-KOH
+Guillain-Barré = ghee-YAN bah-RAY
+Ménière's = men-YAIRS
+Lasègue's = lah-SEGS
+Brown-Séquard = brown say-KAR
+Trousseau's = troo-SOHZ
+Chvostek's = VOS-teks
+Courvoisier's = koor-VWAH-zee-ayz
+Lhermitte's = ler-MEETS
+Uhthoff's = OOT-hoffs
+Kienböck's = KEEN-beks
+Löfgren = LUF-gren
+Behçet's = beh-CHETS
+Sjögren's = SHOW-grinz
+Henoch-Schönlein = HEN-ok SHERN-line
+Pfannenstiel = FAN-en-steel
+Waldenström's = VAL-den-strums
+Creutzfeldt-Jakob = KROITS-felt YAH-kob
+de Quervain's = deh kair-VANZ
+Kussmaul = KOOS-mowl
+Quincke's = KWINK-eez
+Duroziez's = doo-roh-zee-AYZ
+de Musset's = deh moo-SAYZ
+Takotsubo = tah-kot-SOO-boh
+Ortolani = or-toh-LAH-nee
+Galeazzi = gal-ee-AHT-see
+Monteggia = mon-TEJ-ah
+Wenckebach = WENK-eh-bahk
+Mobitz = MOH-bits
+torsades de pointes = tor-SAHD deh PWANT
+Legg-Calvé-Perthes = leg kal-VAY PER-tez
+Lisfranc = LEES-frank
+Maisonneuve = may-zon-NUV
+Bouchard's = boo-SHARZ
+Dupuytren's = doo-pwee-TRENZ
+Rovsing's = ROV-singz
+Virchow's = VEER-kohz
+Schatzki = SHATS-kee
+Budd-Chiari = bud kee-AR-ee
+Wernicke's = VER-nih-keez
+Lewy = LOO-ee
+Tourette = too-RET
+Friedreich's = FREED-rykes
+Capgras = kap-GRAH
+Takayasu = tah-kah-YAH-soo
+Gottron's = got-RONZ
+Auspitz = OWS-pits
+Darier's = dar-YAYZ
+Kaposi = KAP-oh-see
+Forchheimer = FORK-hy-mer
+Pastia's = PAS-tee-uz
+Tzanck = ZANK
+Naegele's = NAY-geh-leez
+Hegar's = HAY-garz
+Nabothian = nah-BOH-thee-an
+mittelschmerz = MIT-el-shmairts
+Peyronie's = pay-roh-NEEZ
+Fournier's = FOR-nee-ayz
+Prehn's = PRAYNZ
+Klumpke's = KLUMP-keez
+Reye = RYE
+Jarisch-Herxheimer = YAR-ish HERKS-hy-mer
+Ziehl-Neelsen = ZEEL NEEL-sen
+Coxsackie = kok-SAK-ee
+Neisseria = ny-SEER-ee-uh
+peau d'orange = poh doh-RAHNZH
+café au lait = ka-FAY oh LAY
+Nikolsky = nih-KOL-skee
+Koebner = KEB-ner
+Kiesselbach's = KEE-sel-bahks
+Eisenmenger = EYE-zen-meng-er
+Kellgren-Lawrence = KEL-gren LAW-rence
+Kayser-Fleischer = KY-zer FLY-sher
+Kimmelstiel-Wilson = KIM-el-steel WIL-son
+Beighton = BAY-tun
+Kehr's = KAIRZ
+Sever's = SEE-verz
+Haglund's = HAG-lunds
+Howell-Jolly = HOW-el zhoh-LEE
+Clostridioides difficile = klos-trid-ee-OY-deez dif-ih-SEEL
+Borrelia burgdorferi = bor-EL-ee-uh burg-DOR-fer-eye
+ceftriaxone = sef-try-AX-ohn
+ceftazidime = sef-TAZ-ih-deem
+piperacillin-tazobactam = pip-er-uh-SIL-in taz-oh-BAK-tam
+oseltamivir = oh-sel-TAM-ih-veer
+pyrazinamide = peer-uh-ZIN-uh-mide
+
+## t01 | neuro-exam | tune
+The [[Babinski sign]] was present on the left, with brisk reflexes on that side.
+[[Romberg's test]] was positive, so I suspect a sensory ataxia.
+There was no neck stiffness, and both [[Kernig's sign]] and [[Brudzinski's sign]] were negative.
+A positive [[Hoffmann's sign]] in the right hand raises concern for cervical myelopathy.
+She describes [[Lhermitte's sign]], an electric shock down the spine when she bends her neck.
+
+## t02 | neuro-dizzy | check
+The [[Dix-Hallpike]] test reproduced her vertigo with torsional nystagmus.
+I performed the [[Epley]] manoeuvre in the office and she felt better afterwards.
+[[Weber's test]] lateralised to the left ear and [[Rinne's test]] was abnormal on that side.
+We discussed [[Ménière's disease]] as the cause of his episodes of vertigo and tinnitus.
+Her [[Glasgow Coma Scale]] score was 15 on arrival.
+
+## t03 | neuro-disease | tune
+He was admitted with [[Guillain-Barré syndrome]] after a diarrhoeal illness.
+Her father has [[Charcot-Marie-Tooth disease]], with high arches and foot drop.
+The facial weakness involved the forehead, in keeping with [[Bell's palsy]].
+Vesicles in the ear canal suggest [[Ramsay Hunt syndrome]] rather than a simple palsy.
+Proximal weakness that improves with repeated effort points to [[Lambert-Eaton syndrome]].
+
+## t04 | neuro-cognitive | check
+Visual hallucinations and fluctuating attention suggest [[Lewy body dementia]].
+His mother had [[Huntington's disease]] and he would like to discuss genetic testing.
+Rapidly progressive dementia with myoclonus raises the possibility of [[Creutzfeldt-Jakob disease]].
+Confusion, ataxia and eye movement palsies in a heavy drinker is [[Wernicke's encephalopathy]] until proven otherwise.
+He confabulates freely, in keeping with [[Korsakoff syndrome]].
+Her speech was halting and effortful, a [[Broca's aphasia]].
+
+## t05 | neuro-spine-eye | tune
+Hemisection of the cord gives a [[Brown-Séquard]] pattern of weakness and sensory loss.
+The MRI showed a [[Chiari malformation]] with tonsillar descent.
+The left pupil was small, with ptosis on that side, a [[Horner's syndrome]].
+There was a relative afferent pupillary defect, a [[Marcus Gunn pupil]].
+Her vision blurs when she is hot, typical of [[Uhthoff's phenomenon]].
+He had a [[Todd's paresis]] of the right arm after the seizure that resolved by evening.
+
+## t06 | hand-wrist | check
+[[Tinel's sign]] was positive over the carpal tunnel.
+[[Phalen's test]] reproduced tingling in the thumb and index finger after thirty seconds.
+[[Finkelstein's test]] was painful, consistent with [[de Quervain's tenosynovitis]].
+[[Froment's sign]] was positive, suggesting weakness from the ulnar nerve.
+He has a [[Dupuytren's contracture]] of the right ring finger.
+The [[Allen test]] showed good collateral flow before the arterial puncture.
+
+## t07 | hand-fracture | tune
+The X-ray confirmed a [[Colles fracture]] after a fall on the outstretched hand.
+A distal radius fracture with volar displacement is a [[Smith fracture]].
+With snuffbox tenderness we treat this as a [[scaphoid fracture]] until proven otherwise.
+The MRI showed avascular necrosis of the lunate, [[Kienböck's disease]].
+He has a [[boxer's fracture]] of the fifth metacarpal after punching a wall.
+Her hands show [[Heberden's nodes]] and [[Bouchard's nodes]].
+
+## t08 | knee | check
+The [[Lachman test]] was positive with a soft end point.
+[[McMurray's test]] caused a click and pain at the medial joint line.
+The [[Thessaly test]] was also positive, so a meniscal tear is likely.
+He has a [[Baker's cyst]] behind the left knee.
+At fourteen he has [[Osgood-Schlatter disease]] with a tender tibial tuberosity.
+The [[Ottawa knee rules]] were negative, so no X-ray was needed.
+
+## t09 | hip-child | tune
+A six year old boy with a limp and hip pain raises concern for [[Legg-Calvé-Perthes disease]].
+The [[Trendelenburg sign]] was positive on the right.
+The [[Thomas test]] showed a fixed flexion deformity of the hip.
+The newborn hip exam with the [[Barlow]] and [[Ortolani]] manoeuvres was normal.
+Her leg length difference was confirmed by a positive [[Galeazzi sign]].
+[[Sever's disease]] is the likely cause of her heel pain at age ten.
+
+## t10 | foot-ankle | check
+He has a [[Charcot foot]], with a warm, swollen midfoot and intact skin.
+The [[Ottawa ankle rules]] were positive, so I ordered an X-ray.
+A fracture at the base of the fifth metatarsal is a [[Jones fracture]].
+Midfoot pain after a twisting injury could be a [[Lisfranc injury]].
+Tenderness at the top of the fibula raises the possibility of a [[Maisonneuve fracture]].
+The [[Thompson test]] was positive, consistent with a ruptured Achilles tendon.
+Burning pain between the third and fourth toes suggests a [[Morton's neuroma]].
+She has a painful bony bump at the back of the heel, a [[Haglund's deformity]].
+
+## t11 | spine-shoulder | tune
+[[Spurling's test]] reproduced her arm pain on the left.
+Straight leg raising was positive at forty degrees, a positive [[Lasègue's sign]].
+[[Schober's test]] showed reduced lumbar flexion.
+The [[Hawkins-Kennedy test]] and [[Neer's sign]] were both positive for impingement.
+[[Speed's test]] was positive, suggesting biceps tendinopathy.
+[[Yergason's test]] was negative.
+
+## t12 | abdomen-exam | check
+[[Murphy's sign]] was positive, with tenderness in the right upper quadrant.
+She was most tender at [[McBurney's point]].
+Pressing on the left lower quadrant caused pain on the right, a positive [[Rovsing's sign]].
+The [[psoas sign]] and the [[obturator sign]] were both negative.
+The tenderness increased when she tensed her abdominal wall, a positive [[Carnett's sign]].
+He had pain at the tip of the left shoulder after the splenic injury, [[Kehr's sign]].
+
+## t13 | abdomen-pancreas-biliary | tune
+There was bruising around the umbilicus, [[Cullen's sign]].
+There was bruising in the left flank, [[Grey Turner's sign]].
+A palpable, nontender gallbladder with jaundice, [[Courvoisier's sign]], raises concern for pancreatic cancer.
+A hard lymph node above the left clavicle, [[Virchow's node]], was felt.
+Fever, jaundice and right upper quadrant pain make up [[Charcot's triad]].
+With confusion and low blood pressure this becomes [[Reynolds' pentad]].
+
+## t14 | gi-disease | check
+Biopsies confirmed [[Barrett's]] esophagus without dysplasia.
+Repeated vomiting caused a [[Mallory-Weiss tear]].
+A [[Zenker's diverticulum]] explains her regurgitation of undigested food.
+A [[Schatzki ring]] was dilated at endoscopy.
+He was diagnosed with [[Crohn's disease]] at age nineteen.
+Painless rectal bleeding in a toddler could be a [[Meckel's diverticulum]].
+The newborn with a delayed first stool was assessed for [[Hirschsprung disease]].
+
+## t15 | gi-liver | tune
+His mildly raised bilirubin with normal liver enzymes is [[Gilbert syndrome]].
+The ultrasound showed hepatic vein thrombosis, [[Budd-Chiari syndrome]].
+[[Kayser-Fleischer rings]] support a diagnosis of [[Wilson's disease]].
+Multiple ulcers with a very high gastrin level suggest [[Zollinger-Ellison syndrome]].
+Massive colonic dilatation without a blockage is [[Ogilvie syndrome]].
+His cirrhosis is [[Child-Pugh]] class B.
+A [[Whipple procedure]] is planned for the mass in the head of the pancreas.
+A breath test for [[Helicobacter pylori]] was positive.
+
+## t16 | cardiac-rhythm | check
+His ECG shows a short PR interval and delta waves, a [[Wolff-Parkinson-White]] pattern.
+Coved ST elevation in V1 and V2 raises concern for [[Brugada syndrome]].
+Progressive lengthening of the PR interval before a dropped beat is [[Wenckebach]].
+A [[Mobitz]] type 2 block needs a referral for a pacemaker.
+Her prolonged QTc puts her at risk of [[torsades de pointes]].
+[[Takotsubo cardiomyopathy]] followed the sudden death of her husband.
+
+## t17 | cardiac-exam | tune
+He has [[Kussmaul breathing]] with a pH of 7.08.
+[[Cheyne-Stokes respiration]] was noted overnight.
+Low blood pressure, muffled heart sounds and raised neck veins make up [[Beck's triad]].
+[[Osler's nodes]] and [[Janeway lesions]] were seen on her hands.
+[[Roth spots]] were present on fundoscopy.
+There was a bounding pulse with head bobbing, [[de Musset's sign]].
+[[Quincke's pulse]] was visible in the nail beds.
+
+## t18 | vascular | check
+Her [[Wells score]] for pulmonary embolism was low.
+The calf was swollen and tender, but [[Homans' sign]] is unreliable.
+Stasis, vessel wall injury and a clotting tendency make up [[Virchow's triad]].
+Her fingers turn white and then blue in the cold, [[Raynaud's phenomenon]].
+A young smoker with ischemic fingertips may have [[Buerger's disease]].
+Chest pain at rest with brief ST elevation suggests [[Prinzmetal angina]].
+Pleuritic pain weeks after the heart attack may be [[Dressler syndrome]].
+Tall stature and a dislocated lens suggest [[Marfan syndrome]].
+
+## t19 | respiratory | tune
+An apical lung mass with shoulder pain is a [[Pancoast]] tumour.
+Erythema nodosum, enlarged hilar lymph nodes and ankle arthritis make up [[Löfgren syndrome]].
+Situs inversus with bronchiectasis suggests [[Kartagener syndrome]].
+A [[Valsalva]] manoeuvre stopped the tachycardia.
+The PCR was positive for [[Mycoplasma pneumoniae]].
+The urine antigen for [[Legionella]] was negative.
+
+## t20 | endocrine | check
+Tapping over the facial nerve caused twitching, a positive [[Chvostek's sign]].
+Carpal spasm with the blood pressure cuff inflated is [[Trousseau's sign]].
+Her weight gain, striae and proximal weakness suggest [[Cushing's syndrome]].
+Fatigue, darker skin and a low sodium point to [[Addison's disease]].
+She has [[Graves' disease]] with eye involvement.
+Her TSH is high and her antibodies confirm [[Hashimoto's thyroiditis]].
+A tender thyroid after a viral illness suggests [[de Quervain's thyroiditis]].
+
+## t21 | endocrine-genetic | tune
+High blood pressure with a low potassium raises the question of [[Conn's syndrome]].
+Failure to breastfeed after a major postpartum bleed suggests [[Sheehan's syndrome]].
+Delayed puberty with no sense of smell suggests [[Kallmann syndrome]].
+Tall stature and small testes led to testing for [[Klinefelter syndrome]].
+Short stature and a webbed neck suggest [[Turner syndrome]].
+Velvety dark skin in the armpits, [[acanthosis nigricans]], suggests insulin resistance.
+
+## t22 | renal-blood | check
+The biopsy showed nodular glomerulosclerosis, [[Kimmelstiel-Wilson]] lesions.
+Blood in the urine with deafness in the family suggests [[Alport syndrome]].
+Blood in the urine during a sore throat suggests [[IgA nephropathy]], also called [[Berger's disease]].
+Bleeding in the lungs with nephritis is [[Goodpasture syndrome]].
+A raised purple rash on the legs with abdominal pain is [[Henoch-Schönlein purpura|Henoch-Schoenlein purpura]].
+Her heavy periods and easy bruising suggest [[von Willebrand disease]].
+
+## t23 | blood-cancer | tune
+The node biopsy showed [[Reed-Sternberg cells]], confirming [[Hodgkin lymphoma]].
+The urine electrophoresis showed [[Bence Jones protein]].
+[[Howell-Jolly bodies]] on the smear reflect his splenectomy.
+[[Auer rods]] were seen in the blasts.
+The [[Philadelphia chromosome]] was detected.
+The direct [[Coombs test]] was positive.
+An IgM paraprotein with thick blood suggests [[Waldenström's]] macroglobulinemia.
+
+## t24 | rheumatology | check
+Dry eyes and a dry mouth suggest [[Sjögren's syndrome]].
+Recurrent mouth and genital ulcers raise the possibility of [[Behçet's disease]].
+Daily fevers, a salmon pink rash and arthritis suggest adult onset [[Still's disease]].
+Rheumatoid arthritis with a large spleen and low neutrophils is [[Felty syndrome]].
+Jaw claudication and scalp tenderness suggest [[giant cell arteritis]].
+Asthma, eosinophilia and vasculitis suggest [[Churg-Strauss syndrome]].
+Absent arm pulses in a young woman suggest [[Takayasu arteritis]].
+Granulomatosis with polyangiitis used to be called [[Wegener's granulomatosis]].
+
+## t25 | skin-signs | tune
+[[Gottron's papules]] over the knuckles and a [[heliotrope rash]] suggest dermatomyositis.
+New plaques along the scratch marks show the [[Koebner phenomenon]].
+Scraping off the scale caused pinpoint bleeding, the [[Auspitz sign]].
+The skin sheared off with gentle pressure, a positive [[Nikolsky sign]].
+Rubbing the lesion raised a wheal, [[Darier's sign]], typical of mastocytosis.
+Fine white lines, [[Wickham's striae]], were seen on the lichen planus.
+
+## t26 | skin-disease | check
+The purple plaques on his legs were biopsied for [[Kaposi sarcoma]].
+Peeling of the lips and mouth after starting lamotrigine raises concern for [[Stevens-Johnson syndrome]].
+Fever with tender red plaques after an infection suggests [[Sweet syndrome]].
+Pigment in the nail fold, [[Hutchinson's sign]], is a warning sign of melanoma.
+The melanoma had a [[Breslow thickness]] of 1.2 millimetres.
+A [[herald patch]] came before the rash of pityriasis rosea.
+The scaly red plaque on her shin is [[Bowen's disease]].
+Under a [[Wood's lamp]] the rash glowed coral red.
+
+## t27 | infection-rashes | tune
+[[Koplik spots]] on the inside of the cheeks came before the measles rash.
+[[Forchheimer spots]] on the soft palate were seen with the rubella rash.
+Lines of petechiae in the skin creases, [[Pastia's lines]], support scarlet fever.
+A [[Tzanck smear]] is rarely used now that PCR is available.
+The expanding red ring is [[erythema migrans]], so this is [[Lyme disease]].
+[[Rocky Mountain spotted fever]] is unlikely after a trip to Ontario.
+
+## t28 | organisms | check
+The blood cultures grew [[Staphylococcus aureus]] sensitive to cloxacillin.
+The throat swab grew [[Streptococcus pyogenes]].
+The sputum grew [[Haemophilus influenzae|Hemophilus influenzae]].
+The urine culture grew [[Klebsiella pneumoniae]] resistant to ampicillin.
+The wound culture grew [[Pseudomonas aeruginosa]].
+The stool test was positive for [[Clostridioides difficile]] toxin.
+[[Epstein-Barr virus]] serology confirmed mononucleosis.
+Hand, foot and mouth disease is caused by [[Coxsackie virus]].
+
+## t29 | infections-sexual-tb | tune
+The NAAT was positive for [[Chlamydia trachomatis]].
+The urethral swab grew [[Neisseria gonorrhoeae]].
+Serology confirmed infection with [[Treponema pallidum]].
+Lyme disease is caused by [[Borrelia burgdorferi]].
+The stool sample showed [[Giardia]] cysts.
+Acid-fast bacilli were seen on the [[Ziehl-Neelsen]] stain.
+Fever and aching after the penicillin injection was a [[Jarisch-Herxheimer reaction]].
+[[Listeria]] is a concern in pregnancy with soft cheeses.
+
+## t30 | antibiotics-hospital | check
+She was given [[ceftriaxone]] 1 g intravenously in the emergency department.
+Before surgery he received [[cefazolin]] 2 g intravenously.
+We switched to [[piperacillin-tazobactam]] for the hospital acquired pneumonia.
+[[Meropenem]] was started for the ESBL organism.
+The [[vancomycin]] levels were therapeutic.
+He received a single dose of [[gentamicin]].
+[[Ceftazidime]] covers Pseudomonas.
+[[Daptomycin]] was used for the resistant enterococcus.
+[[Linezolid]] was chosen for the MRSA pneumonia.
+
+## t31 | antibiotics-oral | tune
+She was treated with [[nitrofurantoin]] 100 mg twice daily for five days.
+A single dose of [[fosfomycin]] was given for the bladder infection.
+He takes [[trimethoprim-sulfamethoxazole|trimethoprim-sulphamethoxazole]] for prophylaxis.
+[[Clindamycin]] was used because of her penicillin allergy.
+[[Metronidazole]] was prescribed for bacterial vaginosis.
+[[Moxifloxacin]] was started for the community acquired pneumonia.
+[[Cefuroxime]] was given for the sinusitis.
+
+## t32 | antivirals-antifungals | check
+[[Oseltamivir]] was started within 48 hours of the first symptoms.
+[[Valacyclovir|valaciclovir]] was prescribed for the shingles.
+Intravenous [[acyclovir|aciclovir]] was started for suspected encephalitis.
+A single dose of [[fluconazole]] 150 mg was given for the yeast infection.
+[[Terbinafine]] was prescribed for the toenail fungus.
+[[Nystatin]] suspension was used for the oral thrush.
+[[Ivermectin]] was given for the scabies, along with [[permethrin]] cream.
+[[Mebendazole]] was prescribed for pinworms.
+
+## t33 | tb-and-more-antibiotics | tune
+Treatment for tuberculosis is [[rifampin|rifampicin]], [[isoniazid]], [[pyrazinamide]] and [[ethambutol]].
+He also takes [[pyridoxine]] to prevent neuropathy.
+[[Benzathine penicillin]] 2.4 million units was given intramuscularly for syphilis.
+[[Azithromycin]] 1 g was given as a single dose.
+[[Doxycycline]] 100 mg twice daily for seven days.
+[[Amoxicillin-clavulanate]] was prescribed for the dog bite.
+[[Cephalexin|cefalexin]] 500 mg four times daily for the cellulitis.
+
+## t34 | pediatrics | check
+The [[Apgar]] scores were 8 and 9.
+The [[Moro reflex]] was symmetrical.
+An innocent vibratory [[Still's murmur]] was heard at the left sternal border.
+She is at [[Tanner stage]] 3.
+Five days of fever with red eyes and a red tongue suggest [[Kawasaki disease]].
+Aspirin is avoided in children because of [[Reye syndrome]].
+A brachial plexus injury at birth caused an [[Erb's palsy]].
+Weakness of the hand after a difficult delivery suggests [[Klumpke's palsy]].
+A flank mass in a three year old raises concern for a [[Wilms]] tumour.
+
+## t35 | obstetrics-gynecology | tune
+By [[Naegele's rule]] her due date is the third of May.
+She has had [[Braxton Hicks]] contractions this week.
+[[Chadwick's sign]] and [[Hegar's sign]] were noted at eight weeks.
+[[Leopold's]] manoeuvres suggest a breech presentation.
+Her [[Bishop score]] was 4.
+She had a [[Pfannenstiel]] incision for her caesarean section.
+A tender swelling at the vaginal opening is a [[Bartholin's cyst]].
+[[Nabothian cysts]] were seen on the cervix.
+Absent periods after a D and C raise the possibility of [[Asherman syndrome]].
+Her pain in the middle of her cycle is likely [[mittelschmerz]].
+
+## t36 | urology | check
+A curved erection with a palpable plaque is [[Peyronie's disease]].
+Necrotising infection of the perineum is [[Fournier's gangrene]].
+Pain eased on lifting the testis, a positive [[Prehn's sign]], which suggests epididymitis.
+The [[cremasteric reflex]] was absent on the left.
+A [[varicocele]] was felt on the left side.
+The [[hydrocele]] transilluminated.
+
+## t37 | classical-descriptive | tune
+The skin of the breast had a [[peau d'orange]] appearance.
+She has six [[café au lait]] spots and freckling in the armpits.
+He has [[pes cavus]] with clawed toes.
+The toddler has [[genu varum]], which should correct with growth.
+The newborn with [[talipes equinovarus]] was referred to orthopaedics.
+[[Livedo reticularis]] was seen on both legs.
+[[Pectus excavatum]] was noted on examination of the chest.
+[[Erythema nodosum]] was present on both shins.
+
+## t38 | psychiatry-genetics | check
+He believes his wife has been replaced by an impostor, the [[Capgras delusion]].
+She has motor and vocal tics, in keeping with [[Tourette syndrome]].
+Repeatedly faking illness to be cared for suggests [[Munchausen syndrome]].
+[[Asperger syndrome]] is now part of autism spectrum disorder.
+Screening for [[Down syndrome]] was declined.
+Trisomy 18, or [[Edwards syndrome]], was found on the scan.
+Trisomy 13, or [[Patau syndrome]], is rare.
+
+## t39 | eye | tune
+Pupils that react to near objects but not to light, [[Argyll Robertson pupils]], suggest neurosyphilis.
+A large pupil that reacts slowly is an [[Adie pupil]].
+A painless lump in the eyelid is a [[chalazion]].
+A sudden painful lump on the eyelid margin is a [[hordeolum]].
+A [[pterygium]] is growing onto the cornea.
+A yellowish bump on the white of the eye is a [[pinguecula]].
+[[Blepharitis]] explains her gritty eyes.
+Painful swelling at the inner corner of the eye suggests [[dacryocystitis]].
+
+## t40 | ear-nose-throat | check
+The nosebleed came from [[Kiesselbach's plexus]], in [[Little's area]].
+Trismus and a deviated uvula suggest a [[quinsy]].
+Swelling of the floor of the mouth with a raised tongue is [[Ludwig's angina]].
+A white mass behind the eardrum may be a [[cholesteatoma]].
+Conductive hearing loss in a young woman may be [[otosclerosis]].
+Sweating over the cheek when eating after parotid surgery is [[Frey syndrome]].
+[[Eustachian tube]] dysfunction explains the muffled hearing.
+
+## t41 | skin-classical | tune
+[[Hidradenitis suppurativa]] has caused repeated abscesses in her groin.
+The vulval biopsy confirmed [[lichen sclerosus]].
+[[Molluscum contagiosum]] lesions were on the child's trunk.
+[[Pityriasis versicolor]] explains the pale patches on his back.
+A [[seborrheic keratosis|seborrhoeic keratosis]] was frozen with liquid nitrogen.
+A fast growing lesion with a central crater could be a [[keratoacanthoma]].
+[[Tinea cruris]] was treated with clotrimazole cream.
+[[Condylomata acuminata]] were treated with imiquimod.
+
+## t42 | gi-classical | check
+[[Pruritus ani]] has bothered him for months.
+[[Achalasia]] was confirmed on manometry.
+[[Angiodysplasia]] was found in the right colon.
+The CT showed [[pneumatosis intestinalis]].
+A sigmoid [[volvulus]] was seen on the X-ray.
+An infant with currant jelly stools may have an [[intussusception]].
+A six week old with projectile vomiting likely has [[pyloric stenosis]].
+
+## t43 | cardiac-classical | tune
+An [[Austin Flint murmur]] was heard at the apex.
+A [[Graham Steell murmur]] suggests pulmonary regurgitation.
+[[Duroziez's sign]] was present over the femoral artery.
+[[Korotkoff sounds]] were heard all the way down to zero.
+[[Pulsus paradoxus]] was 15 mmHg.
+[[Pulsus alternans]] suggests severe left ventricular dysfunction.
+She has [[Eisenmenger syndrome]] from an unrepaired septal defect.
+
+## t44 | neuro-classical | check
+[[Friedreich's ataxia]] was confirmed on genetic testing.
+A [[Jacksonian march]] of twitching spread from his hand to his face.
+He has [[amyotrophic lateral sclerosis]] with widespread fasciculations.
+Antibodies to the acetylcholine receptor confirm [[myasthenia gravis]].
+[[Trigeminal neuralgia]] causes her stabbing facial pain.
+His fluent but meaningless speech is a [[Wernicke's aphasia]].
+[[Parkinson's disease]] was diagnosed two years ago.
+[[Alzheimer's disease]] is the most likely cause of her memory loss.
+
+## t45 | rheum-ortho-classical | tune
+[[Polymyalgia rheumatica]] explains the stiffness in her shoulders and hips.
+The MRI showed [[sacroiliitis]], in keeping with [[ankylosing spondylitis]].
+[[Reiter's syndrome]], now called reactive arthritis, followed the urethritis.
+It is a [[Salter-Harris]] type 2 fracture of the distal radius.
+An overweight twelve year old with knee pain may have a [[slipped capital femoral epiphysis]].
+A fractured ulna with a dislocated radial head is a [[Monteggia fracture]].
+A fractured radius with a dislocated distal radioulnar joint is a [[Galeazzi fracture]].
+
+## t46 | scores | check
+Her [[Centor score]] was 3, so a throat swab was taken.
+The [[Canadian C-spine rule]] did not call for imaging.
+His [[Glasgow-Blatchford score]] was zero, so he was managed as an outpatient.
+[[Light's criteria]] confirmed an exudative effusion.
+The modified [[Duke criteria]] were met for endocarditis.
+[[Ranson's criteria]] were used to estimate the severity of the pancreatitis.
+Her [[Epworth Sleepiness Scale]] score was 14.
+Her [[Edinburgh Postnatal Depression Scale]] score was 15.
+The [[Bristol stool]] chart showed type 6 stools.
+
+## t47 | scores-more | tune
+His [[McIsaac score]] was 4 and the rapid strep test was positive.
+The [[Rockall score]] predicted a low risk of rebleeding.
+The [[Jones criteria]] for rheumatic fever were not met.
+Her [[Mini-Cog]] was abnormal, so we did a full cognitive assessment.
+The [[Gail model]] gave a five year breast cancer risk of 2 percent.
+The prostate biopsy showed a [[Gleason score]] of 7.
+The knee X-ray shows [[Kellgren-Lawrence]] grade 3 osteoarthritis.
+A [[Beighton score]] of 6 suggests joint hypermobility.

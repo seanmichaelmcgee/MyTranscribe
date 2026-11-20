@@ -10,6 +10,9 @@ chosen from the results is in [../settings/](../settings/README.md).
   - Sets v1 and v2 are English; the es and fr sets are drafts.
   - `synthetic_set_en_v1.txt` holds the scripts for synthetic voices. Its rules are
     `tests/test_synthetic_set.py`.
+  - `term_set_en_v1.txt` (2026-11-20) holds about 350 classical terms in short notes:
+    eponyms, organisms, scores and drugs. `scripts/term_bench.py` has voices read it and checks
+    each term on each model. Its rules are `tests/test_term_set.py`.
   - The set format and each way of dictating are in `src/tuning/sets.py`.
 - **Audio (private, this PC only):** `results_1060/`, which git ignores. This holds
   recordings, synthetic audio and transcripts. None of it goes on GitHub.
@@ -36,8 +39,9 @@ chosen from the results is in [../settings/](../settings/README.md).
 
 ## Voice service terms
 
-Read on **18 November 2026**. This is our reading of the terms, not legal advice; re-read them
-before each new batch and update the date. **Testing and tuning** here means: fictional
+Read on **18 November 2026**; OpenAI's usage policy re-read on **20 November 2026**, before the
+term-set batch, when the new version came into force as expected. This is our reading of the
+terms, not legal advice; re-read them before each new batch and update the date. **Testing and tuning** here means: fictional
 scripts are read by the voice, our local recogniser transcribes them, and the scores choose
 settings. **Training** means any model learning from the audio, including fine-tuning.
 
