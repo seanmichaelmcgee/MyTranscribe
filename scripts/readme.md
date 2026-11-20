@@ -21,6 +21,7 @@ Follow [instructions.md](instructions.md) and [project SOP](../docs/PROJECT_SOP.
 | `spoken_punctuation_tts.py` | Synthetic set with dictated punctuation marks (Windows voices) for the spoken-punctuation rules |
 | `settings_suite.py` | Every synthetic clip under each wizard answer, scored (word errors, layout, numbers, negations, drugs); [plan](../docs/settings/SETTINGS_SUITE.md) |
 | `synth_voices.py`, `synth_voices_key.ps1` | The 12-voice synthetic set read by OpenAI voices (paid; `--go`, budget cap); [plan](../docs/testing/SYNTHETIC_VOICES.md) |
+| `term_bench.py` | Classical medical terms (`validation/term_set_en_v1.txt`) read by OpenAI voices, then looked for in each model's output as the app writes it; primed large-v3 flags clips to listen to |
 | `make_shortcut.ps1` | Desktop shortcut that starts the app with no console window |
 | `dictation_reliability.py` | Thinking pauses, spoken commands and early Stop on the headset corpus, classic vs pause-aware pipeline; [results note](../docs/optimization/2026-11-15-dictation-reliability.md) |
 | `whisper_decoder_trace.py`, `whisper_native_trace.py` | Experimental observation helpers; [trace interface](../docs/optimization/whisper-public-trace.md) |
