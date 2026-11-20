@@ -1,13 +1,16 @@
-# Windows installer (processor-only build)
+# Windows installer
 
 Started 2026-11-19 so the app can be tried on a PC with no NVIDIA graphics card (for example a
-laptop with integrated graphics), without installing Python.
+laptop with integrated graphics), without installing Python. Since 2026-11-20 there is also a
+[graphics-card edition](#graphics-card-edition-2026-11-20) with large-v3 for PCs with an NVIDIA
+card. Without `--gpu` the build is the processor-only edition, as before.
 
 ## What the user gets
 
-- **One file,** `MyTranscribe-Medical-Setup-<version>.exe`. Windows warns about it on first
-  run ("Windows protected your PC"), because it is not code-signed. Choose **More info → Run
-  anyway**.
+- **One file,** `MyTranscribe-Medical-Setup-<version>.exe` (`MyTranscribe-Medical-GPU-Setup-…`
+  for the graphics-card edition; an installer past 4 GiB comes with a `.data` file that must stay
+  beside it). Windows warns about it on first run ("Windows protected your PC"), because it is
+  not code-signed. Choose **More info → Run anyway**.
 - **Installs for that Windows account only,** into `%LOCALAPPDATA%\Programs\MyTranscribe
   Medical`, with no administrator rights. About 0.9 GB.
 - **Adds:**
@@ -26,10 +29,11 @@ laptop with integrated graphics), without installing Python.
 |---|---|
 | `python\` | A private copy of Python 3.11. It is isolated by `python311._pth`, so nothing installed on the PC changes it. |
 | `python\Lib\site-packages\` | Only the packages the app imports, and what they need. No NVIDIA libraries; unused parts of Qt removed. |
+| `python\Lib\site-packages\nvidia\cublas\bin\` | Graphics-card edition only: NVIDIA's cuBLAS, the one NVIDIA library Whisper loads on the card. |
 | `src\` | The app, exactly as in the repository. |
-| `models\faster-whisper-small.en\` | The speech model for processor-only PCs. |
-| `selftest.py` | `python\python.exe selftest.py` checks imports, picks the hardware, loads the model and decodes. |
-| `THIRD-PARTY.txt` | Every bundled package and its declared licence. |
+| `models\faster-whisper-small.en\` | The speech model for processor-only PCs (`models\faster-whisper-large-v3\` in the graphics-card edition). |
+| `selftest.py` | `python\python.exe selftest.py` checks imports, picks the hardware, loads the model and decodes; on the card it also checks that the NVIDIA libraries came from inside the install. |
+| `THIRD-PARTY.txt` | Every bundled package and its declared licence, and the NVIDIA libraries' licence. |
 
 ## How the processor-only setting was chosen (2026-11-19)
 
@@ -85,7 +89,16 @@ venv\Scripts\python.exe installer\build_installer.py --model <folder>\faster-whi
   and compiles `Setup.cs` with the C# compiler that is part of Windows (.NET Framework 4.8).
 - **Output** goes to `dist\`, which is not in the repository.
 - **The model folder** is a faster-whisper conversion from Hugging Face
-  (`Systran/faster-whisper-small.en`, MIT).
+  (`Systran/faster-whisper-small.en`, MIT). A `SOURCE.txt` in it is copied into
+  `THIRD-PARTY.txt`.
+
+**Graphics-card edition:** add `--gpu`, give large-v3 as the model, and put `--out` on a drive
+with about 13 GB free (stage, zip and installer). It needs `nvidia-cublas-cu12` installed in the
+venv, and takes about a minute.
+
+```powershell
+venv\Scripts\python.exe installer\build_installer.py --gpu --model <folder>\faster-whisper-large-v3 --version 2026.11.20 --out <folder>
+```
 
 **Scripted test** (no shortcuts; the setup log is `%TEMP%\MyTranscribe-setup.log`):
 
@@ -114,6 +127,53 @@ venv\Scripts\python.exe installer\build_installer.py --update --version 2026.11.
   update, update through its window, self-test of the updated copy, update refused without an
   install, uninstall.
 
+## Graphics-card edition (2026-11-20)
+
+`--gpu` builds the full-capability app (large-v3 on an NVIDIA card) as an installer, so it can
+be tried the way a tester with an NVIDIA card would get it.
+
+- **What it adds:** large-v3 (`Systran/faster-whisper-large-v3`, revision `edaa852e`, MIT: the
+  snapshot the app has been validated with) and NVIDIA's cuBLAS 12.9 (`cublas64_12.dll`,
+  `cublasLt64_12.dll`). How large-v3 decodes (beams, prompts, corrections, windows) is unchanged.
+- **Size:** the 2026.11.20 installer is one file of 3.84 GB (3,836,451,496 bytes, SHA256
+  `C5B8DAA997F6B75FE8AD586B79D7D472B426F0FF40DB3144E564F3E20339E1F2`); 4.3 GB installed.
+- **Its own name, folder and Apps entry:** "MyTranscribe Medical (graphics card)", in
+  `%LOCALAPPDATA%\Programs\MyTranscribe Medical (graphics card)`. It installs beside the
+  processor-only edition and never updates, replaces or removes it; each edition's installer
+  refuses a folder that holds the other. Settings, word lists and the log are shared by both.
+- **Only what it carries is offered.** Options shows "Model: Whisper large-v3, on the graphics
+  card" instead of Best/Fast, and the setup wizard does not ask; a saved "Fast" loads large-v3.
+
+**How the contents were chosen:**
+- **Only cuBLAS is needed.** large-v3 ran on an RTX 4070 Ti SUPER with the system CUDA removed
+  from PATH, at int8_float16, float16, int8_float32 and float32, and the DLLs it loaded were
+  listed. cuDNN (1.07 GB) and NVRTC (0.17 GB) were never loaded: CTranslate2 carries its own
+  small cuDNN loader, which stays idle. Leaving them out keeps the installer at 3.8 GB, not 5.
+- **Windows will not start a program file of 4 GiB or more.** A 4.43 GB test file was refused
+  ("not a valid application for this OS platform"); a 4.29 GB one started. An installer that
+  would pass the limit is therefore written as the program plus a `.data` file beside it, which
+  the program finds by its recorded name. This build fits in one file.
+- **Large zips:** the model (3.09 GB) lies past the 2 GB mark and needs zip64 records; the
+  installer (.NET Framework 4.8) installed it in 10 seconds. A 4.6 GB test payload (program plus
+  `.data`, files starting past 4.3 GiB) installed with every file byte-identical, and uninstalled.
+
+**Tried on this desktop (2026-11-20),** installed to a folder on another drive, with no
+`CUDA_PATH` and PATH set to Windows' own folders:
+- **Self-test:** all pass: large-v3 from the install, on the card at int8_float16, with cuBLAS
+  loaded from inside the install.
+- **Speech:** a sentence made with Windows text-to-speech, through the installed app's engine,
+  came out right ("metformin 500 mg twice daily … 130 over 80").
+- **The app** logged the same model, device and compute type, also with "Fast" saved.
+- **The processor-only copy** installed before kept its Apps entry and files, and still starts.
+
+**Not decided yet:**
+- **Cards with less than 5 GB** choose large-v3-turbo (under 3.5 GB, small.en), which this
+  edition does not carry: the app asks before downloading it.
+- **A PC with no usable card,** or a driver too old for CUDA 12, falls back to small.en on the
+  processor and asks before downloading it (0.5 GB). Bundling small.en as well would take the
+  installer past the one-file limit.
+- **Drivers:** only this desktop's driver (616.64) has been tried.
+
 ## Before sharing beyond the owner
 
 - **Code signing.** Without it, Windows SmartScreen warns every user, and managed PCs may block
@@ -121,5 +181,10 @@ venv\Scripts\python.exe installer\build_installer.py --update --version 2026.11.
 - **Licences of what is bundled.** `THIRD-PARTY.txt` lists them. PyQt6 is GPL v3 (or
   commercial), Qt is LGPL v3, PyAV includes FFmpeg (LGPL), and wordfreq's data is CC BY-SA
   4.0. Distributing them together needs a decision on the app's own licence terms.
+- **NVIDIA's terms (graphics-card edition).** cuBLAS is under NVIDIA's CUDA Toolkit End User
+  License Agreement, whose Attachment A lists the cuBLAS DLLs among the files that may be
+  redistributed, under that agreement's conditions. Those conditions need checking before the
+  graphics-card edition is shared beyond the owner. (The ctranslate2 package in both editions
+  also carries NVIDIA's small cuDNN loader, `cudnn64_9.dll`.)
 - **Graphics acceleration on Intel, AMD and Apple hardware** is the next step for speed. See
   [../docs/CPU_AND_OTHER_HARDWARE_PLAN.md](../docs/CPU_AND_OTHER_HARDWARE_PLAN.md).
