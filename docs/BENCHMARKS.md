@@ -90,6 +90,27 @@ Book and RxNorm), and only where a drug belongs (before a dose, in a medication 
 changes on the Modulate test split, 193 were right; the 11 wrong ones turned a garbled word
 into a different real drug, so drug names must still be checked, as with any dictation.
 
+**Classical terms (2026-11-20).** These are eponymous signs, tests, syndromes and fractures,
+plus organisms, scores and drugs. About 350 terms in 47 short fictional notes were read by 4
+OpenAI voices (`validation/term_set_en_v1.txt`, `scripts/term_bench.py`), and the app's own
+pipeline wrote them.
+
+| Terms right (1,376) | large-v3 (graphics card) | small.en (processor) |
+|---|---|---|
+| As the app was | 77.7% | 63.7% |
+| With classical-term fixes | **93.0%** | **86.8%** |
+| Held-out half only | 84.7% → **95.7%** | 69.3% → **88.2%** |
+
+- **What fails:** most misses were near spellings ("Phelan's test", "Hoffman sign"). Some were
+  ordinary words ("centaur score", "our rods", "charcoal foot").
+- **The fix:** `src/classical_terms.py` fixes the words before a term's last word ("sign",
+  "syndrome", "score") from a list of 552 terms, by spelling and sound.
+- **How it was tuned:** on the other half of the notes. It changed nothing in the owner's 47
+  recordings, the 960 synthetic letters or the 124 saved validation readings.
+- **Where it is on:** on the processor. On a graphics card, only once the owner approves.
+- **Limit:** synthetic voices are clearer than real dictation, so these figures overstate both
+  models.
+
 ## Many voices, difficult audio
 
 [Modulate synthetic medical dictation](https://huggingface.co/datasets/modulate/synthetic-medical-dictation)

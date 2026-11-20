@@ -1,0 +1,596 @@
+# classical_terms.txt — classical medical terms for MyTranscribe's classical-term fixer
+# (src/classical_terms.py): eponymous signs, tests, manoeuvres, syndromes, diseases, fractures,
+# findings, scores and criteria, and organisms. Written for MyTranscribe on 2026-11-20 (MIT, same
+# as the repository) from general medical knowledge; not copied from any list.
+#
+# One term per line, written as it should appear. "term | other" lists another spelling that is
+# also right and is left alone (Gray Turner's sign | Grey Turner's sign).
+# A term of several words is fixed only where its last word ("sign", "syndrome", "score") was
+# heard: the words before it are matched to the closest term here that ends the same way.
+# Single words are added to the spelling corrector, which fixes only words that are not English.
+
+## neurology: signs and tests
+Babinski sign | Babinski's sign
+Romberg's test | Romberg test
+Romberg's sign | Romberg sign
+Kernig's sign
+Brudzinski's sign
+Hoffmann's sign
+Lhermitte's sign
+Tinel's sign
+Phalen's test
+Phalen's manoeuvre | Phalen's maneuver
+Durkan's test
+Froment's sign
+Wartenberg's sign
+Dix-Hallpike test
+Dix-Hallpike manoeuvre | Dix-Hallpike maneuver
+Epley manoeuvre | Epley maneuver
+Semont manoeuvre | Semont maneuver
+Weber's test | Weber test
+Rinne's test | Rinne test
+Glasgow Coma Scale
+Gowers' sign | Gower's sign
+Marcus Gunn pupil
+Argyll Robertson pupil
+Adie pupil | Adie's pupil
+Horner's syndrome | Horner syndrome
+Uhthoff's phenomenon
+Jacksonian march
+Todd's paresis
+Todd's paralysis
+Chaddock sign | Chaddock's sign
+Oppenheim sign | Oppenheim's sign
+Hallpike test
+
+## neurology: diseases and syndromes
+Guillain-Barré syndrome | Guillain-Barre syndrome
+Charcot-Marie-Tooth disease
+Bell's palsy
+Ramsay Hunt syndrome
+Lambert-Eaton syndrome
+Lewy body dementia
+Huntington's disease | Huntington disease
+Huntington's chorea
+Sydenham's chorea
+Creutzfeldt-Jakob disease
+Wernicke's encephalopathy
+Wernicke's aphasia
+Broca's aphasia
+Korsakoff syndrome | Korsakoff's syndrome
+Wernicke-Korsakoff syndrome
+Brown-Séquard syndrome | Brown-Sequard syndrome
+Chiari malformation
+Arnold-Chiari malformation
+Dandy-Walker malformation
+Parkinson's disease | Parkinson disease
+Alzheimer's disease | Alzheimer disease
+Pick's disease
+Friedreich's ataxia
+Tourette syndrome | Tourette's syndrome
+Asperger syndrome | Asperger's syndrome
+Wallenberg syndrome
+Tolosa-Hunt syndrome
+Sturge-Weber syndrome
+Erb's palsy
+Klumpke's palsy
+Charles Bonnet syndrome
+Capgras delusion
+Munchausen syndrome
+Ménière's disease | Meniere's disease
+Duchenne muscular dystrophy
+Becker muscular dystrophy
+
+## hand, wrist and upper limb
+Finkelstein's test
+de Quervain's tenosynovitis
+Dupuytren's contracture
+Volkmann's contracture
+Allen test | Allen's test
+Adson's test
+Roos test
+Colles fracture | Colles' fracture
+Smith fracture | Smith's fracture
+Barton fracture | Barton's fracture
+Bennett fracture | Bennett's fracture
+Rolando fracture
+boxer's fracture
+scaphoid fracture
+Kienböck's disease | Kienbock's disease
+Heberden's nodes
+Bouchard's nodes
+Monteggia fracture
+Galeazzi fracture
+Hill-Sachs lesion
+Bankart lesion
+Spurling's test
+Hawkins-Kennedy test
+Neer's sign
+Neer's test
+Speed's test
+Yergason's test
+O'Brien's test
+Jobe's test
+Gerber's test
+Popeye sign
+
+## knee, hip, spine, foot and ankle
+Lachman test | Lachman's test
+McMurray's test
+Thessaly test
+Apley's test
+Ober's test
+Thomas test
+Patrick's test
+Gaenslen's test
+Trendelenburg sign
+Trendelenburg gait
+Schober's test
+Lasègue's sign | Lasegue's sign
+Baker's cyst
+Osgood-Schlatter disease
+Sinding-Larsen-Johansson syndrome
+Legg-Calvé-Perthes disease | Legg-Calve-Perthes disease
+Perthes disease
+Barlow manoeuvre | Barlow maneuver
+Ortolani manoeuvre | Ortolani maneuver
+Galeazzi sign
+Sever's disease
+Scheuermann's disease
+Köhler's disease | Kohler's disease
+Freiberg's disease
+Charcot foot
+Charcot joint
+Charcot arthropathy
+Charcot neuroarthropathy
+Jones fracture
+Lisfranc injury
+Lisfranc fracture
+Maisonneuve fracture
+Pott's fracture
+Pott's disease
+Tillaux fracture
+Segond fracture
+Salter-Harris fracture
+Chance fracture
+Jefferson fracture
+Thompson test
+Simmonds' test
+Morton's neuroma
+Mulder's sign
+Haglund's deformity
+Ottawa ankle rules
+Ottawa knee rules
+Ottawa foot rules
+Canadian C-spine rule
+Canadian CT head rule
+Kellgren-Lawrence grade
+Beighton score
+Weber classification
+Garden classification
+
+## abdomen and gastroenterology
+Murphy's sign
+McBurney's point
+McBurney's sign
+Rovsing's sign
+psoas sign
+obturator sign
+Carnett's sign
+Kehr's sign
+Cullen's sign
+Grey Turner's sign | Gray Turner's sign
+Courvoisier's sign
+Courvoisier's law
+Boas' sign
+Blumberg's sign
+Virchow's node
+Sister Mary Joseph nodule
+Charcot's triad
+Reynolds' pentad
+Whipple's triad
+Barrett's esophagus | Barrett's oesophagus
+Mallory-Weiss tear
+Boerhaave syndrome
+Zenker's diverticulum
+Meckel's diverticulum
+Schatzki ring
+Plummer-Vinson syndrome
+Crohn's disease | Crohn disease
+Hirschsprung disease | Hirschsprung's disease
+Gilbert syndrome | Gilbert's syndrome
+Crigler-Najjar syndrome
+Dubin-Johnson syndrome
+Budd-Chiari syndrome
+Wilson's disease | Wilson disease
+Kayser-Fleischer rings
+Zollinger-Ellison syndrome
+Ogilvie syndrome | Ogilvie's syndrome
+Peutz-Jeghers syndrome
+Lynch syndrome
+Child-Pugh score
+Child-Pugh class
+Ranson's criteria
+Glasgow-Blatchford score
+Rockall score
+Alvarado score
+Whipple procedure
+Nissen fundoplication
+Hartmann's procedure
+Roux-en-Y gastric bypass
+Calot's triangle
+Hesselbach's triangle
+Morison's pouch
+pouch of Douglas
+Rome IV criteria
+Bristol stool chart
+Bristol stool scale
+Mallory bodies
+Helicobacter pylori
+
+## heart and vessels
+Wolff-Parkinson-White syndrome
+Wolff-Parkinson-White pattern
+Brugada syndrome
+Wenckebach
+Mobitz
+torsades de pointes
+Takotsubo cardiomyopathy
+Kussmaul breathing
+Kussmaul respiration
+Kussmaul's sign
+Cheyne-Stokes respiration | Cheyne-Stokes breathing
+Biot's respiration
+Beck's triad
+Cushing's triad
+Osler's nodes
+Janeway lesions
+Roth spots
+de Musset's sign
+Quincke's pulse
+Quincke's sign
+Corrigan's pulse
+Duroziez's sign
+Traube's sign
+Müller's sign | Muller's sign
+Austin Flint murmur
+Graham Steell murmur
+Carey Coombs murmur
+Still's murmur
+Korotkoff sounds
+pulsus paradoxus
+pulsus alternans
+Wells score
+Homans' sign | Homan's sign
+Virchow's triad
+Raynaud's phenomenon
+Raynaud's disease
+Buerger's disease
+Prinzmetal angina | Prinzmetal's angina
+Ludwig's angina
+Vincent's angina
+Dressler syndrome | Dressler's syndrome
+Marfan syndrome
+Ehlers-Danlos syndrome
+Eisenmenger syndrome
+Kawasaki disease
+Takayasu arteritis
+Kerley B lines
+Westermark sign
+Hampton's hump
+Levine's sign
+Frank's sign
+Killip class
+Framingham risk score
+Duke criteria
+Jones criteria
+Valsalva manoeuvre | Valsalva maneuver
+
+## lungs
+Pancoast tumour | Pancoast tumor
+Löfgren syndrome | Lofgren syndrome
+Kartagener syndrome
+Light's criteria
+Curschmann spirals
+Charcot-Leyden crystals
+Mantoux test
+
+## endocrine and genetics
+Chvostek's sign
+Trousseau's sign
+Cushing's syndrome
+Cushing's disease
+Addison's disease
+Graves' disease | Grave's disease
+Hashimoto's thyroiditis
+de Quervain's thyroiditis
+Conn's syndrome
+Sheehan's syndrome
+Kallmann syndrome
+Klinefelter syndrome
+Turner syndrome | Turner's syndrome
+Down syndrome
+Edwards syndrome
+Patau syndrome
+Prader-Willi syndrome
+Angelman syndrome
+Noonan syndrome
+Williams syndrome
+DiGeorge syndrome
+Waterhouse-Friderichsen syndrome
+Pemberton's sign
+von Graefe's sign
+Dalrymple's sign
+Stellwag's sign
+acanthosis nigricans
+
+## kidneys and blood
+Kimmelstiel-Wilson lesions
+Kimmelstiel-Wilson nodules
+Alport syndrome
+IgA nephropathy
+Berger's disease
+Goodpasture syndrome | Goodpasture's syndrome
+Fanconi syndrome
+Bartter syndrome
+Gitelman syndrome
+Liddle syndrome
+Henoch-Schönlein purpura | Henoch-Schoenlein purpura | Henoch-Schonlein purpura
+von Willebrand disease
+Reed-Sternberg cells
+Hodgkin lymphoma | Hodgkin's lymphoma
+Hodgkin's disease
+non-Hodgkin lymphoma
+Burkitt lymphoma
+Bence Jones protein
+Tamm-Horsfall protein
+Howell-Jolly bodies
+Heinz bodies
+Döhle bodies | Dohle bodies
+Pappenheimer bodies
+Auer rods
+Philadelphia chromosome
+Coombs test
+Kleihauer test
+Waldenström's macroglobulinemia | Waldenstrom's macroglobulinemia
+Pel-Ebstein fever
+Ewing sarcoma
+Wilms tumour | Wilms tumor | Wilms' tumour
+
+## rheumatology
+Sjögren's syndrome | Sjogren's syndrome
+Behçet's disease | Behcet's disease
+Still's disease
+Felty syndrome | Felty's syndrome
+Churg-Strauss syndrome
+Wegener's granulomatosis
+Reiter's syndrome
+polymyalgia rheumatica
+giant cell arteritis
+ankylosing spondylitis
+Paget's disease
+
+## skin
+Gottron's papules
+heliotrope rash
+Koebner phenomenon | Köbner phenomenon
+Auspitz sign
+Nikolsky sign | Nikolsky's sign
+Darier's sign
+Wickham's striae
+Hutchinson's sign
+Kaposi sarcoma | Kaposi's sarcoma
+Stevens-Johnson syndrome
+Sweet syndrome | Sweet's syndrome
+Breslow thickness
+Clark level
+herald patch
+Bowen's disease
+Wood's lamp
+Beau's lines
+Mees' lines
+Muehrcke's lines
+Pastia's lines
+Koplik spots
+Forchheimer spots
+Brushfield spots
+café au lait spots | cafe au lait spots
+peau d'orange
+erythema migrans
+erythema nodosum
+erythema multiforme
+Lyme disease
+Rocky Mountain spotted fever
+Tzanck smear
+
+## infection and laboratory
+Gram stain
+Ziehl-Neelsen stain
+Jarisch-Herxheimer reaction
+Epstein-Barr virus
+Coxsackie virus | Coxsackievirus
+Staphylococcus aureus
+Staphylococcus epidermidis
+Streptococcus pyogenes
+Streptococcus pneumoniae
+Streptococcus agalactiae
+Haemophilus influenzae | Hemophilus influenzae
+Klebsiella pneumoniae
+Pseudomonas aeruginosa
+Escherichia coli
+Enterococcus faecalis
+Moraxella catarrhalis
+Bordetella pertussis
+Clostridioides difficile | Clostridium difficile
+Chlamydia trachomatis
+Chlamydia pneumoniae
+Neisseria gonorrhoeae
+Neisseria meningitidis
+Treponema pallidum
+Borrelia burgdorferi
+Mycoplasma pneumoniae
+Legionella pneumophila
+Listeria monocytogenes
+Giardia lamblia
+Trichomonas vaginalis
+Gardnerella vaginalis
+Candida albicans
+Pneumocystis jirovecii
+Toxoplasma gondii
+Campylobacter jejuni
+Mycobacterium tuberculosis
+Centor score
+McIsaac score
+CURB-65 score
+
+## pediatrics, obstetrics and gynecology
+Apgar score
+Moro reflex
+Tanner stage
+Reye syndrome | Reye's syndrome
+Naegele's rule
+Braxton Hicks contractions
+Chadwick's sign
+Hegar's sign
+Goodell's sign
+Leopold's manoeuvres | Leopold's maneuvers
+McRoberts manoeuvre | McRoberts maneuver
+Bishop score
+Pfannenstiel incision
+Bartholin's cyst
+Bartholin's gland
+Skene's glands
+Nabothian cysts
+Asherman syndrome
+Meigs syndrome
+Fitz-Hugh-Curtis syndrome
+Stein-Leventhal syndrome
+mittelschmerz
+Edinburgh Postnatal Depression Scale
+Gail model
+
+## urology
+Peyronie's disease
+Fournier's gangrene
+Prehn's sign
+cremasteric reflex
+Gleason score
+
+## eye, ear, nose and throat
+Kiesselbach's plexus
+Little's area
+quinsy
+cholesteatoma
+otosclerosis
+Frey syndrome | Frey's syndrome
+Eustachian tube
+Snellen chart
+Amsler grid
+Schirmer test
+Seidel test
+Ishihara plates
+chalazion
+hordeolum
+pterygium
+pinguecula
+dacryocystitis
+blepharitis
+
+## other classical terms and scales
+Epworth Sleepiness Scale
+Mini-Cog
+Montreal Cognitive Assessment
+Karnofsky score
+Mallampati score
+talipes equinovarus
+pes cavus
+pes planus
+genu varum
+genu valgum
+livedo reticularis
+pectus excavatum
+pectus carinatum
+hidradenitis suppurativa
+lichen sclerosus
+lichen planus
+molluscum contagiosum
+pityriasis versicolor
+pityriasis rosea
+seborrheic keratosis | seborrhoeic keratosis
+keratoacanthoma
+tinea cruris
+tinea pedis
+tinea corporis
+condylomata acuminata
+pruritus ani
+achalasia
+angiodysplasia
+pneumatosis intestinalis
+volvulus
+intussusception
+pyloric stenosis
+amyotrophic lateral sclerosis
+myasthenia gravis
+trigeminal neuralgia
+sacroiliitis
+slipped capital femoral epiphysis
+
+## common descriptive phrases that end like an eponym and must be left alone
+carpal tunnel syndrome
+cubital tunnel syndrome
+tarsal tunnel syndrome
+irritable bowel syndrome
+nephrotic syndrome
+nephritic syndrome
+metabolic syndrome
+serotonin syndrome
+compartment syndrome
+restless legs syndrome
+polycystic ovary syndrome
+chronic fatigue syndrome
+sick sinus syndrome
+toxic shock syndrome
+acute coronary syndrome
+myelodysplastic syndrome
+neuroleptic malignant syndrome
+refeeding syndrome
+tumour lysis syndrome | tumor lysis syndrome
+hepatorenal syndrome
+cauda equina syndrome
+piriformis syndrome
+thoracic outlet syndrome
+patellofemoral pain syndrome
+iliotibial band syndrome
+complex regional pain syndrome
+antiphospholipid syndrome
+nephrotic range
+straight leg raise test
+anterior drawer test
+posterior drawer test
+pivot shift test
+empty can test
+drop arm test
+lift-off test
+belly press test
+squeeze test
+heel raise test
+Hawkins test
+crossover test
+apprehension test
+relocation test
+sulcus sign
+stress test
+exercise stress test
+skin prick test
+Weber B fracture
+greenstick fracture
+buckle fracture
+stress fracture
+hairline fracture
+torus fracture
+hip fracture
+wrist fracture
+ankle fracture
+rib fracture
+pathological fracture
+Parkinson's plus syndrome

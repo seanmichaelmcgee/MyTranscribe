@@ -118,7 +118,8 @@ def cmd_run(args):
     t0 = time.perf_counter()
     for group, profile in groups.items():
         style = dr.style_for(profile)
-        builder, post = build_text_pipeline(style, count=getattr(engine, "count_tokens", None))
+        builder, post = build_text_pipeline(style, count=getattr(engine, "count_tokens", None),
+                                            classical=dr.classical_terms.on_for(engine))
         for n, c in enumerate(todo, 1):
             if (c["voice_id"], c["item"], group) in done:
                 continue

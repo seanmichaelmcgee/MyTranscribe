@@ -62,6 +62,7 @@ from fw_engine import FasterWhisperEngine, register_cuda_dll_dirs       # noqa: 
 from hw_profile import choose_config, detect_hardware                   # noqa: E402
 from prompt_loader import load_prompt                                   # noqa: E402
 from vocab import build_text_pipeline                                   # noqa: E402
+import classical_terms                                                  # noqa: E402
 import text_fixes                                                       # noqa: E402
 import voice_commands                                                   # noqa: E402
 
@@ -298,7 +299,7 @@ def run_pipeline(engine, audio, stop_at, style, builder, post, profile, with_spo
         t._stopped.wait(30)
     t.wait_until_idle()
     text = t.text
-    final = text_fixes.finish(text, bool(profile.get("extra_fixes")))
+    final = text_fixes.finish(text, bool(profile.get("extra_fixes")), classical=classical_terms.on_for(engine))
     final = voice_commands.apply(final, **profile.get("commands", {}))
     out = (final, list(t.transcriptions), time.perf_counter() - t0, t.rescued_commands)
     return out + (text,) if with_spoken else out
@@ -489,7 +490,8 @@ def main(argv=None):
     engine = make_engine(args.engine, args.model, profile)
     cfg = engine.config
     style = style_for(profile)
-    builder, post = build_text_pipeline(style, count=getattr(engine, "count_tokens", None), env=profile.get("env", {}))
+    builder, post = build_text_pipeline(style, count=getattr(engine, "count_tokens", None), env=profile.get("env", {}),
+                                        classical=classical_terms.on_for(engine))
     tag = args.profile if args.engine == "whisper" else f"{args.engine}_{args.profile}"
 
     rows, t_start = [], time.perf_counter()

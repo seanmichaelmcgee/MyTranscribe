@@ -413,7 +413,8 @@ def known_abbreviations(lex: Lexicon) -> set:
 
 
 def build_text_pipeline(style: str, count: Optional[Callable[[str], int]] = None,
-                        env: Optional[dict] = None, correction_files: Optional[Iterable[Path]] = None):
+                        env: Optional[dict] = None, correction_files: Optional[Iterable[Path]] = None,
+                        classical: bool = False):
     """
     Returns (prompt_builder_or_None, postprocess_or_None) according to env:
       MYTRANSCRIBE_VOCAB=off        -> no topic prompts (static prompt only)
@@ -422,6 +423,7 @@ def build_text_pipeline(style: str, count: Optional[Callable[[str], int]] = None
       MYTRANSCRIBE_VOCAB_TOPICS     -> comma list of topics to assume before anything is said
     postprocess = spelling corrector + text_fixes (spelled-out abbreviations, personal
     "heard => correct" rules); it exposes .total_corrections like the corrector.
+    With classical, the corrector also knows vocab/classical_terms.txt (classical_terms.on_for).
     """
     env = os.environ if env is None else env
     off = lambda name: env.get(name, "").strip().lower() in ("0", "off", "false", "no")
@@ -438,7 +440,11 @@ def build_text_pipeline(style: str, count: Optional[Callable[[str], int]] = None
     if not off("MYTRANSCRIBE_AUTOCORRECT"):
         from vocab_correct import make_corrector
         from text_fixes import make_text_fixes
-        corrector = make_corrector([t.text for t in lex.all_terms()] + meds)
+        extra = []
+        if classical:
+            import classical_terms
+            extra = classical_terms.vocabulary()
+        corrector = make_corrector([t.text for t in lex.all_terms()] + meds + extra)
         if corrector is not None:
             corrector.preferred = medication_words(meds)
         post = PostProcess(corrector, make_text_fixes(known_abbreviations(lex), correction_files))

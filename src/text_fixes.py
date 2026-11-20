@@ -214,7 +214,7 @@ def expand_contractions(text: str) -> str:
     return _S_IS.sub(lambda m: m.group(1) + " is", text)
 
 
-def format_readings(text: str) -> str:
+def format_readings(text: str, classical: bool = False) -> str:
     """
     Readings as they are written in a chart: "138 over 78" -> "138/78" (two 2-3
     digit numbers), "124 g per litre" -> "124 g/L", "37.2 degrees Celsius" ->
@@ -230,6 +230,9 @@ def format_readings(text: str) -> str:
     text = _OVER.sub(r"\1/\2", text)
     text = apply_self_corrections(text)                   # after the numbers and readings are written as digits
     text = drug_names.apply(text)                         # after the numbers: a dose marks where a drug name sits
+    if classical:                                         # "Phelan's test" -> Phalen's test (classical_terms.py)
+        import classical_terms
+        text = classical_terms.apply(text)
     text = _PACK_YEAR.sub(r"\1-pack-year", text)          # "30-pack year smoking history" -> 30-pack-year
     text = _EGFR.sub("eGFR", text)
     text = _UNIT_PER.sub(lambda m: f"{m.group(1)} {_UNIT[m.group(2).lower()]}/{_PER[m.group(3).lower()]}", text)
@@ -237,13 +240,14 @@ def format_readings(text: str) -> str:
     return _DEGREES.sub(lambda m: f"{m.group(1)} °{m.group(2)[0].upper()}", text)
 
 
-def finish(text: str, extra_fixes: bool = True) -> str:
+def finish(text: str, extra_fixes: bool = True, classical: bool = False) -> str:
     """
     Every English transcript, before spoken commands are converted: hesitations always
-    come out; the chart clean-ups above (Options → Extra corrections) when they are on.
+    come out; the chart clean-ups above (Options → Extra corrections) when they are on, with
+    classical terms put right when `classical` (classical_terms.on_for the recogniser).
     """
     text = remove_fillers(text)
-    return format_readings(text) if extra_fixes else text
+    return format_readings(text, classical) if extra_fixes else text
 
 
 def make_text_fixes(known_abbreviations: Set[str],
