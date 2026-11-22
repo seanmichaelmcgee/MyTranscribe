@@ -196,16 +196,29 @@ def copy_gpu_libs(dists: dict, site: Path) -> dict:
     return sizes
 
 
+LICENCE_NAME = re.compile(r"(?i)^(licen[cs]e|copying)(\.\w+)?$|^licen[cs]e[-_]")
+
+
+def licence_text(key: str, dist) -> str:
+    """Where a package's licence text is in the install: its own file, or one from installer/licenses/."""
+    own = sorted(Path(str(f)).as_posix() for f in dist.files or [] if LICENCE_NAME.match(Path(str(f)).name))
+    if own:
+        return "python/Lib/site-packages/" + own[0]
+    return f"licenses/{key}.txt" if (HERE / "licenses" / f"{key}.txt").is_file() else ""
+
+
 def third_party(dists, models, gpu_libs: dict = None) -> str:
     """What is bundled and under which licence, as each package declares it (gpu_libs: from gpu_dists())."""
-    lines = ["MyTranscribe Medical bundles the following software and data.", "",
+    lines = ["MyTranscribe Medical bundles the following software and data, each under its own licence;",
+             "after each, where its licence text is in this folder.", "",
              f"Python {sys.version.split()[0]} (Python Software Foundation License): python/LICENSE.txt", ""]
     for key, dist in sorted(dists.items()):
         meta = dist.metadata
         lic = (meta.get("License-Expression") or meta.get("License") or "").strip().splitlines()
         classifiers = [c.split("::")[-1].strip() for c in meta.get_all("Classifier") or [] if c.startswith("License")]
         text = lic[0][:100] if lic and len(lic[0]) < 100 else "; ".join(classifiers) or "see the package"
-        lines.append(f"{meta['Name']} {meta['Version']}: {text}")
+        where = licence_text(key, dist)
+        lines.append(f"{meta['Name']} {meta['Version']}: {text}" + (f" ({where})" if where else ""))
     if gpu_libs:
         lines += ["", "NVIDIA libraries (used only on a PC with an NVIDIA graphics card), under NVIDIA's own licence,",
                   "the CUDA Toolkit End User License Agreement (its Attachment A lists the files that may be",
@@ -262,6 +275,10 @@ def stage(out: Path, models, version: str, device: str = "cpu") -> Path:
         sizes[key] = copy_dist(dist, site)
     gpu_libs = gpu_dists() if device in ("any", "cuda") else {}
     sizes.update(copy_gpu_libs(gpu_libs, site))
+    for key, dist in dists.items():                # licence texts the packages' own wheels leave out
+        if licence_text(key, dist).startswith("licenses/"):
+            (st / "licenses").mkdir(exist_ok=True)
+            shutil.copy2(HERE / "licenses" / f"{key}.txt", st / "licenses" / f"{key}.txt")
     (st / "THIRD-PARTY.txt").write_text(third_party(dists, models, gpu_libs), encoding="utf-8")
     print("Packages:", ", ".join(f"{k} {v / 1e6:.0f} MB" for k, v in sorted(sizes.items(), key=lambda kv: -kv[1])))
     tag = f"python{sys.version_info.major}{sys.version_info.minor}"
