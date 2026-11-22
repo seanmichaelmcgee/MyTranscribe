@@ -114,9 +114,29 @@ def test_updates_and_reused_stages_must_be_the_same_edition(tmp_path):
     base = tmp_path / "stage"
     (base / "python" / "Lib" / "site-packages").mkdir(parents=True)
     (base / "build_info.json").write_text(json.dumps({"version": "1.0", "device": "cuda"}), encoding="utf-8")
-    assert bi.check_edition(base, gpu=True)["version"] == "1.0"
+    assert bi.check_edition(base, "cuda")["version"] == "1.0"
     with pytest.raises(SystemExit, match="graphics-card edition, not the processor-only one"):
-        bi.stage_update(tmp_path, "1.0.1", base, gpu=False)
+        bi.stage_update(tmp_path, "1.0.1", base, "cpu")
     (base / "build_info.json").write_text(json.dumps({"version": "1.0"}), encoding="utf-8")     # older builds
     with pytest.raises(SystemExit, match="processor-only edition, not the graphics-card one"):
-        bi.check_edition(base, gpu=True)
+        bi.check_edition(base, "cuda")
+    (base / "build_info.json").write_text(json.dumps({"version": "1.0", "device": "any"}), encoding="utf-8")
+    assert bi.check_edition(base, "any")["version"] == "1.0"
+    with pytest.raises(SystemExit, match="every-PC edition, not the processor-only one"):
+        bi.check_edition(base, "cpu")
+
+
+def test_every_pc_build_packs_the_nvidia_libraries_under_the_usual_name(tmp_path, monkeypatch):
+    seen = {}
+    monkeypatch.setattr(bi, "stage", lambda out, models, version, device: seen.update(device=device) or out / "st")
+    monkeypatch.setattr(bi, "zip_stage", lambda st, out: out / "p.zip")
+    monkeypatch.setattr(bi, "compile_stub", lambda out, icon, gpu: seen.update(gpu_stub=gpu) or out / "stub")
+    monkeypatch.setattr(bi, "join", lambda *a: seen.update(join=a))
+    bi.main(["--every-pc", "--model", "small.en", "--version", "1.0", "--out", str(tmp_path)])
+    assert seen["device"] == "any" and seen["gpu_stub"] is False and seen["join"][-1] is False   # "MyTranscribe Medical"
+    bi.main(["--gpu", "--model", "large-v3", "--version", "1.0", "--out", str(tmp_path)])
+    assert seen["device"] == "cuda" and seen["gpu_stub"] is True and seen["join"][-1] is True
+    bi.main(["--model", "small.en", "--version", "1.0", "--out", str(tmp_path)])
+    assert seen["device"] == "cpu" and seen["gpu_stub"] is False
+    with pytest.raises(SystemExit):
+        bi.main(["--gpu", "--every-pc", "--model", "x", "--out", str(tmp_path)])
