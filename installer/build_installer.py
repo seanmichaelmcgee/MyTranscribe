@@ -197,15 +197,17 @@ def third_party(dists, models, gpu_libs: dict = None) -> str:
         text = lic[0][:100] if lic and len(lic[0]) < 100 else "; ".join(classifiers) or "see the package"
         lines.append(f"{meta['Name']} {meta['Version']}: {text}")
     if gpu_libs:
-        lines += ["", "NVIDIA libraries (graphics-card edition), under NVIDIA's own licence, the CUDA Toolkit End User",
-                  "License Agreement (its Attachment A lists the files that may be redistributed):"]
+        lines += ["", "NVIDIA libraries (used only on a PC with an NVIDIA graphics card), under NVIDIA's own licence,",
+                  "the CUDA Toolkit End User License Agreement (its Attachment A lists the files that may be",
+                  "redistributed):"]
         for key, dist in sorted(gpu_libs.items()):
             lic = next((Path(str(f)).as_posix() for f in dist.files or [] if Path(str(f)).name.lower() == "license.txt"), "")
             lines.append(f"  {dist.metadata['Name']} {dist.version}: {', '.join(GPU_LIBS[key])}"
                          + (f"; licence text: python/Lib/site-packages/{lic}" if lic else ""))
         lines.append("  The ctranslate2 package also carries NVIDIA's small cuDNN loader, cudnn64_9.dll (in every "
-                     "edition); the cuDNN libraries it would load are not included, since Whisper does not use them.")
-    lines += ["", "Speech models (OpenAI Whisper weights, MIT; CTranslate2 conversions):"]
+                     "build); the cuDNN libraries it would load are not included, since Whisper does not use them.")
+    lines += ["", "Speech models: OpenAI Whisper weights (MIT License, Copyright (c) 2022 OpenAI), converted for",
+              "CTranslate2:"]
     lines += [f"  {Path(m).name}: {(Path(m) / 'SOURCE.txt').read_text(encoding='utf-8').strip()}"
               if (Path(m) / "SOURCE.txt").is_file() else f"  {Path(m).name}" for m in models]
     return "\n".join(lines) + "\n"
