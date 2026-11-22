@@ -91,6 +91,10 @@ LIVE_INSERT_GAP_MS = 300        # let the target app read the clipboard before t
 # Copy-at-Stop keeps the default 30 s windows.
 LIVE_INSERT_CHUNK_S = 15.0
 LOADING_TEXT = "Loading speech model…"
+# The model this PC would use is not downloaded, so the installer's own (small.en) stands in.
+FALLBACK_TEXT = ("The larger speech model for this PC is not downloaded yet, so MyTranscribe is using the "
+                 "smaller one that came with the installer (small.en). It makes more mistakes, especially in "
+                 "drug names. MyTranscribe offers the download again the next time it starts.")
 TRANSCRIBING_SUFFIX = "\n\n[Finishing transcription…]"
 NORMAL_SIZE = (560, 300)
 COMPACT_WIDTH = 320
@@ -256,9 +260,12 @@ class MedTranscriptionWindow(TranscriptionWindow):
         self._settings = settings if settings is not None else settings_store.load(settings_path)
         self._sync_autopaste()
         self._allow_download = False   # set for one load after the user agrees to fetch a model
+        self._downloading = False      # the load in progress fetches a model
+        self._fall_back = False        # set for one load: the installer's own model (engines.fallback_model)
+        self._fell_back = False        # the loaded model is that stand-in
         self._engine_factory = engine_factory or (lambda: engines.build(
             self._settings.engine, self._settings.accuracy == "best", allow_download=self._allow_download,
-            language=self._settings.language))
+            language=self._settings.language, fallback=self._fall_back))
         self._pipeline_injected = text_pipeline is not None
         self._load_exc: Optional[BaseException] = None
         self._reload_pending = False
@@ -357,16 +364,22 @@ class MedTranscriptionWindow(TranscriptionWindow):
             self._load_error = str(exc) or exc.__class__.__name__
         finally:
             self._allow_download = False
+            self._fell_back, self._fall_back = self._fall_back, False
 
     def _check_load(self) -> None:
         if self._load_thread.is_alive():
             return
         self._load_timer.stop()
         if self._load_error:
-            if isinstance(self._load_exc, engines.ModelNotDownloaded) and self._confirm_download(self._load_exc.engine):
-                self._allow_download = True
+            exc, downloading = self._load_exc, self._downloading
+            self._downloading = False
+            missing = isinstance(exc, engines.ModelNotDownloaded)
+            if missing and self._confirm_download(exc.engine):
+                self._allow_download = self._downloading = True
                 self._start_load()
                 self._text_area.setPlainText("Downloading the speech model… this can take several minutes.")
+                return
+            if (missing or downloading) and self._start_fallback(getattr(exc, "engine", self._settings.engine)):
                 return
             self._text_area.setPlainText(
                 f"Could not load the speech model:\n{self._load_error}\n\n"
@@ -387,7 +400,7 @@ class MedTranscriptionWindow(TranscriptionWindow):
         logger.info("Topic prompts %s, spelling correction %s",
                     "on" if builder else "off", "on" if corrector else "off")
         self._device = getattr(getattr(self._engine, "config", None), "device", None)
-        self._text_area.setPlainText("")
+        self._text_area.setPlainText(FALLBACK_TEXT if self._fell_back else "")
         self._set_buttons_enabled(True)
         self._set_status("Ready", "idle")
         logger.info("Ready")
@@ -424,6 +437,19 @@ class MedTranscriptionWindow(TranscriptionWindow):
             if self._transcriber.postprocess is not None:
                 self._transcriber.postprocess.same_sound = self._settings.extra_fixes
         logger.info("Dictation language: %s", code)
+
+    def _start_fallback(self, engine: str) -> bool:
+        """
+        The model this PC should use is not here (not downloaded, or the download failed): load the
+        one that came with the installer instead, if there is one and it was not just tried.
+        """
+        if self._fell_back or engines.fallback_model(engine) is None:
+            return False
+        logger.info("Using the installer's own model (%s) until the chosen one is downloaded",
+                    engines.fallback_model(engine).name)
+        self._fall_back = True
+        self._start_load()
+        return True
 
     def _confirm_download(self, engine: str) -> bool:
         """Ask before fetching a model: what, from where, how big, under which licence."""

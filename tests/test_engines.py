@@ -42,7 +42,7 @@ def test_a_missing_model_becomes_a_question_not_a_download(monkeypatch):
     class LocalEntryNotFoundError(Exception):
         pass
 
-    def offline_load(name, accurate, language="en"):
+    def offline_load(name, accurate, language="en", fallback=False):
         raise LocalEntryNotFoundError("Cannot find the requested files in the local cache")
 
     monkeypatch.setattr(engines, "_build", offline_load)
@@ -53,7 +53,7 @@ def test_a_missing_model_becomes_a_question_not_a_download(monkeypatch):
     assert err.value.engine == "whisper"
     seen = {}
 
-    def online_load(name, accurate, language="en"):
+    def online_load(name, accurate, language="en", fallback=False):
         import os
         seen["offline"] = os.environ["HF_HUB_OFFLINE"]
         return "engine"
@@ -257,6 +257,48 @@ def test_declining_the_download_leaves_a_clear_message(qapp, make_window, monkey
     assert wait_for(lambda: "not on this PC" in w._text_area.toPlainText(), app=qapp)
     assert not w.ready and "Show log" in w._text_area.toPlainText()
     time.sleep(0)
+
+
+@pytest.mark.parametrize("download", [False, True])
+def test_without_the_download_the_installers_own_model_stands_in(qapp, make_window, monkeypatch, download):
+    """Declined (or the download failed): an install that came with small.en uses it, and says so."""
+    import gui_med
+    monkeypatch.setattr(engines, "fallback_model", lambda name: Path("small.en") if name == "whisper" else None)
+    monkeypatch.setattr(gui_med.MedTranscriptionWindow, "_confirm_download", lambda self, engine: download)
+    calls = []
+
+    def factory():
+        calls.append(len(calls))
+        if len(calls) == 1:
+            raise engines.ModelNotDownloaded("whisper")
+        if download and len(calls) == 2:
+            raise OSError("no connection to huggingface.co")
+        return FakeEngine()
+
+    w = make_window(engine_factory=factory)
+    assert wait_for(lambda: w.ready, app=qapp)
+    assert len(calls) == (3 if download else 2) and w._fell_back
+    assert w._text_area.toPlainText() == gui_med.FALLBACK_TEXT
+
+
+def test_the_stand_in_is_the_installers_processor_model(monkeypatch, tmp_path):
+    import fw_engine
+    import hw_profile
+    for var in ("MYTRANSCRIBE_MODEL", "MYTRANSCRIBE_DEVICE", "MYTRANSCRIBE_COMPUTE_TYPE"):
+        monkeypatch.delenv(var, raising=False)
+    assert engines.fallback_model("whisper") is None                     # development checkout: nothing to use
+    monkeypatch.setattr(engines, "bundled_model", lambda name: tmp_path / name if name == "small.en" else None)
+    assert engines.fallback_model("whisper") == tmp_path / "small.en" and engines.fallback_model("medasr") is None
+    card = hw_profile.HardwareInfo(cuda_device_count=1, gpu_name="NVIDIA GeForce RTX 4070 Ti SUPER", vram_mb=16376,
+                                   compute_capability=8.9, cuda_compute_types=frozenset({"int8_float16"}))
+    loaded = []
+    monkeypatch.setattr(hw_profile, "detect_hardware", lambda: card)
+    monkeypatch.setattr(fw_engine, "register_cuda_dll_dirs", lambda: [])
+    monkeypatch.setattr(fw_engine, "FasterWhisperEngine", lambda cfg: loaded.append(cfg) or object())
+    engines._build("whisper", accurate=True)
+    assert loaded[-1].model == "large-v3"                                # not here: the caller asks first
+    engines._build("whisper", accurate=True, fallback=True)
+    assert (loaded[-1].model, loaded[-1].device) == (str(tmp_path / "small.en"), "cuda")   # on the card
 
 
 
