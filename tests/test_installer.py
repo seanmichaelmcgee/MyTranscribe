@@ -140,3 +140,9 @@ def test_every_pc_build_packs_the_nvidia_libraries_under_the_usual_name(tmp_path
     assert seen["device"] == "cpu" and seen["gpu_stub"] is False
     with pytest.raises(SystemExit):
         bi.main(["--gpu", "--every-pc", "--model", "x", "--out", str(tmp_path)])
+
+
+def test_only_the_every_pc_build_takes_truststore_for_its_download():
+    assert "truststore" in bi.roots("any")
+    assert "truststore" not in bi.roots("cpu") and "truststore" not in bi.roots("cuda")   # they download nothing
+    assert bi.roots("cpu") == bi.ROOTS                                                  # processor-only: unchanged

@@ -61,6 +61,11 @@ ONE_FILE_LIMIT = (1 << 32) - (1 << 20)
 
 # What the app imports, as installed distributions; their requirements are followed.
 ROOTS = ["faster-whisper", "PyQt6", "PyAudio", "pynput", "rapidfuzz", "jellyfish", "wordfreq", "psutil"]
+# The every-PC build downloads large-v3 on first use, so it also takes truststore: downloads then
+# check certificates against Windows' own store, as browsers and pip do. A network or antivirus
+# that re-signs secure connections with a certificate Windows trusts then works, and bad
+# certificates are still refused (tested 2026-11-22). engines.py uses it only for a download.
+DOWNLOAD_ROOTS = ["truststore"]
 # Never followed as requirements: the NVIDIA libraries (--every-pc and --gpu pack them, from GPU_LIBS),
 # test tools, and big packages only imported by tools the app never runs (onnxruntime's sympy
 # is for model conversion).
@@ -89,6 +94,11 @@ VC_RUNTIME = ("msvcp140.dll", "msvcp140_1.dll", "msvcp140_2.dll", "vcruntime140.
 
 
 # ── Which packages ───────────────────────────────────────────────────────────
+def roots(device: str = "cpu") -> list:
+    """The distributions a build starts from: ROOTS, plus DOWNLOAD_ROOTS for the every-PC build."""
+    return ROOTS + (DOWNLOAD_ROOTS if device == "any" else [])
+
+
 def closure(roots):
     """Installed distributions the roots need, following requirements (no extras)."""
     env = default_environment()
@@ -243,7 +253,10 @@ def stage(out: Path, models, version: str, device: str = "cpu") -> Path:
     shutil.copytree(base / "Lib", py / "Lib", ignore=ignore)
     site = py / "Lib" / "site-packages"
     site.mkdir()
-    dists = closure(ROOTS)
+    dists = closure(roots(device))
+    missing = [r for r in roots(device) if r in DOWNLOAD_ROOTS and r not in dists]
+    if missing:
+        raise SystemExit(f"--every-pc needs {', '.join(missing)} installed here (pip install {' '.join(missing)}).")
     sizes = {}
     for key, dist in sorted(dists.items()):
         sizes[key] = copy_dist(dist, site)
@@ -306,7 +319,7 @@ def stage_update(out: Path, version: str, base: Path, device: str = "cpu") -> Pa
     if not site.is_dir():
         raise SystemExit(f"No full build in {base}: build the full installer first.")
     base_info = check_edition(base, device)
-    here = {k: d.version for k, d in closure(ROOTS).items()}
+    here = {k: d.version for k, d in closure(roots(device)).items()}
     if device in ("any", "cuda"):
         here.update({k: d.version for k, d in gpu_dists().items()})
     shipped = shipped_packages(site)
