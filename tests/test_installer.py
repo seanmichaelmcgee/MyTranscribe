@@ -185,3 +185,12 @@ def test_the_installer_shows_the_licence_terms_and_asks_for_windows_11(tmp_path)
         exe = bi.compile_stub(tmp_path, bi.REPO / "src" / "assets" / "mytranscribe.ico").read_bytes()
         for text in ("I accept the licence terms", "LICENSE-NOTICE.txt", " needs Windows 11."):
             assert text.encode("utf-16-le") in exe
+
+
+def test_the_installer_is_compiled_as_utf8_so_its_text_is_not_garbled(tmp_path):
+    seen = []
+    bi.compile_stub(tmp_path, Path("icon.ico"), run=lambda cmd, check: seen.append(cmd))
+    assert "/codepage:65001" in seen[0]                 # Setup.cs is UTF-8 ("·", "…"); csc's default is ANSI
+    if bi.CSC.is_file():
+        exe = bi.compile_stub(tmp_path, bi.REPO / "src" / "assets" / "mytranscribe.ico").read_bytes()
+        assert "  ·  needs ".encode("utf-16-le") in exe and "Copying files…".encode("utf-16-le") in exe

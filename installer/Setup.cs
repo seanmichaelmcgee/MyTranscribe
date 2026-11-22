@@ -218,6 +218,12 @@ static class Ui
             AccessibleName = text, AccessibleRole = AccessibleRole.PushButton   // announced as a button
         };
         b.FlatAppearance.BorderColor = primary ? Accent : Color.FromArgb(0xDA, 0xD8, 0xCD);
+        if (primary)                     // a flat button keeps its colours when disabled: grey it out
+            b.EnabledChanged += (s, e) =>
+            {
+                b.BackColor = b.FlatAppearance.BorderColor = b.Enabled ? Accent : Color.FromArgb(0xE6, 0xCD, 0xC1);
+                b.Cursor = b.Enabled ? Cursors.Hand : Cursors.Default;
+            };
         return b;
     }
 }
