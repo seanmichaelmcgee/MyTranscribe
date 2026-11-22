@@ -146,3 +146,13 @@ def test_only_the_every_pc_build_takes_truststore_for_its_download():
     assert "truststore" in bi.roots("any")
     assert "truststore" not in bi.roots("cpu") and "truststore" not in bi.roots("cuda")   # they download nothing
     assert bi.roots("cpu") == bi.ROOTS                                                  # processor-only: unchanged
+
+
+def test_every_bundled_package_has_its_licence_text_in_the_install(tmp_path):
+    with_file = FakeDist(tmp_path / "a", ["pkg/__init__.py", "pkg-1.0.dist-info/licenses/LICENSE"], name="pkg")
+    assert bi.licence_text("pkg", with_file) == "python/Lib/site-packages/pkg-1.0.dist-info/licenses/LICENSE"
+    bare = FakeDist(tmp_path / "b", ["ctranslate2/__init__.py"], name="ctranslate2")
+    assert bi.licence_text("ctranslate2", bare) == "licenses/ctranslate2.txt"      # shipped from installer/licenses/
+    assert (bi.HERE / "licenses" / "ctranslate2.txt").read_text(encoding="utf-8").count("MIT License") == 1
+    missing = [key for key, dist in bi.closure(bi.roots("any")).items() if not bi.licence_text(key, dist)]
+    assert missing == []                           # each package in a build: its own file, or one we ship
