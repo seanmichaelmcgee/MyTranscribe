@@ -156,3 +156,32 @@ def test_every_bundled_package_has_its_licence_text_in_the_install(tmp_path):
     assert (bi.HERE / "licenses" / "ctranslate2.txt").read_text(encoding="utf-8").count("MIT License") == 1
     missing = [key for key, dist in bi.closure(bi.roots("any")).items() if not bi.licence_text(key, dist)]
     assert missing == []                           # each package in a build: its own file, or one we ship
+
+
+def test_pyav_is_left_out_and_its_placeholder_says_so():
+    assert bi.SKIP.match("av") and "av" not in bi.closure(bi.roots("any"))
+    space = {}
+    exec(bi.AV_PLACEHOLDER, space)
+    with pytest.raises(AttributeError):
+        space["__getattr__"]("__version__")                               # tools probing modules are not upset
+    with pytest.raises(RuntimeError, match="not part of the MyTranscribe installer"):
+        space["__getattr__"]("open")
+
+
+def test_qt_ships_under_the_lgpl_with_the_gpl_text_it_builds_on(tmp_path):
+    for key in ("pyside6-essentials", "shiboken6"):      # their wheels hold only Qt's commercial licence file
+        wheel = FakeDist(tmp_path / key, [f"{key}.dist-info/licenses/LicenseRef-Qt-Commercial.txt"], name=key)
+        assert bi.licence_text(key, wheel) == "licenses/LGPL-3.0.txt"
+    assert bi.LICENCE_SHARED["pyside6-essentials"] == "LGPL-3.0.txt" and bi.LICENCE_WITH["LGPL-3.0.txt"] == "GPL-3.0.txt"
+    for name, first in (("LGPL-3.0.txt", "GNU LESSER GENERAL PUBLIC LICENSE"), ("GPL-3.0.txt", "GNU GENERAL PUBLIC LICENSE")):
+        assert (bi.HERE / "licenses" / name).read_text(encoding="utf-8").strip().startswith(first)
+
+
+def test_the_installer_shows_the_licence_terms_and_asks_for_windows_11(tmp_path):
+    notice = (bi.HERE / "LICENSE-NOTICE.txt").read_text(encoding="utf-8")
+    assert "MIT License" in notice and "GNU LGPL version 3" in notice and "not a medical device" in notice
+    assert "PyQt" not in notice and len(notice.splitlines()) < 60                 # short: details are installed
+    if bi.CSC.is_file():
+        exe = bi.compile_stub(tmp_path, bi.REPO / "src" / "assets" / "mytranscribe.ico").read_bytes()
+        for text in ("I accept the licence terms", "LICENSE-NOTICE.txt", " needs Windows 11."):
+            assert text.encode("utf-16-le") in exe

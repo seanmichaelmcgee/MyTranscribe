@@ -20,7 +20,8 @@
 // it needs an installed copy built with the same Python, replaces src/ (put back if anything
 // goes wrong) and leaves Python, the packages, the speech model and the shortcuts as they are.
 //
-// Switches (for scripted tests): /S silent, /D=<folder>, /noshortcuts, /uninstall.
+// Switches (for scripted tests and managed installs): /S silent (which accepts the licence terms in
+// LICENSE-NOTICE.txt), /D=<folder>, /noshortcuts, /uninstall. Windows 11 only (Requirements).
 
 using System;
 using System.Collections.Generic;
@@ -59,6 +60,12 @@ static class Program
         {
             if (opts.Uninstall)
                 return Uninstaller.Run(opts);
+            string unsupported = Requirements.Problem();
+            if (unsupported != null)
+            {
+                Ui.Error(unsupported, opts);
+                return 3;
+            }
             string missing;
             var payload = Payload.Open(Application.ExecutablePath, out missing);
             if (payload == null)
@@ -128,6 +135,27 @@ static class Log
                                DateTime.Now.ToString("s") + " " + line + Environment.NewLine);
         }
         catch (Exception) { }
+    }
+}
+
+// The Windows this program and the app support: Windows 11 (build 22000 or later).
+static class Requirements
+{
+    public const int MinBuild = 22000;
+
+    // Why MyTranscribe cannot be installed on this PC, or null. An unreadable build number is let through.
+    public static string Problem()
+    {
+        int build = 0;
+        try
+        {
+            using (var key = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Windows NT\CurrentVersion"))
+                if (key != null) int.TryParse(key.GetValue("CurrentBuildNumber") as string, out build);
+        }
+        catch (Exception) { }
+        if (build == 0 || build >= MinBuild) return null;
+        return Program.AppName + " needs Windows 11. This PC runs an older version of Windows (build " + build +
+               "). Support for other versions may come later.";
     }
 }
 
@@ -202,6 +230,7 @@ class Payload
     public string Exe;                   // this program
     public long StubLength;              // its length without the payload: the uninstaller
     public string Version = "", Kind = "", Python = "", Device = "";
+    public string Notice = "";           // LICENSE-NOTICE.txt: the terms shown before installing
     public long UnpackedBytes;
     public int Files;
     public bool IsUpdate { get { return Kind == "update"; } }
@@ -272,6 +301,10 @@ class Payload
                     p.Python = Field(json, "python");
                     p.Device = Field(json, "device");
                 }
+            var notice = zip.GetEntry("LICENSE-NOTICE.txt");
+            if (notice != null)
+                using (var r = new StreamReader(notice.Open()))
+                    p.Notice = r.ReadToEnd();
         }
         return p;
     }
@@ -612,6 +645,8 @@ class InstallForm : Form
     readonly ProgressBar bar = new ProgressBar();
     readonly Label status = Ui.Text("", 9.5f, false, Ui.Muted);
     readonly CheckBox startNow = new CheckBox();
+    readonly TextBox terms = new TextBox();
+    readonly CheckBox accept = new CheckBox();
     string state = "welcome";
 
     public InstallForm(Payload p, Options o)
@@ -647,8 +682,13 @@ class InstallForm : Form
         primary.Click += OnPrimary;
         secondary.Click += (s, e) => Close();
         AcceptButton = primary;
+        accept.CheckedChanged += (s, e) => { if (state == "licence") primary.Enabled = accept.Checked; };
         ShowWelcome();
     }
+
+    // A full install asks the user to accept the licence terms (LICENSE-NOTICE.txt) first;
+    // an update package does not. A silent install (/S) is taken as acceptance.
+    bool AsksForLicence { get { return !payload.IsUpdate && payload.Notice != ""; } }
 
     void Lines(params Control[] controls)
     {
@@ -700,12 +740,34 @@ class InstallForm : Form
                     "shortcut to your desktop and Start menu.", 10f, false, Ui.Ink),
             Ui.Text("Version " + payload.Version + "  ·  needs " + gb.ToString("0.0") + " GB of disk space\n" +
                     "Installs to " + folder, 9f, false, Ui.Muted));
-        primary.Text = primary.AccessibleName = update ? "Update" : "Install";
+        primary.Text = primary.AccessibleName = AsksForLicence ? "Next" : update ? "Update" : "Install";
+    }
+
+    void ShowLicence()
+    {
+        state = "licence";
+        terms.Multiline = true; terms.ReadOnly = true; terms.ScrollBars = ScrollBars.Vertical;
+        terms.BackColor = Color.White; terms.Font = new Font("Segoe UI", 9f); terms.Height = 152;
+        terms.Text = payload.Notice.Replace("\r\n", "\n").Replace("\n", "\r\n");   // Windows line ends for the box
+        terms.AccessibleName = "Licence terms";
+        accept.Text = "I accept the licence terms";
+        accept.AccessibleRole = AccessibleRole.CheckButton;
+        accept.Font = new Font("Segoe UI", 10f);
+        accept.Height = 28;
+        Lines(terms, accept);
+        primary.Text = primary.AccessibleName = Directory.Exists(folder) ? "Update" : "Install";
+        primary.Enabled = accept.Checked;
+        terms.Select(0, 0);
     }
 
     void OnPrimary(object sender, EventArgs e)
     {
-        if (state == "welcome") Begin();
+        if (state == "welcome")
+        {
+            if (AsksForLicence) ShowLicence();
+            else Begin();
+        }
+        else if (state == "licence") { if (accept.Checked) Begin(); }
         else if (state == "blocked") Close();
         else if (state == "done")
         {
