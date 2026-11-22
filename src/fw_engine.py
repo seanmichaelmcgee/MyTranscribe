@@ -175,6 +175,12 @@ def register_cuda_dll_dirs(
     return added
 
 
+def _is_fetch_problem(exc: BaseException) -> bool:
+    """The model is missing or could not be downloaded (Hugging Face hub or network errors)."""
+    return any(c.__module__.split(".")[0] in ("huggingface_hub", "httpx", "httpcore", "requests", "urllib3")
+               for c in type(exc).__mro__)
+
+
 TAIL_SPEECH_MIN_S = 0.3           # sound after the last word that may still be an unheard word
 TAIL_FLOOR_RMS = 80 / 32768       # never call quieter than this speech (the app's fixed threshold)
 
@@ -244,7 +250,11 @@ class FasterWhisperEngine:
         )
 
     def _load(self, model_factory: Callable, config: EngineConfig):
-        """Load the model; if CUDA init fails (driver/DLL issues), fall back to CPU."""
+        """
+        Load the model; if CUDA init fails (driver/DLL issues), fall back to CPU. A model that is
+        not on this PC, or could not be fetched, is not a CUDA problem: that error goes to the
+        caller as it is (the app then asks about the download), never to a processor retry.
+        """
         try:
             return model_factory(
                 config.model,
@@ -253,7 +263,7 @@ class FasterWhisperEngine:
                 cpu_threads=config.cpu_threads,
             )
         except (RuntimeError, ValueError, OSError) as exc:
-            if config.device != "cuda":
+            if config.device != "cuda" or _is_fetch_problem(exc):
                 raise
             logger.error("CUDA model load failed (%s); falling back to CPU int8", exc)
             self.config = EngineConfig(
