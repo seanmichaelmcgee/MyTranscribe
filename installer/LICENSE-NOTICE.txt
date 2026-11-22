@@ -1,0 +1,48 @@
+MyTranscribe Medical: licence terms
+
+Please read these terms. By choosing "I accept" you agree to them.
+
+1. MyTranscribe Medical
+
+MyTranscribe Medical is free, open-source software under the MIT License:
+
+Copyright (c) 2023 Sean McGee
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software
+and associated documentation files (the "Software"), to deal in the Software without
+restriction, including without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
+Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or
+substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING
+BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+2. Software and data included with it, each under its own licence
+
+- Python: Python Software Foundation License.
+- Qt and Qt for Python (PySide6): GNU LGPL version 3. You may replace these libraries in the
+  installed folder with your own builds. Source code:
+  https://download.qt.io/official_releases/qt/6.12/ and
+  https://download.qt.io/official_releases/QtForPython/pyside6/
+- pynput: GNU LGPL version 3.
+- NVIDIA cuBLAS (only in installers that include it; used only with an NVIDIA graphics card):
+  NVIDIA CUDA Toolkit End User License Agreement.
+- Other packages: MIT, BSD, Apache 2.0, MPL 2.0 and similar open-source licences.
+- Speech models: OpenAI Whisper (MIT License).
+- Word lists: wordfreq data (CC BY-SA 4.0) and the Telnyx medical pronunciation dictionary
+  (CC BY 4.0).
+
+After installation, THIRD-PARTY.txt, NOTICE.md and the licenses folder in the program folder
+list every component with its licence text. Overview:
+https://github.com/seanmichaelmcgee/MyTranscribe/blob/main/LICENSES.md
+
+3. Medical use
+
+MyTranscribe is a dictation tool, not a medical device. It can make mistakes, including in drug
+names, doses and numbers: read and correct the text before it goes into a record.

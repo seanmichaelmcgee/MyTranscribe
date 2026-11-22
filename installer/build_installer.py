@@ -60,7 +60,7 @@ MAGIC_DATA = b"MTSETUPD"    # trailer: the payload is in a .data file beside the
 ONE_FILE_LIMIT = (1 << 32) - (1 << 20)
 
 # What the app imports, as installed distributions; their requirements are followed.
-ROOTS = ["faster-whisper", "PyQt6", "PyAudio", "pynput", "rapidfuzz", "jellyfish", "wordfreq", "psutil"]
+ROOTS = ["faster-whisper", "PySide6-Essentials", "PyAudio", "pynput", "rapidfuzz", "jellyfish", "wordfreq", "psutil"]
 # The every-PC build downloads large-v3 on first use, so it also takes truststore: downloads then
 # check certificates against Windows' own store, as browsers and pip do. A network or antivirus
 # that re-signs secure connections with a certificate Windows trusts then works, and bad
@@ -69,23 +69,38 @@ DOWNLOAD_ROOTS = ["truststore"]
 # Never followed as requirements: the NVIDIA libraries (--every-pc and --gpu pack them, from GPU_LIBS),
 # test tools, and big packages only imported by tools the app never runs (onnxruntime's sympy
 # is for model conversion).
-SKIP = re.compile(r"^(nvidia-.*|torch|triton|pytest|pip|sympy|mpmath|pyinstaller.*)$", re.I)
+SKIP = re.compile(r"^(nvidia-.*|av|torch|triton|pytest|pip|sympy|mpmath|pyinstaller.*)$", re.I)
+# PyAV (av) is left out too: faster-whisper imports it only to decode audio files, and the app
+# always hands it audio as arrays. Its wheels carry FFmpeg with the GPL x264 and x265 encoders
+# (2026-11-22), which the app never uses. AV_PLACEHOLDER satisfies the import instead.
+AV_PLACEHOLDER = '''"""
+Placeholder for PyAV in the MyTranscribe installer.
+
+faster-whisper imports PyAV to decode audio files. MyTranscribe hands it audio as arrays and never
+decodes a file, so the installer leaves PyAV (and the FFmpeg it bundles) out. Using it says so.
+"""
+
+
+def __getattr__(name):
+    if name.startswith("__"):
+        raise AttributeError(name)
+    raise RuntimeError("PyAV is not part of the MyTranscribe installer: audio files cannot be decoded "
+                       "here (MyTranscribe passes audio as arrays).")
+'''
 # --every-pc and --gpu: the NVIDIA libraries CTranslate2 loads to run Whisper on the
 # card, and nothing else from those wheels. Measured 2026-11-20 with large-v3 on an RTX 4070 Ti
 # SUPER and the system CUDA removed from PATH: at int8_float16, float16, int8_float32 and float32
 # only cuBLAS is loaded. cuDNN and NVRTC (1.2 GB more) are never loaded: CTranslate2 brings its
 # own small cudnn64_9.dll loader, which stays idle, so they are left out.
 GPU_LIBS = {"nvidia-cublas-cu12": ("cublas64_12.dll", "cublasLt64_12.dll")}
-# Parts of Qt the app does not use (it needs QtCore, QtGui, QtWidgets and SVG for one icon).
-QT_DROP = re.compile(r"(?i)^(qt6(quick|qml|pdf|designer|multimedia|web|positioning|sensors|3d|bluetooth|nfc|"
-                     r"serialport|test|sql|location|charts|datavis|graphs|spatial|texttospeech|virtualkeyboard|"
-                     r"remoteobjects|scxml|statemachine|shadertools|lottie|help|uitools|opengl|openglwidgets|"
-                     r"labs|httpserver|websockets|network|printsupport|xml)\w*\.dll|opengl32sw\.dll|"
-                     r"d3dcompiler_\d+\.dll|(qt)?(quick|qml|pdf|designer|multimedia|web|3d|sql|location|"
-                     r"positioning|sensors|charts|help|bluetooth|nfc|serialport|test|texttospeech|"
-                     r"virtualkeyboard|remoteobjects|scxml|statemachine|spatial|datavis|graphs|lottie|"
-                     r"httpserver|websockets|network|printsupport|opengl|openglwidgets|uitools|xml)\w*\.(pyd|pyi))$")
-QT_KEEP_DIRS = {"platforms", "styles", "imageformats", "iconengines"}
+# Of Qt (PySide6, LGPL v3) only what the app uses: QtCore, QtGui, QtWidgets, SVG for the check-mark
+# and icons, the Windows platform and style plugins (plus offscreen, for checks without a screen),
+# and the C++ runtime. Qt Quick, QML, Designer, translations and the developer tools stay out.
+QT_KEEP = re.compile(r"(?i)^(__init__\.py|_config\.py|_git_\w+\.py|py\.typed|Qt(Core|Gui|Widgets)\.pyd|"
+                     r"Qt6(Core|Gui|Widgets|Svg)\.dll|pyside6\.abi3\.dll|shiboken6\.abi3\.dll|Shiboken\.pyd|"
+                     r"(msvcp140\w*|vcruntime140\w*|concrt140|vcomp140)\.dll)$")
+QT_KEEP_PLUGINS = {"platforms": {"qwindows.dll", "qoffscreen.dll"}, "styles": None,
+                   "iconengines": {"qsvgicon.dll"}, "imageformats": {"qsvg.dll", "qico.dll"}}
 STDLIB_DROP = {"test", "idlelib", "tkinter", "turtledemo", "ensurepip", "site-packages", "__pycache__",
                "lib2to3", "venv", "pydoc_data"}
 DLLS_DROP = re.compile(r"(?i)^(_tkinter\.pyd|tcl\d+t?\.dll|tk\d+t?\.dll|_test\w*\.pyd|xxlimited.*)$")
@@ -137,8 +152,7 @@ def copy_dist(dist, site: Path) -> int:
         src = base / rel
         if not src.is_file():
             continue
-        parts = [p for p in rel.parts]
-        if parts[0] == "PyQt6" and _qt_drop(rel):
+        if rel.parts[0] in ("PySide6", "shiboken6") and not _qt_keep(rel):
             continue
         dst = site / rel
         dst.parent.mkdir(parents=True, exist_ok=True)
@@ -147,15 +161,16 @@ def copy_dist(dist, site: Path) -> int:
     return total
 
 
-def _qt_drop(rel: Path) -> bool:
-    name = rel.name
-    if QT_DROP.match(name) or name.lower() == "qpdf.dll":     # the PDF image plugin needs Qt6Pdf, left out
-        return True
+def _qt_keep(rel: Path) -> bool:
+    """Whether a file of PySide6 or shiboken6 goes into the install (QT_KEEP, QT_KEEP_PLUGINS)."""
     parts = rel.parts
-    if len(parts) > 3 and parts[1] == "Qt6" and parts[2] == "plugins" and parts[3] not in QT_KEEP_DIRS:
-        return True
-    if len(parts) > 2 and parts[1] == "Qt6" and parts[2] in ("qml", "translations", "resources"):
-        return True
+    if len(parts) == 2:
+        return bool(QT_KEEP.match(parts[1]))
+    if parts[:2] == ("PySide6", "support"):
+        return rel.suffix == ".py"                  # PySide6's own runtime helpers; not the type stubs
+    if len(parts) == 4 and parts[1] == "plugins" and parts[2] in QT_KEEP_PLUGINS:
+        wanted = QT_KEEP_PLUGINS[parts[2]]
+        return wanted is None or parts[3].lower() in wanted
     return False
 
 
@@ -197,6 +212,11 @@ def copy_gpu_libs(dists: dict, site: Path) -> dict:
 
 
 LICENCE_NAME = re.compile(r"(?i)^(licen[cs]e|copying)(\.\w+)?$|^licen[cs]e[-_]")
+# Packages whose wheels carry no text of the licence they are used under, and the shared text that
+# covers them: Qt for Python's wheels hold only Qt's commercial licence file, but it is used here
+# under the LGPL v3, which also requires the GPL v3 text it builds on (LICENCE_WITH).
+LICENCE_SHARED = {"pyside6-essentials": "LGPL-3.0.txt", "shiboken6": "LGPL-3.0.txt"}
+LICENCE_WITH = {"LGPL-3.0.txt": "GPL-3.0.txt"}
 
 
 def licence_text(key: str, dist) -> str:
@@ -204,7 +224,10 @@ def licence_text(key: str, dist) -> str:
     own = sorted(Path(str(f)).as_posix() for f in dist.files or [] if LICENCE_NAME.match(Path(str(f)).name))
     if own:
         return "python/Lib/site-packages/" + own[0]
-    return f"licenses/{key}.txt" if (HERE / "licenses" / f"{key}.txt").is_file() else ""
+    if (HERE / "licenses" / f"{key}.txt").is_file():
+        return f"licenses/{key}.txt"
+    shared = LICENCE_SHARED.get(key, "")
+    return f"licenses/{shared}" if shared else ""
 
 
 def third_party(dists, models, gpu_libs: dict = None) -> str:
@@ -276,9 +299,16 @@ def stage(out: Path, models, version: str, device: str = "cpu") -> Path:
     gpu_libs = gpu_dists() if device in ("any", "cuda") else {}
     sizes.update(copy_gpu_libs(gpu_libs, site))
     for key, dist in dists.items():                # licence texts the packages' own wheels leave out
-        if licence_text(key, dist).startswith("licenses/"):
+        where = licence_text(key, dist)
+        if where.startswith("licenses/"):
+            name = where.split("/", 1)[1]
             (st / "licenses").mkdir(exist_ok=True)
-            shutil.copy2(HERE / "licenses" / f"{key}.txt", st / "licenses" / f"{key}.txt")
+            for n in (name, LICENCE_WITH.get(name)):
+                if n:
+                    shutil.copy2(HERE / "licenses" / n, st / "licenses" / n)
+    if "faster-whisper" in dists:                  # PyAV left out (SKIP): a placeholder for the import
+        (site / "av").mkdir()
+        (site / "av" / "__init__.py").write_text(AV_PLACEHOLDER, encoding="utf-8")
     (st / "THIRD-PARTY.txt").write_text(third_party(dists, models, gpu_libs), encoding="utf-8")
     print("Packages:", ", ".join(f"{k} {v / 1e6:.0f} MB" for k, v in sorted(sizes.items(), key=lambda kv: -kv[1])))
     tag = f"python{sys.version_info.major}{sys.version_info.minor}"
@@ -308,6 +338,7 @@ def _copy_app(st: Path) -> None:
         if (REPO / name).is_file():
             shutil.copy2(REPO / name, st / name)
     shutil.copy2(HERE / "selftest.py", st / "selftest.py")
+    shutil.copy2(HERE / "LICENSE-NOTICE.txt", st / "LICENSE-NOTICE.txt")   # the installer shows it
 
 
 def shipped_packages(site: Path) -> dict:
