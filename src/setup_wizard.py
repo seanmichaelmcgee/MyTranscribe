@@ -25,9 +25,9 @@ from dataclasses import replace
 import threading
 from typing import Callable, List, Optional
 
-from PyQt6.QtCore import QEvent, QObject, Qt, QTimer
-from PyQt6.QtGui import QColor, QPainter, QPalette
-from PyQt6.QtWidgets import (
+from PySide6.QtCore import QEvent, QObject, Qt, QTimer
+from PySide6.QtGui import QColor, QPainter, QPalette
+from PySide6.QtWidgets import (
     QButtonGroup, QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFormLayout, QFrame, QHBoxLayout, QLabel,
     QProgressBar, QPushButton, QRadioButton, QSlider, QVBoxLayout, QWidget, QWizard, QWizardPage,
 )

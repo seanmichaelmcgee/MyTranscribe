@@ -25,7 +25,7 @@ import sys
 from dataclasses import dataclass
 from typing import Optional
 
-from PyQt6.QtCore import QObject, pyqtSignal
+from PySide6.QtCore import QObject, Signal
 
 logger = logging.getLogger("triggers")
 
@@ -79,8 +79,8 @@ class TriggerConfig:
 class InputTriggers(QObject):
     """Global single-key + mouse-button trigger. Emits pressed/released(source) — GUI must queue."""
 
-    pressed = pyqtSignal(str)          # "key" or "mouse"
-    released = pyqtSignal(str)
+    pressed = Signal(str)          # "key" or "mouse"
+    released = Signal(str)
 
     def __init__(self, config: TriggerConfig, parent: Optional[QObject] = None) -> None:
         super().__init__(parent)

@@ -29,7 +29,7 @@ def step(name, fn):
 
 def imports():
     import ctranslate2, faster_whisper, numpy, pyaudio, pynput, psutil, rapidfuzz, jellyfish, wordfreq  # noqa
-    from PyQt6 import QtCore, QtGui, QtWidgets  # noqa
+    from PySide6 import QtCore, QtGui, QtWidgets  # noqa
     import gui_med, setup_wizard, options_dialog, drug_names, voice_commands  # noqa  (the whole app)
     return f"python {sys.version.split()[0]} at {sys.executable}"
 

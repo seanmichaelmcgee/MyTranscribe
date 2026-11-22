@@ -69,7 +69,7 @@ def test_options_dialog_result(qapp):
 
 def test_small_options_window_keeps_help_and_save_accessible(qapp):
     from options_dialog import OptionsDialog
-    from PyQt6.QtWidgets import QLabel, QDialogButtonBox
+    from PySide6.QtWidgets import QLabel, QDialogButtonBox
     d = OptionsDialog(st.Settings())
     d.resize(560, 380)
     d.show()

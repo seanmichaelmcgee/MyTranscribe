@@ -23,7 +23,7 @@ transcription. Long recording mode captures an extended utterance as one segment
 before processing. GPU acceleration (NVIDIA CUDA) cuts per-segment inference to
 under a second on a mid-range card.
 
-Linux (GTK3) and Windows (PyQt6) are both first-class targets sharing the same
+Linux (GTK3) and Windows (Qt, through PySide6) are both first-class targets sharing the same
 transcription engine (`src/transcriber_v12.py`). Built primarily through iterative
 work with consumer-level LLMs: OpenAI o3-mini-high, GPT-4o, and Claude 3.7 Thinking.
 
@@ -51,7 +51,7 @@ work with consumer-level LLMs: OpenAI o3-mini-high, GPT-4o, and Claude 3.7 Think
   when transcription starts or stops without watching the window
 - Technical-vocabulary prompt primes Whisper with programming and ML terminology to
   improve accuracy on code-heavy speech
-- Cross-platform: GTK3 interface on Linux (`src/gui-v0.8.py`), PyQt6 interface on
+- Cross-platform: GTK3 interface on Linux (`src/gui-v0.8.py`), Qt (PySide6) interface on
   Windows (`src/gui_qt.py`)
 
 ---
@@ -405,7 +405,7 @@ The startup log shows an RMS value per chunk. If it is consistently below 80, lo
 the threshold in `transcriber_v12.py`. Also confirm the correct input device is
 selected — the Windows device index can shift when USB devices are plugged in.
 
-**DLL load error on Windows PyQt6 (`ImportError: DLL load failed`)**
+**DLL load error on Windows Qt (`ImportError: DLL load failed`)**
 
 Install the Microsoft Visual C++ 2015–2022 Redistributable (x64):
 
@@ -427,7 +427,7 @@ redirect `%TEMP%` to a local path in your shortcut's environment if needed.
 MyTranscribe/
 ├── src/
 │   ├── gui-v0.8.py              # Linux entry point (GTK3 / PyGObject)
-│   ├── gui_qt.py                # Windows entry point (PyQt6)
+│   ├── gui_qt.py                # Windows entry point (PySide6)
 │   ├── transcriber_v12.py       # Shared audio capture + Whisper backend
 │   ├── sound_utils.py           # Chime generator and player
 │   ├── gui_med.py               # Medical / GTX 1060 edition entry point (README_1060.md)
@@ -473,6 +473,6 @@ This project is licensed under the MIT License — see the LICENSE file for deta
 - [OpenAI Whisper](https://github.com/openai/whisper) — speech recognition model
 - [PyTorch](https://pytorch.org/) — GPU acceleration and tensor operations
 - [GTK](https://www.gtk.org/) — user interface framework (Linux entry point)
-- [PyQt6](https://riverbankcomputing.com/software/pyqt/) / [Qt](https://www.qt.io/) — user interface framework (Windows entry point)
+- [Qt for Python (PySide6)](https://doc.qt.io/qtforpython-6/) / [Qt](https://www.qt.io/) — user interface framework (Windows entry point)
 - [pynput](https://github.com/moses-palmer/pynput) — global keyboard listener (Ctrl+Alt+Q hotkey)
 - [PyAudio](https://people.csail.mit.edu/hubert/pyaudio/) — cross-platform audio I/O
