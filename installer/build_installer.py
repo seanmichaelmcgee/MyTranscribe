@@ -410,7 +410,7 @@ def compile_stub(out: Path, icon: Path, gpu: bool = False, run=subprocess.run) -
     exe = out / "setup_stub.exe"
     refs = ["System.dll", "System.Core.dll", "System.Drawing.dll", "System.Windows.Forms.dll",
             "System.IO.Compression.dll", "System.IO.Compression.FileSystem.dll"]
-    cmd = [str(CSC), "/nologo", "/target:winexe", "/optimize+", f"/out:{exe}", f"/win32icon:{icon}",
+    cmd = [str(CSC), "/nologo", "/codepage:65001", "/target:winexe", "/optimize+", f"/out:{exe}", f"/win32icon:{icon}",
            f"/resource:{icon},MyTranscribe.ico", f"/resource:{icon.with_suffix('.png')},MyTranscribe.png",
            f"/win32manifest:{HERE / 'Setup.manifest'}"] + [f"/reference:{r}" for r in refs]
     if gpu:
