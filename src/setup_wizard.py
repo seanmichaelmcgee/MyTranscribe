@@ -175,8 +175,12 @@ def download_note(hw) -> str:
     if any(engines.bundled_model(n) is not None for n in names):
         return "The speech model came with the installer: nothing is downloaded, and it works offline."
     size = "about 0.5 GB" if processor else "about 3 GB, or 1.6 GB for the faster model"
-    return f"If the model is not on this PC yet, MyTranscribe asks before downloading it ({size}, once). " \
-           "After that it works offline."
+    note = (f"If the model is not on this PC yet, MyTranscribe asks before downloading it ({size}, once). "
+            "After that it works offline.")
+    if not processor and engines.fallback_model() is not None:
+        note += (f" Until then, or if you say no, it uses the smaller model that came with the installer "
+                 f"({CPU_DEFAULT_MODEL}).")
+    return note
 
 
 def summary_lines(s: Settings, device_label: str, hw=None) -> List[str]:

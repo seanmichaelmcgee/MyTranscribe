@@ -287,11 +287,14 @@ def test_download_note_says_where_the_model_comes_from(monkeypatch):
     from hw_profile import HardwareInfo
     import setup_wizard
     cpu = HardwareInfo(cuda_device_count=0)
+    card = HardwareInfo(cuda_device_count=1, vram_mb=8000)
     monkeypatch.setattr(setup_wizard.engines, "bundled_model", lambda name: None)
     assert "0.5 GB" in setup_wizard.download_note(cpu) and "asks before" in setup_wizard.download_note(cpu)
+    assert "smaller model" not in setup_wizard.download_note(card)       # development checkout: no stand-in
     monkeypatch.setattr(setup_wizard.engines, "bundled_model", lambda name: "x" if name == "small.en" else None)
     assert "came with the installer" in setup_wizard.download_note(cpu)
-    assert "3 GB" in setup_wizard.download_note(HardwareInfo(cuda_device_count=1, vram_mb=8000))
+    note = setup_wizard.download_note(card)                              # the installer for every PC, on a card
+    assert "3 GB" in note and "if you say no, it uses the smaller model that came with the installer" in note
 
 
 def test_options_say_accuracy_does_not_apply_without_a_graphics_card(qapp, monkeypatch):

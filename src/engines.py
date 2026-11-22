@@ -156,10 +156,23 @@ def accuracy_choices(bundled: Optional[Callable[[str], Optional[Path]]] = None) 
     return have or ["best", "fast"]
 
 
-def build(name: str = DEFAULT, accurate: bool = True, allow_download: bool = False, language: str = "en"):
+def fallback_model(name: str = DEFAULT) -> Optional[Path]:
+    """
+    What Whisper runs when the model this PC should use is not here and is not fetched now (the
+    user said no, or the download failed): the processor model that came with the installer, on
+    whatever this PC has (the graphics card too). None in a development checkout or for another
+    recogniser, where there is nothing to fall back on.
+    """
+    from hw_profile import CPU_DEFAULT_MODEL
+    return bundled_model(CPU_DEFAULT_MODEL) if name == "whisper" else None
+
+
+def build(name: str = DEFAULT, accurate: bool = True, allow_download: bool = False, language: str = "en",
+          fallback: bool = False):
     """
     Load and warm up the recogniser `name`. With allow_download the hub is
     reachable for this one load (the user said yes); otherwise it stays offline.
+    With fallback, Whisper loads fallback_model() instead of the model this PC would choose.
     """
     if name not in ENGINES:
         logger.warning("Unknown recogniser %r; using %s", name, DEFAULT)
@@ -176,7 +189,7 @@ def build(name: str = DEFAULT, accurate: bool = True, allow_download: bool = Fal
             os.environ.setdefault("HF_HUB_OFFLINE", "1")
         _hub_offline(not allow_download and os.environ["HF_HUB_OFFLINE"] == "1")
         try:
-            return _build(name, accurate, language)
+            return _build(name, accurate, language, fallback=fallback)
         except Exception as exc:
             if not allow_download and _is_missing_model(exc):
                 raise ModelNotDownloaded(name) from exc
@@ -190,7 +203,7 @@ def build(name: str = DEFAULT, accurate: bool = True, allow_download: bool = Fal
             _hub_offline(os.environ["HF_HUB_OFFLINE"] == "1")
 
 
-def _build(name: str, accurate: bool, language: str = "en"):
+def _build(name: str, accurate: bool, language: str = "en", fallback: bool = False):
     if name == "whisper":
         from fw_engine import FasterWhisperEngine, register_cuda_dll_dirs
         from hw_profile import choose_config, detect_hardware
@@ -202,6 +215,9 @@ def _build(name: str, accurate: bool, language: str = "en"):
         tuned = tuned_model(language)
         if tuned is not None:
             cfg.model = str(tuned)                # a model fine-tuned for this language
+        elif fallback and fallback_model(name) is not None:
+            cfg.model = str(fallback_model(name))
+            cfg.reason += "; the installer's own model, until the chosen one is downloaded"
         elif bundled_model(cfg.model) is not None:
             cfg.model = str(bundled_model(cfg.model))   # installed with the app
         logger.info("Engine config: model=%s device=%s compute=%s threads=%d (%s)",
