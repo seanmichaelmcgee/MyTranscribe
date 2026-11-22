@@ -163,9 +163,9 @@ Details: [optimization/2026-11-17-live-insert.md](optimization/2026-11-17-live-i
 
 | | |
 |---|---|
-| Graphics card | NVIDIA, 6 GB or more. Uses about 3.7 GB. Same accuracy in the 6 GB-card number format (2.08% on the developer's reading). |
-| Processor only | Being tested: large-v3 runs at half real time on a fast desktop processor (6–7 s wait after a short message); a smaller model is being chosen. See [CPU_AND_OTHER_HARDWARE_PLAN.md](CPU_AND_OTHER_HARDWARE_PLAN.md). |
-| Model | OpenAI Whisper large-v3 (MIT), about 3 GB, downloaded once, then fully offline. |
+| Graphics card | NVIDIA, 6 GB or more. large-v3 used about 2.2 GB on an RTX 4070 Ti SUPER (int8_float16) and up to 3.9 GB of a 6 GB GTX card (int8_float32), with the same accuracy (2.08% on the developer's reading). |
+| Processor only | Whisper small.en, in the installer. Live app on 4 laptop-class cores, the developer's 23 held-out recordings: 6.0% word errors (large-v3 on a card: 3.0%), text 1.9 s after Stop (median). About three times as many medical-word errors as large-v3 (36 against 12 of 314). Details: [installer/README.md](../installer/README.md), [CPU_AND_OTHER_HARDWARE_PLAN.md](CPU_AND_OTHER_HARDWARE_PLAN.md). |
+| Model | OpenAI Whisper large-v3 (MIT), about 3 GB, downloaded once after asking, then fully offline. |
 
 ## Experimental languages
 

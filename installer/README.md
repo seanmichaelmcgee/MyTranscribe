@@ -1,9 +1,14 @@
 # Windows installer
 
 Started 2026-11-19 so the app can be tried on a PC with no NVIDIA graphics card (for example a
-laptop with integrated graphics), without installing Python. Since 2026-11-20 there is also a
-[graphics-card edition](#graphics-card-edition-2026-11-20) with large-v3 for PCs with an NVIDIA
-card. Without `--gpu` the build is the processor-only edition, as before.
+laptop with integrated graphics), without installing Python. Three builds now come from
+`build_installer.py`:
+
+| Build | Option | Size | For |
+|---|---|---|---|
+| **Every PC** (the one published) | `--every-pc` | 1.2 GB | any PC: small.en inside; with an NVIDIA card, large-v3 is downloaded after asking ([below](#one-installer-for-every-pc-2026-11-22)) |
+| Processor-only | (none) | 0.7 GB | PCs without an NVIDIA card |
+| Graphics-card edition | `--gpu` | 3.8 GB | NVIDIA PCs, large-v3 inside; too big for a GitHub release file ([below](#graphics-card-edition-2026-11-20)) |
 
 ## What the user gets
 
@@ -12,7 +17,7 @@ card. Without `--gpu` the build is the processor-only edition, as before.
   beside it). Windows warns about it on first run ("Windows protected your PC"), because it is
   not code-signed. Choose **More info → Run anyway**.
 - **Installs for that Windows account only,** into `%LOCALAPPDATA%\Programs\MyTranscribe
-  Medical`, with no administrator rights. About 0.9 GB.
+  Medical`, with no administrator rights. About 0.9 GB (1.7 GB for the every-PC build).
 - **Adds:**
   - a desktop shortcut and a Start-menu shortcut, with the app icon;
   - an entry in Settings → Apps, for uninstalling.
@@ -126,6 +131,37 @@ venv\Scripts\python.exe installer\build_installer.py --update --version 2026.11.
 - **Tested on this PC (2026-11-19):** full install, update refused while the app ran, silent
   update, update through its window, self-test of the updated copy, update refused without an
   install, uninstall.
+
+## One installer for every PC (2026-11-22)
+
+`--every-pc` is the processor-only build plus NVIDIA's cuBLAS, under the same name ("MyTranscribe
+Medical"). It is the build for GitHub, whose release files must be under 2 GiB.
+
+- **Without an NVIDIA card** (including Intel or AMD graphics, which the app does not use yet):
+  small.en on the processor, offline, as in the processor-only build.
+- **With one:** the app asks before downloading large-v3 from Hugging Face (3 GB, once), then
+  runs it on the card. Until then, if the answer is no, or if the download fails, it uses
+  small.en (on the card) and says why; it offers the download again at the next start.
+- **It replaces a processor-only install and the other way round** (one app); the
+  graphics-card edition stays apart. Checked with throwaway Apps entries.
+- **Built:** `--every-pc --model <folder>\faster-whisper-small.en`, about a minute; 1.23 GB.
+
+**Tried on the build (2026-11-22),** installed under a throwaway Apps entry on the development
+desktop, with no CUDA toolkit on PATH and a fresh profile each time:
+
+| Case | How it was stood in for | Result |
+|---|---|---|
+| No NVIDIA card, or Intel/AMD graphics | card hidden (`CUDA_VISIBLE_DEVICES=-1`), empty model cache | self-test passes; small.en on the processor; nothing downloaded; NVIDIA libraries not loaded |
+| A laptop | the same, on 4 efficiency cores, 4 threads | 10 s of speech written in 1.5 s, a 42 s letter in 7.6 s; app ready about 5 s after start, 0.8 GB of memory at most |
+| NVIDIA card, large-v3 not downloaded | the card visible | small.en on the card, cuBLAS loaded from inside the install |
+| The download | the real download from Hugging Face | **failed on this desktop**: its antivirus re-signs secure connections, and the app's Python does not accept the antivirus' certificate. The app then says so and uses small.en. |
+| After a download | the validated large-v3 (revision `edaa852e`) placed in the model cache as a finished download leaves it | loads offline on the card (int8_float16); a 42 s letter in 1.7 s; 3.5 GB of memory while loading |
+
+Synthetic sentences, not dictation: these show that each path works, not how accurate it is.
+The accuracy figures are in the main [README](../README.md#two-ways-it-runs).
+
+**Not yet shown:** the download on a PC without HTTPS-scanning security software, and the build
+on a real laptop.
 
 ## Graphics-card edition (2026-11-20)
 
