@@ -40,7 +40,7 @@ def privacy_mime_entries(platform: str = sys.platform) -> Dict[str, bytes]:
 
 def make_mime_data(text: str, platform: str = sys.platform):
     """Build a QMimeData carrying `text` plus the privacy markers."""
-    from PyQt6.QtCore import QMimeData, QByteArray
+    from PySide6.QtCore import QMimeData, QByteArray
     mime = QMimeData()
     mime.setText(text)
     for mime_type, payload in privacy_mime_entries(platform).items():

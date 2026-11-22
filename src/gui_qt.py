@@ -1,5 +1,5 @@
 """
-gui_qt.py — PyQt6 GUI for MyTranscribe (Windows port, Phase 4).
+gui_qt.py — Qt (PySide6) GUI for MyTranscribe (Windows port, Phase 4).
 
 Replaces src/gui-v0.8.py (GTK3/Linux). Feature-parity with the GTK original,
 including the global Ctrl+Alt+Q hotkey via pynput (Phase 4).
@@ -10,7 +10,7 @@ Architecture:
   - Whisper inference runs in a plain threading.Thread (owned by RealTimeTranscriber).
   - Audio indicator and text area are polled every 30 ms by a QTimer on the GUI thread.
   - All widget access happens on the GUI thread (no QThread, no lock-free writes to Qt).
-  - HotkeyBridge owns the pynput Listener; it emits hotkey_pressed via pyqtSignal
+  - HotkeyBridge owns the pynput Listener; it emits hotkey_pressed via Signal
     using QueuedConnection so the slot always runs on the GUI thread (Risk R08, R23).
 """
 
@@ -22,15 +22,15 @@ import threading
 from pathlib import Path
 from enum import Enum, auto
 
-from PyQt6.QtWidgets import (
+from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget,
     QVBoxLayout, QHBoxLayout,
     QPushButton, QTextEdit, QFrame,
 )
-from PyQt6.QtCore import (
-    Qt, QObject, QTimer, pyqtSignal,
+from PySide6.QtCore import (
+    Qt, QObject, QTimer, Signal,
 )
-from PyQt6.QtGui import QKeyEvent, QShortcut, QKeySequence
+from PySide6.QtGui import QKeyEvent, QShortcut, QKeySequence
 
 # torch / whisper are imported lazily (inside the methods that use them) so that
 # gui_med.py can subclass TranscriptionWindow without pulling in PyTorch.
@@ -165,7 +165,7 @@ class HotkeyBridge(QObject):
     thread must never mutate Qt widgets (Risk R08, R23, R25).
     """
 
-    hotkey_pressed = pyqtSignal()
+    hotkey_pressed = Signal()
 
     HOTKEY = "<ctrl>+<alt>+q"
 

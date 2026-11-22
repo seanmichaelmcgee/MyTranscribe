@@ -124,7 +124,7 @@ def combined_starters(rows):
 
 def window_class():
     """Import the GUI only for an explicit test launch or a headless GUI test."""
-    from PyQt6.QtWidgets import QComboBox, QLabel, QTextEdit
+    from PySide6.QtWidgets import QComboBox, QLabel, QTextEdit
     from gui_med import MedTranscriptionWindow
 
     class SampleWindow(MedTranscriptionWindow):
@@ -200,7 +200,7 @@ def window_class():
 def main():
     import os
     os.environ.update(HF_HUB_OFFLINE="1", TRANSFORMERS_OFFLINE="1", HF_HUB_DISABLE_TELEMETRY="1")
-    from PyQt6.QtWidgets import QApplication, QMessageBox
+    from PySide6.QtWidgets import QApplication, QMessageBox
     from gui_med import MED_QSS, register_cuda_dll_dirs
     from mic_ready import ReadyMic
     import settings

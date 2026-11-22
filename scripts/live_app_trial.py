@@ -94,7 +94,7 @@ def main(argv=None):
 
     import chunked_transcriber
     chunked_transcriber._default_stream_factory = cable_stream_factory   # the app's microphone is the cable
-    from PyQt6.QtWidgets import QApplication
+    from PySide6.QtWidgets import QApplication
     import gui_med
     from fakes import FakeClipboard
     from settings import Settings

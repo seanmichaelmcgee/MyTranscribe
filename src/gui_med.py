@@ -42,8 +42,8 @@ import threading
 from pathlib import Path
 from typing import Callable, Optional
 
-from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtWidgets import (
+from PySide6.QtCore import Qt, QTimer
+from PySide6.QtWidgets import (
     QApplication, QFrame, QHBoxLayout, QLabel, QMessageBox, QProgressBar, QPushButton, QSizePolicy, QTextEdit,
     QVBoxLayout, QWidget,
 )
@@ -1218,9 +1218,11 @@ def main() -> None:
     set_app_identity()
     app = QApplication(sys.argv)
     app.setApplicationName("MyTranscribe Medical")
+    from qt_gc import GuiThreadCollector
+    collector = GuiThreadCollector(parent=app)   # noqa: F841 (kept for app.exec()); Qt objects freed on this thread only
     icon = Path(__file__).parent / "assets" / "mytranscribe.ico"
     if icon.is_file():
-        from PyQt6.QtGui import QIcon
+        from PySide6.QtGui import QIcon
         app.setWindowIcon(QIcon(str(icon)))
     app.setStyleSheet(MED_QSS)
     logger.info("Starting MyTranscribe Medical (faster-whisper); hotkey Ctrl+Alt+Q")

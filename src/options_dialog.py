@@ -13,8 +13,8 @@ from dataclasses import replace
 import os
 from pathlib import Path
 
-from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import (
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import (
     QApplication, QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFormLayout, QFrame,
     QLabel, QPushButton, QScrollArea, QVBoxLayout, QWidget, QSlider, QHBoxLayout,
 )

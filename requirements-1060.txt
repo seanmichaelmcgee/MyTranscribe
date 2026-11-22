@@ -24,7 +24,7 @@ nvidia-cudnn-cu12>=9.1,<10
 PyAudio==0.2.14
 pynput==1.8.2
 numpy>=1.26,<3
-PyQt6==6.11.0
+PySide6-Essentials==6.12.0   # Qt for Python, LGPL v3 (replaced PyQt6, GPL v3, 2026-11-22)
 
 # ── Medical spelling correction (optional; app runs without them) ────────────
 rapidfuzz>=3.9

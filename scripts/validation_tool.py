@@ -162,9 +162,9 @@ def save_wav(path: Path, pcm: bytes):
 
 
 def cmd_record(args):
-    from PyQt6.QtCore import Qt, QTimer
-    from PyQt6.QtGui import QFont, QKeySequence, QShortcut
-    from PyQt6.QtWidgets import QApplication, QHBoxLayout, QLabel, QPushButton, QTextEdit, QVBoxLayout, QWidget
+    from PySide6.QtCore import Qt, QTimer
+    from PySide6.QtGui import QFont, QKeySequence, QShortcut
+    from PySide6.QtWidgets import QApplication, QHBoxLayout, QLabel, QPushButton, QTextEdit, QVBoxLayout, QWidget
 
     items = load_set(args.set)
     out = args.out

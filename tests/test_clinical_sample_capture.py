@@ -141,7 +141,7 @@ def test_launcher_constructs_chime_owner_before_starting_microphone(archive, mon
     import mic_ready
     import overnight_medasr
     import settings
-    from PyQt6 import QtWidgets
+    from PySide6 import QtWidgets
     events = []
 
     class Mic:

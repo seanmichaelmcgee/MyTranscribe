@@ -182,7 +182,7 @@ def go_to(w, page, qapp):
 
 
 def test_first_start_waits_for_how_you_dictate_and_recommended_keeps_it(make_wizard, qapp):
-    from PyQt6.QtWidgets import QWizard
+    from PySide6.QtWidgets import QWizard
     w = make_wizard(st.Settings(spoken_punctuation=True, key="f12"), first_run=True)
     w.show()
     qapp.processEvents()
@@ -198,7 +198,7 @@ def test_first_start_waits_for_how_you_dictate_and_recommended_keeps_it(make_wiz
 
 
 def test_recommended_after_choosing_traditional_keeps_the_marks(make_wizard, qapp):
-    from PyQt6.QtWidgets import QWizard
+    from PySide6.QtWidgets import QWizard
     w = make_wizard(first_run=True)
     w.show()
     qapp.processEvents()
@@ -220,8 +220,8 @@ def test_a_rerun_shows_natural_speech_again(make_wizard, qapp):
 
 
 def _click():
-    from PyQt6.QtCore import QPointF, Qt
-    from PyQt6.QtGui import QMouseEvent
+    from PySide6.QtCore import QPointF, Qt
+    from PySide6.QtGui import QMouseEvent
     return QMouseEvent(QMouseEvent.Type.MouseButtonPress, QPointF(5, 5), QPointF(5, 5),
                        Qt.MouseButton.LeftButton, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier)
 

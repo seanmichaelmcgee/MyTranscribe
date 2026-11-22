@@ -31,8 +31,8 @@ def main(argv=None):
     for old in args.out.glob("*.png"):
         old.unlink()
 
-    from PyQt6.QtCore import QTimer
-    from PyQt6.QtWidgets import QApplication
+    from PySide6.QtCore import QTimer
+    from PySide6.QtWidgets import QApplication
     import gui_qt
     import gui_med
     from fakes import EndlessStream, FakeClipboard, FakeEngine, speech_like

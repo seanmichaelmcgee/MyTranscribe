@@ -321,8 +321,8 @@ def scenario_gui(args, engine, audio, prompt, rep):
     """Drive the real window; measure the longest gap between 10 ms timer ticks."""
     name = "gui"
     print(f"\n== gui: {args.gui_cycles} hotkey start/stop cycles with live engine ==")
-    from PyQt6.QtCore import QTimer
-    from PyQt6.QtWidgets import QApplication
+    from PySide6.QtCore import QTimer
+    from PySide6.QtWidgets import QApplication
     import tempfile
     import gui_qt
     import gui_med

@@ -35,7 +35,7 @@ def check_python():
 
 
 def check_imports():
-    for mod, need in (("faster_whisper", True), ("ctranslate2", True), ("PyQt6.QtWidgets", True),
+    for mod, need in (("faster_whisper", True), ("ctranslate2", True), ("PySide6.QtWidgets", True),
                       ("pyaudio", True), ("pynput", True), ("numpy", True), ("psutil", False),
                       ("rapidfuzz", False), ("jellyfish", False), ("wordfreq", False), ("pytest", False)):
         try:

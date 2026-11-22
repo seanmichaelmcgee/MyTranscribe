@@ -87,11 +87,11 @@ def run_audit() -> bool:
                       "not found — pip install openai-whisper" if whisper_spec is None else "")
 
     # ------------------------------------------------------------------ #
-    # 6. PyQt6.QtWidgets importable
+    # 6. PySide6.QtWidgets importable
     # ------------------------------------------------------------------ #
-    pyqt6_spec = importlib.util.find_spec("PyQt6.QtWidgets")
-    passed &= _result(pyqt6_spec is not None, "PyQt6.QtWidgets importable",
-                      "not found — pip install PyQt6" if pyqt6_spec is None else "")
+    qt_spec = importlib.util.find_spec("PySide6.QtWidgets")
+    passed &= _result(qt_spec is not None, "PySide6.QtWidgets importable",
+                      "not found — pip install PySide6-Essentials" if qt_spec is None else "")
 
     # ------------------------------------------------------------------ #
     # 7. PyAudio importable AND enumerates ≥1 input device

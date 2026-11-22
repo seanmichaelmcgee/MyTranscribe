@@ -9,8 +9,8 @@ import struct
 import sys
 from pathlib import Path
 
-from PyQt6.QtCore import QBuffer, QByteArray, QIODevice, QRectF, Qt
-from PyQt6.QtGui import QColor, QGuiApplication, QImage, QPainter, QPainterPath, QPen
+from PySide6.QtCore import QBuffer, QByteArray, QIODevice, QRectF, Qt
+from PySide6.QtGui import QColor, QGuiApplication, QImage, QPainter, QPainterPath, QPen
 
 ASSETS = Path(__file__).resolve().parent.parent / "src" / "assets"
 ACCENT, ACCENT_DARK, WHITE = QColor("#C96442"), QColor("#A94F31"), QColor("#FFFFFF")

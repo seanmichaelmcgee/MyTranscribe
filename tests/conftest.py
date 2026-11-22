@@ -31,6 +31,9 @@ def qapp():
     """One QApplication for the whole run. GUI tests need an X display (xvfb-run)."""
     if sys.platform.startswith("linux") and not os.environ.get("DISPLAY"):
         pytest.skip("GUI tests need a display; run under xvfb-run")
-    from PyQt6.QtWidgets import QApplication
+    from PySide6.QtWidgets import QApplication
     app = QApplication.instance() or QApplication([])
+    from qt_gc import GuiThreadCollector
+    collector = GuiThreadCollector(parent=app)   # as the app does: Qt objects freed on this thread only
     yield app
+    collector.timer.stop()

@@ -4,9 +4,9 @@ import os
 import subprocess
 import sys
 
-from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtGui import QFontDatabase
-from PyQt6.QtWidgets import QApplication, QHBoxLayout, QLabel, QPlainTextEdit, QPushButton, QVBoxLayout, QWidget
+from PySide6.QtCore import Qt, QTimer
+from PySide6.QtGui import QFontDatabase
+from PySide6.QtWidgets import QApplication, QHBoxLayout, QLabel, QPlainTextEdit, QPushButton, QVBoxLayout, QWidget
 
 import app_log
 
