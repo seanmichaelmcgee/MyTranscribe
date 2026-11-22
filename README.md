@@ -23,7 +23,7 @@ Word. Nothing you say leaves the computer.
 - **Free and open source** (MIT licence). Both speech models are OpenAI's Whisper (MIT).
 
 **[Download the installer](https://github.com/seanmichaelmcgee/MyTranscribe/releases)**
-(Windows 10 or 11, 1.2 GB) · [What you need](#what-you-need) · [Install](#install)
+(Windows 11, 1.2 GB) · [What you need](#what-you-need) · [Install](#install)
 
 ![Accurate medical dictation that stays on your PC: 7.0% word errors on real clinicians' dictation, 2.1% on the developer's reading of consult letters, 0 bytes sent anywhere](docs/images/share_card.png)
 
@@ -95,11 +95,11 @@ large-v3 on a graphics card.
 
 | | NVIDIA graphics card | Processor only |
 |---|---|---|
-| Windows | 10 or 11, 64-bit (tested on Windows 11) | same |
+| Windows | Windows 11, 64-bit, with current updates | same |
 | Processor | any 64-bit | measured on 4 cores; fewer has not been tried |
 | Graphics | NVIDIA, 6 GB or more for large-v3; a driver recent enough for CUDA 12 | not needed |
 | Memory (RAM) | 8 GB: loading large-v3 briefly takes 3.5 GB | the app itself peaks under 1 GB |
-| Disk | 1.7 GB, plus 3 GB for large-v3 in your user folder | 1.7 GB |
+| Disk | 1.6 GB, plus 3 GB for large-v3 in your user folder | 1.6 GB |
 | Internet | once, for the large-v3 download | not needed |
 
 - **Graphics-card memory:** large-v3 used about 2.2 GB on an RTX 4070 Ti SUPER and up to 3.9 GB
@@ -114,8 +114,9 @@ large-v3 on a graphics card.
    in the release notes.
 2. **Run it.** It is not code-signed yet, so Windows says "Windows protected your PC": choose
    **More info → Run anyway**. It installs for your Windows account only (no administrator
-   rights), adds desktop and Start-menu shortcuts, and is removed in Settings → Apps. On a work
-   PC that only allows approved programs, IT has to allow it.
+   rights), adds desktop and Start-menu shortcuts, and is removed in Settings → Apps. It shows
+   the licence terms ([LICENSES.md](LICENSES.md)) for you to accept first. On a work PC that only
+   allows approved programs, IT has to allow it.
 3. **Start MyTranscribe.** The first start opens the setup wizard (below). On a PC with an
    NVIDIA card it then asks before downloading large-v3 (3 GB, once, from Hugging Face). Until
    it is downloaded, or if you say no, the app uses small.en, and it offers the download again
@@ -273,8 +274,6 @@ invented reading script, without sharing anything real, is in [docs/VALIDATION.m
 
 ## Licence
 
-MIT (see [LICENSE.txt](LICENSE.txt)). Third-party models and data keep their own licences
-([NOTICE.md](NOTICE.md)). The installer also contains Python and the packages the app uses, each
-under its own licence (among them PyQt6 under the GPL v3, Qt and FFmpeg under the LGPL, and
-NVIDIA's cuBLAS under NVIDIA's CUDA Toolkit licence); `THIRD-PARTY.txt` in the installed folder
-lists every one.
+MyTranscribe Medical is open source under the MIT License ([LICENSE.txt](LICENSE.txt)). The
+installer also carries the software the app runs on, each part under its own licence (Qt under
+the LGPL, NVIDIA's cuBLAS under NVIDIA's licence, and others): see [LICENSES.md](LICENSES.md).

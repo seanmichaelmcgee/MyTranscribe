@@ -16,8 +16,13 @@ laptop with integrated graphics), without installing Python. Three builds now co
   for the graphics-card edition; an installer past 4 GiB comes with a `.data` file that must stay
   beside it). Windows warns about it on first run ("Windows protected your PC"), because it is
   not code-signed. Choose **More info → Run anyway**.
+- **Windows 11 only** (build 22000 or later). On older Windows the installer says so and stops;
+  uninstalling always works.
+- **Licence terms first.** A full install shows `LICENSE-NOTICE.txt` (the MIT licence, the bundled
+  parts and their licences, and that this is not a medical device) and installs only after
+  "I accept" is ticked. An update package does not ask again; `/S` is taken as acceptance.
 - **Installs for that Windows account only,** into `%LOCALAPPDATA%\Programs\MyTranscribe
-  Medical`, with no administrator rights. About 0.9 GB (1.7 GB for the every-PC build).
+  Medical`, with no administrator rights. About 0.9 GB (1.6 GB for the every-PC build).
 - **Adds:**
   - a desktop shortcut and a Start-menu shortcut, with the app icon;
   - an entry in Settings → Apps, for uninstalling.
@@ -33,12 +38,13 @@ laptop with integrated graphics), without installing Python. Three builds now co
 | Part | Details |
 |---|---|
 | `python\` | A private copy of Python 3.11. It is isolated by `python311._pth`, so nothing installed on the PC changes it. |
-| `python\Lib\site-packages\` | Only the packages the app imports, and what they need. No NVIDIA libraries; unused parts of Qt removed. |
+| `python\Lib\site-packages\` | Only the packages the app imports, and what they need. Of Qt (PySide6, LGPL v3) only QtCore, QtGui, QtWidgets, SVG and the Windows plugins. PyAV is replaced by a placeholder (see [LICENSES.md](../LICENSES.md)). |
 | `python\Lib\site-packages\nvidia\cublas\bin\` | Graphics-card edition only: NVIDIA's cuBLAS, the one NVIDIA library Whisper loads on the card. |
 | `src\` | The app, exactly as in the repository. |
 | `models\faster-whisper-small.en\` | The speech model for processor-only PCs (`models\faster-whisper-large-v3\` in the graphics-card edition). |
 | `selftest.py` | `python\python.exe selftest.py` checks imports, picks the hardware, loads the model and decodes; on the card it also checks that the NVIDIA libraries came from inside the install. |
-| `THIRD-PARTY.txt`, `licenses\` | Every bundled package, its declared licence and where its licence text is; `licenses\` holds the texts three packages' wheels leave out. |
+| `LICENSE-NOTICE.txt` | The licence terms the installer shows and the user accepts. |
+| `THIRD-PARTY.txt`, `licenses\` | Every bundled package, its declared licence and where its licence text is; `licenses\` holds the texts that packages' wheels leave out (the LGPL and GPL v3 texts for Qt among them). |
 
 ## How the processor-only setting was chosen (2026-11-19)
 
@@ -145,7 +151,8 @@ Medical"). It is the build for GitHub, whose release files must be under 2 GiB.
   small.en (on the card) and says why; it offers the download again at the next start.
 - **It replaces a processor-only install and the other way round** (one app); the
   graphics-card edition stays apart. Checked with throwaway Apps entries.
-- **Built:** `--every-pc --model <folder>\faster-whisper-small.en`, about a minute; 1.23 GB.
+- **Built:** `--every-pc --model <folder>\faster-whisper-small.en`, about a minute; 1.20 GB (with
+  PySide6 and without PyAV, 2026-11-22; 1.23 GB before).
 
 **Tried on the build (2026-11-22),** installed under a throwaway Apps entry on the development
 desktop, with no CUDA toolkit on PATH and a fresh profile each time:
@@ -221,13 +228,13 @@ be tried the way a tester with an NVIDIA card would get it.
 
 - **Code signing.** Without it, Windows SmartScreen warns every user, and managed PCs may block
   the file.
-- **Licences of what is bundled.** `THIRD-PARTY.txt` lists them. PyQt6 is GPL v3 (or
-  commercial), Qt is LGPL v3, PyAV includes FFmpeg (LGPL), and wordfreq's data is CC BY-SA
-  4.0. Distributing them together needs a decision on the app's own licence terms.
-- **NVIDIA's terms (graphics-card edition).** cuBLAS is under NVIDIA's CUDA Toolkit End User
-  License Agreement, whose Attachment A lists the cuBLAS DLLs among the files that may be
-  redistributed, under that agreement's conditions. Those conditions need checking before the
-  graphics-card edition is shared beyond the owner. (The ctranslate2 package in both editions
-  also carries NVIDIA's small cuDNN loader, `cudnn64_9.dll`.)
+- **Licences:** settled on 2026-11-22. The app stays MIT, Qt comes through PySide6 (LGPL v3)
+  instead of PyQt6 (GPL v3), PyAV is left out, and the installer shows the terms and installs
+  every licence text. The summary is [LICENSES.md](../LICENSES.md).
+- **NVIDIA's terms.** cuBLAS is under NVIDIA's CUDA Toolkit End User License Agreement, whose
+  Attachment A lists the cuBLAS DLLs among the files that may be redistributed, under that
+  agreement's conditions (among them: only as part of an application, with its notices kept).
+  The ctranslate2 package in every build also carries NVIDIA's small cuDNN loader,
+  `cudnn64_9.dll`.
 - **Graphics acceleration on Intel, AMD and Apple hardware** is the next step for speed. See
   [../docs/CPU_AND_OTHER_HARDWARE_PLAN.md](../docs/CPU_AND_OTHER_HARDWARE_PLAN.md).
