@@ -95,6 +95,11 @@ LOADING_TEXT = "Loading speech model…"
 FALLBACK_TEXT = ("The larger speech model for this PC is not downloaded yet, so MyTranscribe is using the "
                  "smaller one that came with the installer (small.en). It makes more mistakes, especially in "
                  "drug names. MyTranscribe offers the download again the next time it starts.")
+# The same after a download that failed (no connection, or security software that inspects secure connections).
+DOWNLOAD_FAILED_TEXT = ("The download did not work, so MyTranscribe is using the smaller model that came with the "
+                        "installer (small.en). It makes more mistakes, especially in drug names. Options → Show log "
+                        "says why; a certificate error usually means security software is inspecting secure "
+                        "connections. MyTranscribe offers the download again the next time it starts.")
 TRANSCRIBING_SUFFIX = "\n\n[Finishing transcription…]"
 NORMAL_SIZE = (560, 300)
 COMPACT_WIDTH = 320
@@ -263,6 +268,7 @@ class MedTranscriptionWindow(TranscriptionWindow):
         self._downloading = False      # the load in progress fetches a model
         self._fall_back = False        # set for one load: the installer's own model (engines.fallback_model)
         self._fell_back = False        # the loaded model is that stand-in
+        self._fallback_note = FALLBACK_TEXT
         self._engine_factory = engine_factory or (lambda: engines.build(
             self._settings.engine, self._settings.accuracy == "best", allow_download=self._allow_download,
             language=self._settings.language, fallback=self._fall_back))
@@ -379,7 +385,8 @@ class MedTranscriptionWindow(TranscriptionWindow):
                 self._start_load()
                 self._text_area.setPlainText("Downloading the speech model… this can take several minutes.")
                 return
-            if (missing or downloading) and self._start_fallback(getattr(exc, "engine", self._settings.engine)):
+            if (missing or downloading) and self._start_fallback(getattr(exc, "engine", self._settings.engine),
+                                                                 failed_download=downloading):
                 return
             self._text_area.setPlainText(
                 f"Could not load the speech model:\n{self._load_error}\n\n"
@@ -400,7 +407,7 @@ class MedTranscriptionWindow(TranscriptionWindow):
         logger.info("Topic prompts %s, spelling correction %s",
                     "on" if builder else "off", "on" if corrector else "off")
         self._device = getattr(getattr(self._engine, "config", None), "device", None)
-        self._text_area.setPlainText(FALLBACK_TEXT if self._fell_back else "")
+        self._text_area.setPlainText(self._fallback_note if self._fell_back else "")
         self._set_buttons_enabled(True)
         self._set_status("Ready", "idle")
         logger.info("Ready")
@@ -438,7 +445,7 @@ class MedTranscriptionWindow(TranscriptionWindow):
                 self._transcriber.postprocess.same_sound = self._settings.extra_fixes
         logger.info("Dictation language: %s", code)
 
-    def _start_fallback(self, engine: str) -> bool:
+    def _start_fallback(self, engine: str, failed_download: bool = False) -> bool:
         """
         The model this PC should use is not here (not downloaded, or the download failed): load the
         one that came with the installer instead, if there is one and it was not just tried.
@@ -447,6 +454,7 @@ class MedTranscriptionWindow(TranscriptionWindow):
             return False
         logger.info("Using the installer's own model (%s) until the chosen one is downloaded",
                     engines.fallback_model(engine).name)
+        self._fallback_note = DOWNLOAD_FAILED_TEXT if failed_download else FALLBACK_TEXT
         self._fall_back = True
         self._start_load()
         return True

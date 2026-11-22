@@ -56,6 +56,19 @@ def test_cuda_failure_falls_back_to_cpu_int8():
     assert "cublas" in eng.config.reason
 
 
+def test_a_missing_model_is_not_retried_on_the_processor():
+    import huggingface_hub.errors as hub
+    loads = []
+
+    def factory(*a, **k):
+        loads.append(k["device"])
+        raise hub.LocalEntryNotFoundError("Cannot find an appropriate cached snapshot folder")
+
+    with pytest.raises(hub.LocalEntryNotFoundError):
+        FasterWhisperEngine(CUDA_CFG, model_factory=factory)
+    assert loads == ["cuda"]                       # no large-v3 on the processor after a failed download
+
+
 def test_cpu_failure_is_raised():
     def factory(*a, **k):
         raise RuntimeError("model not found")

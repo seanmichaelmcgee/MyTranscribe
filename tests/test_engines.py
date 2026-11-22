@@ -278,7 +278,7 @@ def test_without_the_download_the_installers_own_model_stands_in(qapp, make_wind
     w = make_window(engine_factory=factory)
     assert wait_for(lambda: w.ready, app=qapp)
     assert len(calls) == (3 if download else 2) and w._fell_back
-    assert w._text_area.toPlainText() == gui_med.FALLBACK_TEXT
+    assert w._text_area.toPlainText() == (gui_med.DOWNLOAD_FAILED_TEXT if download else gui_med.FALLBACK_TEXT)
 
 
 def test_the_stand_in_is_the_installers_processor_model(monkeypatch, tmp_path):
