@@ -38,7 +38,7 @@ laptop with integrated graphics), without installing Python. Three builds now co
 | `src\` | The app, exactly as in the repository. |
 | `models\faster-whisper-small.en\` | The speech model for processor-only PCs (`models\faster-whisper-large-v3\` in the graphics-card edition). |
 | `selftest.py` | `python\python.exe selftest.py` checks imports, picks the hardware, loads the model and decodes; on the card it also checks that the NVIDIA libraries came from inside the install. |
-| `THIRD-PARTY.txt` | Every bundled package and its declared licence, and the NVIDIA libraries' licence. |
+| `THIRD-PARTY.txt`, `licenses\` | Every bundled package, its declared licence and where its licence text is; `licenses\` holds the texts three packages' wheels leave out. |
 
 ## How the processor-only setting was chosen (2026-11-19)
 
@@ -99,7 +99,8 @@ venv\Scripts\python.exe installer\build_installer.py --model <folder>\faster-whi
 
 **Graphics-card edition:** add `--gpu`, give large-v3 as the model, and put `--out` on a drive
 with about 13 GB free (stage, zip and installer). It needs `nvidia-cublas-cu12` installed in the
-venv, and takes about a minute.
+venv, and takes about a minute. `--every-pc` also needs `truststore` there (`pip install
+--use-feature=truststore truststore` works behind HTTPS-scanning security software).
 
 ```powershell
 venv\Scripts\python.exe installer\build_installer.py --gpu --model <folder>\faster-whisper-large-v3 --version 2026.11.20 --out <folder>
@@ -154,14 +155,20 @@ desktop, with no CUDA toolkit on PATH and a fresh profile each time:
 | No NVIDIA card, or Intel/AMD graphics | card hidden (`CUDA_VISIBLE_DEVICES=-1`), empty model cache | self-test passes; small.en on the processor; nothing downloaded; NVIDIA libraries not loaded |
 | A laptop | the same, on 4 efficiency cores, 4 threads | 10 s of speech written in 1.5 s, a 42 s letter in 7.6 s; app ready about 5 s after start, 0.8 GB of memory at most |
 | NVIDIA card, large-v3 not downloaded | the card visible | small.en on the card, cuBLAS loaded from inside the install |
-| The download | the real download from Hugging Face | **failed on this desktop**: its antivirus re-signs secure connections, and the app's Python does not accept the antivirus' certificate. The app then says so and uses small.en. |
-| After a download | the validated large-v3 (revision `edaa852e`) placed in the model cache as a finished download leaves it | loads offline on the card (int8_float16); a 42 s letter in 1.7 s; 3.5 GB of memory while loading |
+| The download | the real download from Hugging Face, through an antivirus that re-signs secure connections | first build: **failed** (certificate error; the app said so and used small.en). With truststore: downloaded revision `edaa852e`, every file byte-identical to the validated large-v3; loaded on the card (int8_float16), 3.5 GB of memory while loading |
+| The next start | offline | large-v3 from the cache in 4.7 s, no question asked |
+| Certificates | huggingface.co and badssl.com's test sites, from the installed Python | huggingface.co accepted; expired, self-signed, wrong-host and untrusted-root certificates refused, as by Windows' own HTTPS client |
 
 Synthetic sentences, not dictation: these show that each path works, not how accurate it is.
 The accuracy figures are in the main [README](../README.md#two-ways-it-runs).
 
-**Not yet shown:** the download on a PC without HTTPS-scanning security software, and the build
-on a real laptop.
+**Certificates (truststore):** the app's Python had trusted only its own certificate list
+(certifi), so the first build's download failed where an antivirus or a company network re-signs
+secure connections, although the browser worked. The every-PC build now carries `truststore`
+(MIT), and a download checks certificates against Windows' own store, as browsers and pip do.
+Nothing is loosened: a certificate Windows does not trust is still refused (table above).
+
+**Not yet shown:** the build on a real laptop.
 
 ## Graphics-card edition (2026-11-20)
 

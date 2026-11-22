@@ -114,7 +114,8 @@ large-v3 on a graphics card.
    in the release notes.
 2. **Run it.** It is not code-signed yet, so Windows says "Windows protected your PC": choose
    **More info → Run anyway**. It installs for your Windows account only (no administrator
-   rights), adds desktop and Start-menu shortcuts, and is removed in Settings → Apps.
+   rights), adds desktop and Start-menu shortcuts, and is removed in Settings → Apps. On a work
+   PC that only allows approved programs, IT has to allow it.
 3. **Start MyTranscribe.** The first start opens the setup wizard (below). On a PC with an
    NVIDIA card it then asks before downloading large-v3 (3 GB, once, from Hugging Face). Until
    it is downloaded, or if you say no, the app uses small.en, and it offers the download again
@@ -237,7 +238,7 @@ cards (through Vulkan) and Apple computers are planned:
 | Problem | What to do |
 |---|---|
 | The text says the app is using small.en although you have an NVIDIA card | large-v3 is not downloaded yet: start the app again and answer **Yes** to the download. |
-| The download fails with a certificate error (Options → Show log) | Some security software (for example an antivirus "web shield") inspects secure connections by re-signing them, and the app does not accept that. Let it pass huggingface.co, then start the app again; until then the app uses small.en. |
+| The large-v3 download fails (Options → Show log says why) | The app checks huggingface.co's certificate against the certificates Windows trusts, as your browser does. Check that huggingface.co opens in your browser; on a work network, ask IT. Until it is downloaded, the app uses small.en. |
 | "Could not load the speech model" | Options → Show log has the details. From the source code, run `scripts\setup_1060.bat` again. |
 | Words missing, especially quiet ones | Watch the level bar while you speak and raise Options → Microphone → Gain until it is green. |
 | Text very slow to appear, "falling behind" in the log | Options → Accuracy → Fast. |
