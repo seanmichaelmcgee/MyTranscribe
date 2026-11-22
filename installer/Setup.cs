@@ -355,7 +355,7 @@ static class Installer
         }
     }
 
-    // The device ("cpu" or "cuda") of the edition installed in folder, or "" if none is.
+    // The build_info.json "device" of the copy installed in folder ("cpu", "any" or "cuda"), or "" if none.
     public static string InstalledDevice(string folder)
     {
         string info = Path.Combine(folder, "build_info.json");
@@ -364,13 +364,15 @@ static class Installer
         return device == "" ? "cpu" : device;
     }
 
-    // Why folder holds the other edition (which this program must leave alone), or null.
+    // Why folder holds the other edition (which this program must leave alone), or null. The
+    // processor-only ("cpu") and every-PC ("any") builds are one app and may update each other; the
+    // graphics-card edition ("cuda") is kept apart from both.
     public static string OtherEdition(Payload p, string folder)
     {
         string installed = InstalledDevice(folder);
         string mine = p.Device == "" ? Program.Device : p.Device;
-        if (installed == "" || installed == mine) return null;
-        return folder + " holds the " + (installed == "cuda" ? "graphics-card" : "processor-only") + " edition of " +
+        if (installed == "" || (installed == "cuda") == (mine == "cuda")) return null;
+        return folder + " holds the " + (installed == "cuda" ? "graphics-card edition" : "standard edition") + " of " +
                "MyTranscribe Medical, which this installer leaves as it is. Please choose another folder.";
     }
 

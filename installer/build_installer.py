@@ -5,16 +5,22 @@ it packs this PC's own Python, the packages the app needs, the app and the chose
     python installer/build_installer.py --model C:\\path\\to\\faster-whisper-small.en [--model ...]
                                         [--version 2026.11.19] [--out dist]
     python installer/build_installer.py --update --version 2026.11.19.2     (a small update package)
+    python installer/build_installer.py --every-pc --model ...\\faster-whisper-small.en --out F:\\release
     python installer/build_installer.py --gpu --model ...\\faster-whisper-large-v3 --out F:\\gpu-build
 
-The default build is the processor-only edition: no NVIDIA libraries. --gpu builds the
-graphics-card edition: it also packs the NVIDIA libraries Whisper needs on the card (GPU_LIBS)
-and installs under its own name, folder and Apps entry, beside the processor-only edition.
+Three builds, told apart by build_info.json "device":
+  (default)   "cpu"   processor-only: no NVIDIA libraries.
+  --every-pc  "any"   the same plus the NVIDIA libraries Whisper needs on the card (GPU_LIBS): one
+                      installer for every PC. Without a large model in --model, a PC with an NVIDIA
+                      card asks before downloading large-v3, and uses small.en until then.
+  --gpu       "cuda"  the graphics-card edition: the NVIDIA libraries, under its own name, folder
+                      and Apps entry, so it installs beside the other two.
+The default and --every-pc builds are the same app ("MyTranscribe Medical"): either updates the other.
 
 An update package carries only src/ (about 2 MB) for PCs that already have the full install.
 It is refused at build time when the packages here differ from those in the last full build
-(<out>/stage), since it cannot change them; then build the full installer again. Give --gpu
-for an update to the graphics-card edition.
+(<out>/stage), since it cannot change them; then build the full installer again. Give the same
+--every-pc or --gpu as the full build.
 
 Run it with the app's environment (the venv the tests use): that is where the packages are
 copied from. Steps, each in its own function:
@@ -55,11 +61,11 @@ ONE_FILE_LIMIT = (1 << 32) - (1 << 20)
 
 # What the app imports, as installed distributions; their requirements are followed.
 ROOTS = ["faster-whisper", "PyQt6", "PyAudio", "pynput", "rapidfuzz", "jellyfish", "wordfreq", "psutil"]
-# Never followed as requirements: the NVIDIA libraries (only --gpu packs them, from GPU_LIBS),
+# Never followed as requirements: the NVIDIA libraries (--every-pc and --gpu pack them, from GPU_LIBS),
 # test tools, and big packages only imported by tools the app never runs (onnxruntime's sympy
 # is for model conversion).
 SKIP = re.compile(r"^(nvidia-.*|torch|triton|pytest|pip|sympy|mpmath|pyinstaller.*)$", re.I)
-# The graphics-card edition (--gpu): the NVIDIA libraries CTranslate2 loads to run Whisper on the
+# --every-pc and --gpu: the NVIDIA libraries CTranslate2 loads to run Whisper on the
 # card, and nothing else from those wheels. Measured 2026-11-20 with large-v3 on an RTX 4070 Ti
 # SUPER and the system CUDA removed from PATH: at int8_float16, float16, int8_float32 and float32
 # only cuBLAS is loaded. cuDNN and NVRTC (1.2 GB more) are never loaded: CTranslate2 brings its
@@ -150,7 +156,7 @@ def gpu_dists() -> dict:
         try:
             out[name] = metadata.distribution(name)
         except metadata.PackageNotFoundError:
-            raise SystemExit(f"--gpu needs {name} installed here (pip install {name}).")
+            raise SystemExit(f"--every-pc and --gpu need {name} installed here (pip install {name}).")
     return out
 
 
@@ -206,7 +212,8 @@ def third_party(dists, models, gpu_libs: dict = None) -> str:
 
 
 # ── Stage ────────────────────────────────────────────────────────────────────
-def stage(out: Path, models, version: str, gpu: bool = False) -> Path:
+def stage(out: Path, models, version: str, device: str = "cpu") -> Path:
+    """<out>/stage/ for a full installer; device: "cpu", "any" (--every-pc) or "cuda" (--gpu)."""
     st = out / "stage"
     if st.exists():
         shutil.rmtree(st)
@@ -238,7 +245,7 @@ def stage(out: Path, models, version: str, gpu: bool = False) -> Path:
     sizes = {}
     for key, dist in sorted(dists.items()):
         sizes[key] = copy_dist(dist, site)
-    gpu_libs = gpu_dists() if gpu else {}
+    gpu_libs = gpu_dists() if device in ("any", "cuda") else {}
     sizes.update(copy_gpu_libs(gpu_libs, site))
     (st / "THIRD-PARTY.txt").write_text(third_party(dists, models, gpu_libs), encoding="utf-8")
     print("Packages:", ", ".join(f"{k} {v / 1e6:.0f} MB" for k, v in sorted(sizes.items(), key=lambda kv: -kv[1])))
@@ -250,7 +257,7 @@ def stage(out: Path, models, version: str, gpu: bool = False) -> Path:
     for m in models:
         m = Path(m)
         shutil.copytree(m, st / "models" / m.name)
-    info = {"version": version, "kind": "full", "device": "cuda" if gpu else "cpu",
+    info = {"version": version, "kind": "full", "device": device,
             "models": [Path(m).name for m in models], "python": sys.version.split()[0]}
     (st / "build_info.json").write_text(json.dumps(info, indent=1), encoding="utf-8")
     print("Compiling Python files ...")
@@ -280,25 +287,25 @@ def shipped_packages(site: Path) -> dict:
     return out
 
 
-def check_edition(base: Path, gpu: bool) -> dict:
+def check_edition(base: Path, device: str) -> dict:
     """The build_info of the full build in `base`, which must be the edition asked for."""
     base_info = json.loads((base / "build_info.json").read_text(encoding="utf-8"))
-    have, want = base_info.get("device", "cpu"), "cuda" if gpu else "cpu"
+    have, want = base_info.get("device", "cpu"), device
     if have != want:
-        names = {"cuda": "graphics-card", "cpu": "processor-only"}
+        names = {"cuda": "graphics-card", "cpu": "processor-only", "any": "every-PC"}
         raise SystemExit(f"The full build in {base} is the {names.get(have, have)} edition, not the "
-                         f"{names[want]} one: check --gpu and --out.")
+                         f"{names[want]} one: check --every-pc, --gpu and --out.")
     return base_info
 
 
-def stage_update(out: Path, version: str, base: Path, gpu: bool = False) -> Path:
+def stage_update(out: Path, version: str, base: Path, device: str = "cpu") -> Path:
     """<out>/stage_update/: src/ and the small files beside it, for an installed copy built from `base`."""
     site = base / "python" / "Lib" / "site-packages"
     if not site.is_dir():
         raise SystemExit(f"No full build in {base}: build the full installer first.")
-    base_info = check_edition(base, gpu)
+    base_info = check_edition(base, device)
     here = {k: d.version for k, d in closure(ROOTS).items()}
-    if gpu:
+    if device in ("any", "cuda"):
         here.update({k: d.version for k, d in gpu_dists().items()})
     shipped = shipped_packages(site)
     changed = sorted(k for k in set(here) | set(shipped) if here.get(k) != shipped.get(k))
@@ -311,7 +318,7 @@ def stage_update(out: Path, version: str, base: Path, gpu: bool = False) -> Path
         shutil.rmtree(st)
     st.mkdir(parents=True)
     _copy_app(st)
-    info = {"version": version, "kind": "update", "device": "cuda" if gpu else "cpu", "python": sys.version.split()[0],
+    info = {"version": version, "kind": "update", "device": device, "python": sys.version.split()[0],
             "base": base_info.get("version", "")}
     if info["python"] != base_info.get("python"):
         raise SystemExit(f"Python here is {info['python']}, the full build has {base_info.get('python')}.")
@@ -393,18 +400,23 @@ def main(argv=None):
     ap.add_argument("--skip-stage", action="store_true", help="reuse dist/stage")
     ap.add_argument("--update", action="store_true",
                     help="build a small update package (src/ only) for copies installed from <out>/stage")
-    ap.add_argument("--gpu", action="store_true",
-                    help="the graphics-card edition: also pack the NVIDIA libraries in GPU_LIBS; it installs "
-                         "beside the processor-only edition under its own name")
+    edition = ap.add_mutually_exclusive_group()
+    edition.add_argument("--every-pc", action="store_true",
+                         help="one installer for every PC: also pack the NVIDIA libraries in GPU_LIBS, under the "
+                              "usual name")
+    edition.add_argument("--gpu", action="store_true",
+                         help="the graphics-card edition: also pack the NVIDIA libraries in GPU_LIBS; it installs "
+                              "beside the other builds under its own name")
     args = ap.parse_args(argv)
+    device = "cuda" if args.gpu else "any" if args.every_pc else "cpu"
     args.out.mkdir(parents=True, exist_ok=True)
     if args.update:
-        st = stage_update(args.out, args.version, args.out / "stage", args.gpu)
+        st = stage_update(args.out, args.version, args.out / "stage", device)
     elif args.skip_stage:
         st = args.out / "stage"
-        check_edition(st, args.gpu)
+        check_edition(st, device)
     elif args.model:
-        st = stage(args.out, args.model, args.version, args.gpu)
+        st = stage(args.out, args.model, args.version, device)
     else:
         ap.error("--model is needed for the full installer")
     payload = zip_stage(st, args.out)

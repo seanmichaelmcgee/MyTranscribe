@@ -46,9 +46,17 @@ def text_pipeline():
 
 
 def engine():
+    """The model the app would load here; if that one is not downloaded yet (the app asks before
+    fetching it), the installer's own model, which the app uses until then."""
     import engines
-    eng = engines.build("whisper", accurate=True)
-    return eng
+    try:
+        return engines.build("whisper", accurate=True)
+    except engines.ModelNotDownloaded:
+        if engines.fallback_model() is None:
+            raise
+        print("       the model this PC would use is not downloaded yet (the app asks before fetching it); "
+              "checking the installer's own model, which it uses until then", flush=True)
+        return engines.build("whisper", accurate=True, fallback=True)
 
 
 def nvidia_libraries():
